@@ -1,0 +1,135 @@
+// src/components/EvaluationModal.tsx
+import React, { useState } from 'react';
+import { Star, Send, ArrowRight } from 'lucide-react';
+import confetti from 'canvas-confetti';
+
+interface EvaluationModalProps {
+  krathongId: string | null;
+  userType: string;
+  onFinish: () => void;
+}
+
+export const EvaluationModal: React.FC<EvaluationModalProps> = ({
+  krathongId,
+  userType,
+  onFinish
+}) => {
+  const [rating, setRating] = useState<number>(5);
+  const [hoverRating, setHoverRating] = useState<number>(0);
+  const [feedback, setFeedback] = useState<string>('');
+  const [submitting, setSubmitting] = useState<boolean>(false);
+
+  const handleSubmit = async (isSkip = false) => {
+    setSubmitting(true);
+    try {
+      if (!isSkip) {
+        // ยิง API บันทึกผลประเมิน
+        await fetch('/api/evaluations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            krathongId,
+            userType,
+            rating: rating || 5,
+            feedback: feedback.trim()
+          })
+        });
+      }
+      // จุดพลุเฉลิมฉลอง
+      confetti({
+        particleCount: 80,
+        spread: 60,
+        origin: { y: 0.6 }
+      });
+    } catch (e) {
+      console.warn('Evaluation failed to save:', e);
+    } finally {
+      setSubmitting(false);
+      onFinish();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50">
+      <div className="bg-slate-900 border border-amber-500/30 rounded-3xl p-6 sm:p-8 max-w-md w-full text-center relative shadow-2xl animate-in fade-in zoom-in-95">
+        <div className="w-16 h-16 mx-auto rounded-full bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-3xl mb-3">
+          ✨
+        </div>
+
+        <h3 className="text-xl font-bold text-amber-200">
+          ปล่อยกระทงลงสู่สายน้ำแล้ว!
+        </h3>
+        <p className="text-xs text-slate-300 mt-1">
+          โปรดสละเวลาประเมินความพึงพอใจสั้นๆ เพื่อนำไปพัฒนาการจัดงานในครั้งต่อไป
+        </p>
+
+        {/* 1-5 Star Rating */}
+        <div className="my-6">
+          <p className="text-xs text-slate-400 mb-2">ความพึงพอใจในภาพรวมของระบบ</p>
+          <div className="flex justify-center space-x-2">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <button
+                key={star}
+                type="button"
+                onClick={() => setRating(star)}
+                onMouseEnter={() => setHoverRating(star)}
+                onMouseLeave={() => setHoverRating(0)}
+                className="p-1.5 focus:outline-none transition-transform hover:scale-125"
+              >
+                <Star
+                  className={`w-8 h-8 ${
+                    (hoverRating || rating) >= star
+                      ? 'fill-amber-400 text-amber-400'
+                      : 'text-slate-600'
+                  }`}
+                />
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-amber-300 font-semibold mt-2">
+            {rating === 5 && '🌟 ยอดเยี่ยมมาก'}
+            {rating === 4 && '😊 พึงพอใจมาก'}
+            {rating === 3 && '🙂 ปานกลาง'}
+            {rating === 2 && '😐 พอใช้'}
+            {rating === 1 && '🙁 ควรปรับปรุง'}
+          </p>
+        </div>
+
+        {/* Optional Feedback */}
+        <div className="text-left mb-6">
+          <label className="block text-xs text-slate-400 mb-1">
+            ข้อเสนอแนะเพิ่มเติม (ถ้ามี)
+          </label>
+          <textarea
+            value={feedback}
+            onChange={(e) => setFeedback(e.target.value)}
+            placeholder="ข้อความติชม หรือสิ่งที่อยากให้เพิ่มในงานครั้งต่อไป..."
+            maxLength={300}
+            rows={3}
+            className="w-full bg-slate-950/80 border border-slate-700 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 resize-none"
+          />
+        </div>
+
+        {/* Buttons */}
+        <div className="space-y-2.5">
+          <button
+            onClick={() => handleSubmit(false)}
+            disabled={submitting}
+            className="w-full flex items-center justify-center space-x-2 py-3 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-bold rounded-xl shadow-lg transition"
+          >
+            <Send className="w-4 h-4" />
+            <span>{submitting ? 'กำลังส่งข้อมูล...' : 'ส่งผลประเมิน & ไปดูแม่น้ำ'}</span>
+          </button>
+
+          <button
+            onClick={() => handleSubmit(true)}
+            className="w-full flex items-center justify-center space-x-1 py-2 text-slate-400 hover:text-slate-200 text-xs transition"
+          >
+            <span>ข้ามขั้นตอนนี้</span>
+            <ArrowRight className="w-3 h-3" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
