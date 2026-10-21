@@ -488,7 +488,11 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         <div className="absolute top-6 left-6 flex items-center space-x-3 p-3 bg-slate-900/75 backdrop-blur-md rounded-2xl border border-amber-500/30 text-white shadow-2xl transition-all">
           <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center p-1 shadow-inner">
             <img
-              src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://loykrathong.pages.dev"
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
+                window.location.href.includes('localhost')
+                  ? window.location.href.replace('localhost', '172.24.135.154')
+                  : window.location.href
+              )}`}
               alt="Scan to Float"
               className="w-full h-full object-contain"
             />
@@ -498,7 +502,9 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
               <p className="font-bold text-sm tracking-wide text-amber-200">สแกนเพื่อร่วมลอยกระทง</p>
             </div>
-            <p className="text-xs text-slate-300 mt-0.5">สัมผัสค่ำคืนวันเพ็ญบนจอนี้</p>
+            <p className="text-[11px] text-amber-300 font-mono mt-0.5">
+              {window.location.hostname === 'localhost' ? '172.24.135.154:5173' : window.location.host}
+            </p>
           </div>
         </div>
       )}
