@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Star, Send, ArrowRight } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { supabase } from '../utils/supabase';
 
 interface EvaluationModalProps {
   krathongId: string | null;
@@ -23,17 +24,34 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
     setSubmitting(true);
     try {
       if (!isSkip) {
-        // ยิง API บันทึกผลประเมิน
-        await fetch('/api/evaluations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            krathongId,
-            userType,
-            rating: rating || 5,
-            feedback: feedback.trim()
-          })
-        });
+        // ลองส่งเข้า Supabase ก่อน
+        try {
+          const isValidUUID = krathongId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(krathongId);
+          await supabase.from('evaluations').insert([
+            {
+              krathong_id: isValidUUID ? krathongId : null,
+              user_type: userType || 'general',
+              rating: rating || 5,
+              feedback: feedback.trim() || null
+            }
+          ]);
+        } catch (supaErr) {
+          console.warn('Supabase evaluation error:', supaErr);
+        }
+
+        // สำรองยิง API ฟังก์ชัน
+        try {
+          await fetch('/api/evaluations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              krathongId,
+              userType,
+              rating: rating || 5,
+              feedback: feedback.trim()
+            })
+          });
+        } catch (_) {}
       }
       // จุดพลุเฉลิมฉลอง
       confetti({

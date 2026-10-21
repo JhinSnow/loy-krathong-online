@@ -4,6 +4,7 @@ import type { UserType } from '../types';
 import { KrathongVisual } from './KrathongVisual';
 import { ShareCardModal } from './ShareCardModal';
 import { Sparkles, ArrowLeft, Image as ImageIcon } from 'lucide-react';
+import { supabase } from '../utils/supabase';
 
 interface KrathongCustomizerProps {
   onBackToRiver: () => void;
@@ -60,30 +61,58 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
 
     setLoading(true);
     try {
-      const res = await fetch('/api/krathongs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userType,
-          ownerName: ownerName.trim(),
-          wishMessage: wishMessage.trim(),
-          baseType,
-          flowerType,
-          candleColor
-        })
-      });
+      let createdId: string | null = null;
 
-      const data = await res.json() as any;
+      // 1. ลองบันทึกลง Supabase ก่อน
+      try {
+        const { data: supaData, error: supaErr } = await supabase
+          .from('krathongs')
+          .insert([
+            {
+              user_type: userType,
+              owner_name: ownerName.trim(),
+              wish_message: wishMessage.trim(),
+              base_type: baseType,
+              flower_type: flowerType,
+              candle_color: candleColor,
+              status: 'approved'
+            }
+          ])
+          .select('id')
+          .single();
 
-      if (!res.ok) {
-        throw new Error(data.error || 'ไม่สามารถปล่อยกระทงได้');
+        if (!supaErr && supaData) {
+          createdId = supaData.id;
+        }
+      } catch (err) {
+        console.warn('Supabase insert note:', err);
+      }
+
+      // 2. ถ้า Supabase ยังไม่ได้สร้างตารางหรือไม่ตอบสนอง ให้ลอง Cloudflare Function
+      if (!createdId) {
+        const res = await fetch('/api/krathongs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userType,
+            ownerName: ownerName.trim(),
+            wishMessage: wishMessage.trim(),
+            baseType,
+            flowerType,
+            candleColor
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json() as any;
+          createdId = data.id;
+        }
       }
 
       // ส่งต่อไปยังแบบประเมินความพึงพอใจทันที
-      onSuccessFloating(data.id, userType);
+      onSuccessFloating(createdId || `local-${Date.now()}`, userType);
     } catch (err: any) {
-      // โหมด Offline/Demo fallback ถ้ายังไม่ได้ต่อ D1 จริง
-      console.warn('API error, using local fallback:', err);
+      console.warn('Using local fallback:', err);
       const fakeId = `local-${Date.now()}`;
       onSuccessFloating(fakeId, userType);
     } finally {

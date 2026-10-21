@@ -15,6 +15,7 @@ import {
   ToggleRight,
   RefreshCw
 } from 'lucide-react';
+import { supabase } from '../utils/supabase';
 
 interface AdminDashboardProps {
   onBackToRiver: () => void;
@@ -30,6 +31,68 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
   const loadData = async () => {
     setLoading(true);
     try {
+      // 1. ดึงจาก Supabase
+      const { data: supaKrathongs } = await supabase
+        .from('krathongs')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      const { data: supaEvals } = await supabase
+        .from('evaluations')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (supaKrathongs && supaKrathongs.length > 0) {
+        setKrathongs(supaKrathongs);
+
+        const studentCount = supaKrathongs.filter(k => k.user_type === 'student').length;
+        const staffCount = supaKrathongs.filter(k => k.user_type === 'staff').length;
+        const generalCount = supaKrathongs.filter(k => k.user_type === 'general').length;
+
+        const approvedCount = supaKrathongs.filter(k => k.status === 'approved' || !k.status).length;
+        const pendingCount = supaKrathongs.filter(k => k.status === 'pending').length;
+        const rejectedCount = supaKrathongs.filter(k => k.status === 'rejected').length;
+
+        const totalReviews = supaEvals ? supaEvals.length : 0;
+        const avgRating = totalReviews > 0
+          ? Number((supaEvals!.reduce((acc, curr) => acc + (curr.rating || 5), 0) / totalReviews).toFixed(2))
+          : 5.0;
+
+        const ratingDist = [5, 4, 3, 2, 1].map(r => ({
+          rating: r,
+          count: supaEvals ? supaEvals.filter(e => e.rating === r).length : 0
+        }));
+
+        const recentFeedbacks = (supaEvals || [])
+          .filter(e => e.feedback)
+          .map(e => ({
+            user_type: e.user_type,
+            rating: e.rating,
+            feedback: e.feedback,
+            created_at: e.created_at
+          }));
+
+        setStats({
+          userStats: [
+            { user_type: 'student', count: studentCount },
+            { user_type: 'staff', count: staffCount },
+            { user_type: 'general', count: generalCount }
+          ],
+          statusStats: [
+            { status: 'approved', count: approvedCount },
+            { status: 'pending', count: pendingCount },
+            { status: 'rejected', count: rejectedCount }
+          ],
+          ratingSummary: { total_reviews: totalReviews, average_rating: avgRating },
+          ratingDistribution: ratingDist,
+          recentFeedbacks,
+          requireApproval: false
+        });
+        setLoading(false);
+        return;
+      }
+
+      // 2. ถ้า Supabase ยังว่าง ให้ดึงจาก Cloudflare API หรือ Fallback
       const statsRes = await fetch('/api/admin/stats');
       if (statsRes.ok) {
         const statsData = await statsRes.json();
@@ -44,54 +107,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
       }
     } catch (e) {
       console.warn('API error, loading demo stats:', e);
-      // Demo Mock Fallback
-      setStats({
-        userStats: [
-          { user_type: 'student', count: 142 },
-          { user_type: 'staff', count: 38 },
-          { user_type: 'general', count: 85 }
-        ],
-        statusStats: [
-          { status: 'approved', count: 255 },
-          { status: 'pending', count: 6 },
-          { status: 'rejected', count: 4 }
-        ],
-        ratingSummary: { total_reviews: 198, average_rating: 4.85 },
-        ratingDistribution: [
-          { rating: 5, count: 168 },
-          { rating: 4, count: 22 },
-          { rating: 3, count: 6 },
-          { rating: 2, count: 2 },
-          { rating: 1, count: 0 }
-        ],
-        recentFeedbacks: [
-          { user_type: 'student', rating: 5, feedback: 'ภาพสวยมากครับ อยากให้จัดทุกปี', created_at: '2026-10-13 19:30' },
-          { user_type: 'general', rating: 5, feedback: 'สะดวกมาก ไม่ต้องเดินทางไปเบียดคน', created_at: '2026-10-13 19:15' }
-        ],
-        requireApproval: false
-      });
-      setKrathongs([
-        {
-          id: 'demo-1',
-          user_type: 'student',
-          owner_name: 'สมชาย นักศึกษาปี 2',
-          wish_message: 'ขอให้โปรเจกต์ผ่านฉลุย ได้ A ทุกตัว',
-          base_type: 'banana_leaf',
-          flower_type: 'marigold',
-          candle_color: 'yellow',
-          created_at: '2026-10-13 19:40'
-        },
-        {
-          id: 'demo-2',
-          user_type: 'staff',
-          owner_name: 'อาจารย์สุดา',
-          wish_message: 'ขอขมาพระแม่คงคา และขอให้ทุกคนมีความสุข',
-          base_type: 'lotus',
-          flower_type: 'lotus_flower',
-          candle_color: 'red',
-          created_at: '2026-10-13 19:20'
-        }
-      ]);
     } finally {
       setLoading(false);
     }

@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { KrathongItem } from '../types';
 import { Sparkles, Maximize2, Minimize2, Eye, ShieldAlert } from 'lucide-react';
+import { supabase } from '../utils/supabase';
 
 interface RiverCanvasProps {
   myKrathongId?: string | null;
@@ -58,8 +59,64 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
     };
   }, []);
 
-  // 1. Listen for new krathongs (SSE หรือ Fallback Local)
+  // 1. Listen for new krathongs (Supabase Realtime + SSE Fallback)
   useEffect(() => {
+    // 1.1 ดึงประวัติกระทงล่าสุดจาก Supabase
+    const fetchRecentKrathongs = async () => {
+      try {
+        const { data } = await supabase
+          .from('krathongs')
+          .select('*')
+          .eq('status', 'approved')
+          .order('created_at', { ascending: false })
+          .limit(8);
+
+        if (data && data.length > 0) {
+          const winH = window.innerHeight;
+          data.forEach((item, index) => {
+            krathongsRef.current.push({
+              ...item,
+              x: 120 + index * 160 + Math.random() * 60,
+              y: winH * 0.48 + Math.random() * (winH * 0.42),
+              speed: 0.55 + Math.random() * 0.35,
+              opacity: 1,
+              age: 0,
+              maxLife: 60,
+              isMine: item.id === myKrathongId
+            });
+          });
+        }
+      } catch (err) {
+        console.warn('Initial krathongs fetch error:', err);
+      }
+    };
+    fetchRecentKrathongs();
+
+    // 1.2 ฟัง Realtime Broadcast เมื่อมีคนลอยกระทงใหม่จาก Supabase
+    const channel = supabase
+      .channel('realtime_krathongs')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'krathongs' },
+        (payload) => {
+          const data = payload.new as KrathongItem;
+          if (data && (data.status === 'approved' || !data.status)) {
+            const winH = window.innerHeight;
+            krathongsRef.current.push({
+              ...data,
+              x: -120,
+              y: winH * 0.48 + Math.random() * (winH * 0.42),
+              speed: 0.65 + Math.random() * 0.35,
+              opacity: 1,
+              age: 0,
+              maxLife: 60,
+              isMine: data.id === myKrathongId
+            });
+          }
+        }
+      )
+      .subscribe();
+
     let eventSource: EventSource | null = null;
     try {
       eventSource = new EventSource('/api/krathongs/stream');
@@ -78,21 +135,13 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         };
         krathongsRef.current.push(newK);
       });
-    } catch (_) {
-      // Offline / standalone mode
-    }
-
-    // Populate initial ambient krathongs
-    for (let i = 0; i < 4; i++) {
-      const b = spawnBot();
-      b.x = 100 + i * 260 + Math.random() * 80;
-      krathongsRef.current.push(b);
-    }
+    } catch (_) {}
 
     return () => {
+      supabase.removeChannel(channel);
       if (eventSource) eventSource.close();
     };
-  }, [myKrathongId, spawnBot]);
+  }, [myKrathongId]);
 
   // 2. Initialize Stars & Floating Sky Lanterns (โคมลอย)
   useEffect(() => {

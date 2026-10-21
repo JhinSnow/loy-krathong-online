@@ -9,6 +9,7 @@ export interface KrathongItem {
   base_type: string;
   flower_type: string;
   candle_color: string;
+  status?: string;
   created_at?: string;
   x?: number;
   y?: number;
