@@ -21,7 +21,6 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
   const lanternsRef = useRef<{ x: number; y: number; speedY: number; speedX: number; size: number; alpha: number }[]>([]);
   
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [lowPerfMode, setLowPerfMode] = useState(false);
   const [selectedKrathong, setSelectedKrathong] = useState<KrathongItem | null>(null);
   const [showControls, setShowControls] = useState(true);
 
@@ -226,43 +225,41 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       ctx.arc(moonX, moonY, moonR, 0, Math.PI * 2);
       ctx.fill();
 
-      // Stars
-      if (!lowPerfMode) {
-        ctx.fillStyle = '#ffffff';
-        starsRef.current.forEach(star => {
-          star.alpha += star.delta;
-          if (star.alpha > 0.9 || star.alpha < 0.2) star.delta *= -1;
-          ctx.globalAlpha = star.alpha;
-          ctx.beginPath();
-          ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
-          ctx.fill();
-        });
-        ctx.globalAlpha = 1;
+      // Stars & Lanterns
+      ctx.fillStyle = '#ffffff';
+      starsRef.current.forEach(star => {
+        star.alpha += star.delta;
+        if (star.alpha > 0.9 || star.alpha < 0.2) star.delta *= -1;
+        ctx.globalAlpha = star.alpha;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1;
 
-        // Lanterns (โคมลอย)
-        lanternsRef.current.forEach(lan => {
-          lan.y -= lan.speedY;
-          lan.x += lan.speedX;
-          if (lan.y < -50) {
-            lan.y = h * 0.7;
-            lan.x = Math.random() * w;
-          }
-          ctx.save();
-          ctx.globalAlpha = lan.alpha;
-          // Glow
-          ctx.fillStyle = 'rgba(251, 146, 60, 0.35)';
-          ctx.beginPath();
-          ctx.arc(lan.x, lan.y, lan.size * 1.5, 0, Math.PI * 2);
-          ctx.fill();
-          // Body
-          ctx.fillStyle = '#fdba74';
-          ctx.fillRect(lan.x - lan.size * 0.4, lan.y - lan.size * 0.6, lan.size * 0.8, lan.size * 1.2);
-          // Flame core
-          ctx.fillStyle = '#ea580c';
-          ctx.fillRect(lan.x - lan.size * 0.2, lan.y + lan.size * 0.4, lan.size * 0.4, lan.size * 0.3);
-          ctx.restore();
-        });
-      }
+      // Lanterns (โคมลอย)
+      lanternsRef.current.forEach(lan => {
+        lan.y -= lan.speedY;
+        lan.x += lan.speedX;
+        if (lan.y < -50) {
+          lan.y = h * 0.7;
+          lan.x = Math.random() * w;
+        }
+        ctx.save();
+        ctx.globalAlpha = lan.alpha;
+        // Glow
+        ctx.fillStyle = 'rgba(251, 146, 60, 0.35)';
+        ctx.beginPath();
+        ctx.arc(lan.x, lan.y, lan.size * 1.5, 0, Math.PI * 2);
+        ctx.fill();
+        // Body
+        ctx.fillStyle = '#fdba74';
+        ctx.fillRect(lan.x - lan.size * 0.4, lan.y - lan.size * 0.6, lan.size * 0.8, lan.size * 1.2);
+        // Flame core
+        ctx.fillStyle = '#ea580c';
+        ctx.fillRect(lan.x - lan.size * 0.2, lan.y + lan.size * 0.4, lan.size * 0.4, lan.size * 0.3);
+        ctx.restore();
+      });
 
       // --- River (แม่น้ำเจ้าพระยาจำลอง) ---
       const riverTop = h * 0.45;
@@ -283,19 +280,17 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       ctx.fillRect(moonX - 100, riverTop, 200, h - riverTop);
 
       // Water Ripple Lines
-      if (!lowPerfMode) {
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
-        ctx.lineWidth = 1.2;
-        const time = currentTime * 0.002;
-        for (let i = 0; i < 10; i++) {
-          const y = riverTop + 20 + i * (h * 0.05);
-          ctx.beginPath();
-          ctx.moveTo(0, y);
-          for (let x = 0; x < w; x += 60) {
-            ctx.lineTo(x, y + Math.sin(x * 0.015 + time + i) * 3);
-          }
-          ctx.stroke();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+      ctx.lineWidth = 1.2;
+      const time = currentTime * 0.002;
+      for (let i = 0; i < 10; i++) {
+        const y = riverTop + 20 + i * (h * 0.05);
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        for (let x = 0; x < w; x += 60) {
+          ctx.lineTo(x, y + Math.sin(x * 0.015 + time + i) * 3);
         }
+        ctx.stroke();
       }
 
       // Ambient Bot Replenishment (คงจำนวนไว้ 4-7 ลำ)
@@ -435,7 +430,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       cancelAnimationFrame(animId);
       window.removeEventListener('resize', handleResize);
     };
-  }, [lowPerfMode, spawnBot]);
+  }, [spawnBot]);
 
   // Click on Canvas to Zoom in on a Krathong
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -485,10 +480,10 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
 
       {/* Floating QR Code & Stage Mode Watermark (ฉายขึ้นจอโปรเจกเตอร์) */}
       {showControls && (
-        <div className="absolute top-6 left-6 flex items-center space-x-3 p-3 bg-slate-900/75 backdrop-blur-md rounded-2xl border border-amber-500/30 text-white shadow-2xl transition-all">
-          <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center p-1 shadow-inner">
+        <div className="absolute top-6 left-6 flex flex-col sm:flex-row items-center sm:items-start space-y-2 sm:space-y-0 sm:space-x-3.5 p-3.5 bg-slate-900/85 backdrop-blur-md rounded-2xl border border-amber-500/40 text-white shadow-2xl transition-all">
+          <div className="w-24 h-24 sm:w-28 sm:h-28 bg-white rounded-xl flex items-center justify-center p-1.5 shadow-inner shrink-0">
             <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
                 window.location.href.includes('localhost')
                   ? window.location.href.replace('localhost', '172.24.135.154')
                   : window.location.href
@@ -497,12 +492,13 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
               className="w-full h-full object-contain"
             />
           </div>
-          <div>
-            <div className="flex items-center space-x-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
-              <p className="font-bold text-sm tracking-wide text-amber-200">สแกนเพื่อร่วมลอยกระทง</p>
+          <div className="text-center sm:text-left">
+            <div className="flex items-center justify-center sm:justify-start space-x-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping shrink-0"></span>
+              <p className="font-bold text-sm tracking-wide text-amber-200">สแกนร่วมลอยกระทง</p>
             </div>
-            <p className="text-[11px] text-amber-300 font-mono mt-0.5">
+            <p className="text-xs text-slate-300 mt-1">สัมผัสค่ำคืนวันเพ็ญบนจอนี้</p>
+            <p className="text-[11px] text-amber-300 font-mono mt-1 px-2 py-0.5 rounded bg-slate-800/80 inline-block border border-slate-700">
               {window.location.hostname === 'localhost' ? '172.24.135.154:5173' : window.location.host}
             </p>
           </div>
@@ -540,18 +536,6 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
             <span className="hidden sm:inline">ดูกระทงของฉัน</span>
           </button>
         )}
-
-        <button
-          onClick={() => setLowPerfMode(!lowPerfMode)}
-          title="สลับโหมดประหยัดพลังงาน (สำหรับเครื่องสเปกเริ่มต้น)"
-          className={`px-3.5 py-2.5 rounded-full text-xs font-medium border transition ${
-            lowPerfMode
-              ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300'
-              : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
-          }`}
-        >
-          {lowPerfMode ? '🍃 ประหยัดพลังงาน: เปิด' : '⚡ ประหยัดพลังงาน'}
-        </button>
 
         <button
           onClick={toggleFullscreen}
