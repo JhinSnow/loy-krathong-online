@@ -542,14 +542,14 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         </div>
       )}
 
-      {/* Header Central Brand (กึ่งกลางหน้าจอแนวนอน 100% แน่นอน โดยใช้ inset-x-0 w-full flex justify-center) */}
+      {/* Header Central Brand (ขยับเยื้องขวาเพื่อให้สมดุลกับกล่อง QR Code ทางซ้าย) */}
       {showControls && (
-        <header className="fixed top-5 inset-x-0 w-full flex flex-col items-center justify-center text-center pointer-events-none z-30 px-4">
+        <header className="fixed top-5 left-1/2 -translate-x-1/2 sm:translate-x-[40px] md:translate-x-[90px] lg:translate-x-[110px] flex flex-col items-center justify-center text-center pointer-events-none z-30 px-4 transition-transform duration-300">
           <div className="flex flex-col items-center justify-center">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-yellow-300 to-amber-500 drop-shadow-[0_2px_18px_rgba(245,158,11,0.65)] tracking-wide">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-yellow-300 to-amber-500 drop-shadow-[0_2px_18px_rgba(245,158,11,0.65)] tracking-wide whitespace-nowrap">
               เทศกาลลอยกระทงออนไลน์ 🌕
             </h1>
-            <p className="text-xs sm:text-sm text-amber-200/90 tracking-[0.25em] uppercase mt-1 font-semibold drop-shadow">
+            <p className="text-xs sm:text-sm text-amber-200/90 tracking-[0.25em] uppercase mt-1 font-semibold drop-shadow whitespace-nowrap">
               Loy Krathong River of Lights
             </p>
           </div>
