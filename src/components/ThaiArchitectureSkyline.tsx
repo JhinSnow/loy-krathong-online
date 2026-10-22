@@ -3,15 +3,18 @@ import React from 'react';
 
 export const ThaiArchitectureSkyline: React.FC = () => {
   return (
-    <div className="absolute inset-x-0 bottom-[48vh] sm:bottom-[50vh] h-44 sm:h-56 md:h-68 pointer-events-none select-none z-10 overflow-hidden">
-      {/* Golden Backlight Ambient Aura behind Temples */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-full h-40 bg-gradient-to-t from-amber-500/30 via-yellow-500/15 to-transparent blur-2xl pointer-events-none" />
+    <div className="absolute inset-x-0 bottom-[47vh] sm:bottom-[49vh] h-52 sm:h-64 md:h-80 pointer-events-none select-none z-10 overflow-hidden">
+      {/* Mega Golden Aura & Spotlight directly behind Pumpkin Building */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[340px] sm:w-[460px] md:w-[580px] h-48 sm:h-60 bg-gradient-to-t from-amber-500/45 via-yellow-400/30 to-transparent blur-3xl rounded-full pointer-events-none" />
+
+      {/* Golden Backlight Ambient Aura across riverbank */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-full h-36 bg-gradient-to-t from-amber-500/25 via-yellow-500/10 to-transparent blur-2xl pointer-events-none" />
 
       {/* Responsive Thai Architecture Skyline SVG Layer */}
       <svg
         viewBox="0 0 1600 320"
         preserveAspectRatio="xMidYMax meet"
-        className="w-full h-full drop-shadow-[0_-4px_20px_rgba(245,158,11,0.55)] opacity-95"
+        className="w-full h-full drop-shadow-[0_-4px_22px_rgba(245,158,11,0.5)] opacity-95 overflow-visible"
       >
         <defs>
           {/* Main Architecture Golden Gradient */}
@@ -36,126 +39,130 @@ export const ThaiArchitectureSkyline: React.FC = () => {
             <stop offset="40%" stopColor="#f59e0b" stopOpacity="0.4" />
             <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
           </radialGradient>
+
+          {/* Golden Halo specifically for Pumpkin Building Dome */}
+          <radialGradient id="pumpkinDomeGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#fffbeb" stopOpacity="0.95" />
+            <stop offset="35%" stopColor="#fde047" stopOpacity="0.7" />
+            <stop offset="70%" stopColor="#f59e0b" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#d97706" stopOpacity="0" />
+          </radialGradient>
+
+          {/* Stylized Warm Gold Filter for Pumpkin Image */}
+          <filter id="festiveGoldShine" x="-20%" y="-20%" width="140%" height="140%">
+            <feColorMatrix
+              type="matrix"
+              values="
+                1.30  0.15  0.00  0  0.08
+                0.20  1.15  0.00  0  0.05
+                0.05  0.10  0.70  0  0.00
+                0.00  0.00  0.00  1  0.00"
+            />
+            <feComponentTransfer>
+              <feFuncR type="linear" slope="1.15" />
+              <feFuncG type="linear" slope="1.08" />
+              <feFuncB type="linear" slope="0.85" />
+            </feComponentTransfer>
+          </filter>
         </defs>
 
-        {/* ----------------- 1. ยอดรัศมีเรืองรองเหนือยอดเจดีย์และปรางค์ ----------------- */}
-        {/* Phra Prang Spire Glow */}
-        <circle cx="800" cy="40" r="28" fill="url(#spireAura)" className="animate-pulse" />
-        <circle cx="800" cy="40" r="4" fill="#fffbeb" />
-
+        {/* ----------------- 1. ยอดรัศมีเรืองรอง ----------------- */}
         {/* Chedi Left Spire Glow */}
-        <circle cx="420" cy="85" r="20" fill="url(#spireAura)" className="animate-pulse" />
-        <circle cx="420" cy="85" r="3" fill="#fffbeb" />
+        <circle cx="360" cy="85" r="20" fill="url(#spireAura)" className="animate-pulse" />
+        <circle cx="360" cy="85" r="3" fill="#fffbeb" />
 
         {/* Chedi Right Spire Glow */}
-        <circle cx="1180" cy="85" r="20" fill="url(#spireAura)" className="animate-pulse" />
-        <circle cx="1180" cy="85" r="3" fill="#fffbeb" />
+        <circle cx="1240" cy="85" r="20" fill="url(#spireAura)" className="animate-pulse" />
+        <circle cx="1240" cy="85" r="3" fill="#fffbeb" />
 
-        {/* ----------------- 2. แนวสถาปัตยกรรมไทยริมตลิ่ง (Riverbank Skyline) ----------------- */}
+        {/* ----------------- 2. แนวสถาปัตยกรรมไทยริมตลิ่ง ----------------- */}
         <g fill="url(#templeGoldGrad)" stroke="#fde047" strokeWidth="1" strokeOpacity="0.6">
 
-          {/* --- ฝั่งซ้าย: ศาลาท่าน้ำ & กุฏิหลังคาจั่วซ้อนชั้น (Thai Waterfront Pavilion) --- */}
-          {/* ศาลาท่าน้ำชั้นนอก */}
-          <path d="M 60 320 L 60 270 L 140 230 L 220 270 L 220 320 Z" />
-          {/* ช่อฟ้า หางหงส์ ศาลา */}
-          <path d="M 50 275 Q 55 260 70 265 L 140 220 L 210 265 Q 225 260 230 275" fill="none" strokeWidth="2" stroke="#fde047" />
+          {/* --- ฝั่งซ้าย: ศาลาท่าน้ำ & กุฏิหลังคาจั่วซ้อนชั้น --- */}
+          <path d="M 40 320 L 40 270 L 110 230 L 180 270 L 180 320 Z" />
+          <path d="M 30 275 Q 35 260 50 265 L 110 220 L 170 265 Q 185 260 190 275" fill="none" strokeWidth="2" stroke="#fde047" />
 
-          {/* พระอุโบสถฝั่งซ้าย (จั่วซ้อน 3 ชั้น เอกลักษณ์ไทย) */}
-          {/* จั่วชั้นบนสุด */}
-          <path d="M 280 230 L 320 180 L 360 230 Z" />
-          {/* ช่อฟ้าเอก */}
-          <path d="M 318 180 Q 314 165 320 155 Q 326 165 322 180" fill="none" strokeWidth="2.5" stroke="#fffbeb" />
-          {/* จั่วชั้น 2 */}
-          <path d="M 250 260 L 320 205 L 390 260 Z" />
-          {/* จั่วชั้น 3 ฐานอุโบสถ */}
-          <path d="M 220 320 L 220 270 L 320 225 L 420 270 L 420 320 Z" />
+          {/* พระอุโบสถฝั่งซ้าย */}
+          <path d="M 230 230 L 270 180 L 310 230 Z" />
+          <path d="M 268 180 Q 264 165 270 155 Q 276 165 272 180" fill="none" strokeWidth="2.5" stroke="#fffbeb" />
+          <path d="M 200 260 L 270 205 L 340 260 Z" />
+          <path d="M 170 320 L 170 270 L 270 225 L 370 270 L 370 320 Z" />
 
-          {/* --- พระเจดีย์ทรงระฆังคว่ำองค์ซ้าย (Chedi Bell Shape) --- */}
-          {/* ปลียอดเจดีย์ */}
-          <path d="M 418 85 L 422 85 L 424 140 L 416 140 Z" />
-          {/* ปล้องไฉน */}
-          <path d="M 412 140 L 428 140 L 425 165 L 415 165 Z" />
-          {/* บัลลังก์ & องค์ระฆัง */}
-          <path d="M 405 165 L 435 165 L 442 205 Q 445 235 420 238 Q 395 235 398 205 Z" />
-          {/* ฐานเขียง/ฐานแปดเหลี่ยมซ้อนชั้น */}
-          <path d="M 380 320 L 380 265 L 392 240 L 448 240 L 460 265 L 460 320 Z" />
+          {/* พระเจดีย์ทรงระฆังคว่ำองค์ซ้าย */}
+          <path d="M 358 85 L 362 85 L 364 140 L 356 140 Z" />
+          <path d="M 352 140 L 368 140 L 365 165 L 355 165 Z" />
+          <path d="M 345 165 L 375 165 L 382 205 Q 385 235 360 238 Q 335 235 338 205 Z" />
+          <path d="M 320 320 L 320 265 L 332 240 L 388 240 L 400 265 L 400 320 Z" />
 
-          {/* --- กึ่งกลาง: ตึกฟักทอง สัญลักษณ์ประจำคณะวิทยาศาสตร์ & พระปรางค์ประธาน --- */}
-          {/* ฐานอาคารรองรับตึกฟักทอง */}
-          <path d="M 720 320 L 720 230 L 880 230 L 880 320 Z" fill="#1c2541" stroke="#f59e0b" strokeWidth="1" />
+          {/* พระปรางค์องค์เสริมฝั่งซ้าย */}
+          <path d="M 470 320 L 470 240 L 490 150 L 495 150 L 515 240 L 515 320 Z" fill="url(#prangGoldGrad)" />
 
-          {/* ฝักเพกา/นภศูลยอดปรางค์ */}
-          <path d="M 798 35 L 802 35 L 804 70 L 796 70 Z" fill="url(#prangGoldGrad)" stroke="#fffbeb" strokeWidth="1.5" />
-          {/* พระปรางค์ประธานด้านหลัง */}
-          <path
-            d="M 795 70 L 805 70 
-               L 812 95 L 788 95 
-               L 818 125 L 782 125 
-               L 824 158 L 776 158 
-               L 832 195 L 768 195 
-               L 842 230 L 758 230 Z"
-            fill="url(#prangGoldGrad)"
-            stroke="#fde047"
-            strokeWidth="1.6"
-          />
+          {/* --- ฝั่งขวา: พระปรางค์องค์เสริมฝั่งขวา --- */}
+          <path d="M 1085 320 L 1085 240 L 1105 150 L 1110 150 L 1130 240 L 1130 320 Z" fill="url(#prangGoldGrad)" />
 
-          {/* ตึกฟักทอง (Pumpkin Building) สัญลักษณ์คณะวิทยาศาสตร์ อาบแสงสีทองอร่าม */}
-          <g className="drop-shadow-[0_0_20px_rgba(245,158,11,0.65)]">
-            <image
-              href="/pumpkin-building.webp"
-              x="715"
-              y="135"
-              width="170"
-              height="170"
-              preserveAspectRatio="xMidYMid meet"
-              className="opacity-95"
-            />
-          </g>
+          {/* พระเจดีย์ทรงระฆังคว่ำองค์ขวา */}
+          <path d="M 1238 85 L 1242 85 L 1244 140 L 1236 140 Z" />
+          <path d="M 1232 140 L 1248 140 L 1245 165 L 1235 165 Z" />
+          <path d="M 1225 165 L 1255 165 L 1262 205 Q 1265 235 1240 238 Q 1215 235 1218 205 Z" />
+          <path d="M 1200 320 L 1200 265 L 1212 240 L 1268 240 L 1280 265 L 1280 320 Z" />
 
-          {/* พระปรางค์ทิศบริวาร (ซ้าย-ขวา) */}
-          <path d="M 680 320 L 680 250 L 695 190 L 700 190 L 715 250 L 715 320 Z" fill="url(#templeGoldGrad)" />
-          <path d="M 885 320 L 885 250 L 900 190 L 905 190 L 920 250 L 920 320 Z" fill="url(#templeGoldGrad)" />
+          {/* วิหารหลวงหลังคาซ้อน 3 ชั้นฝั่งขวา */}
+          <path d="M 1320 240 L 1370 185 L 1420 240 Z" />
+          <path d="M 1368 185 Q 1364 170 1370 160 Q 1376 170 1372 185" fill="none" strokeWidth="2.5" stroke="#fffbeb" />
+          <path d="M 1290 275 L 1370 215 L 1450 275 Z" />
+          <path d="M 1260 320 L 1260 280 L 1370 230 L 1480 280 L 1480 320 Z" />
 
-          {/* --- ฝั่งขวา: พระเจดีย์ทรงระฆังคว่ำองค์ขวา --- */}
-          {/* ปลียอดเจดีย์ */}
-          <path d="M 1178 85 L 1182 85 L 1184 140 L 1176 140 Z" />
-          {/* ปล้องไฉน */}
-          <path d="M 1172 140 L 1188 140 L 1185 165 L 1175 165 Z" />
-          {/* องค์ระฆัง */}
-          <path d="M 1165 165 L 1195 165 L 1202 205 Q 1205 235 1180 238 Q 1155 235 1158 205 Z" />
-          {/* ฐานซ้อนชั้น */}
-          <path d="M 1140 320 L 1140 265 L 1152 240 L 1208 240 L 1220 265 L 1220 320 Z" />
-
-          {/* --- ฝั่งขวา: พระวิหารหลวง & ซุ้มประตูโขง --- */}
-          {/* วิหารหลวงหลังคาซ้อน 3 ชั้น */}
-          <path d="M 1250 240 L 1310 185 L 1370 240 Z" />
-          <path d="M 1308 185 Q 1304 170 1310 160 Q 1316 170 1312 185" fill="none" strokeWidth="2.5" stroke="#fffbeb" />
-          <path d="M 1220 275 L 1310 215 L 1400 275 Z" />
-          <path d="M 1190 320 L 1190 280 L 1310 230 L 1430 280 L 1430 320 Z" />
-
-          {/* ศาลาท่าน้ำฝั่งขวาสุด */}
-          <path d="M 1440 320 L 1440 275 L 1510 235 L 1580 275 L 1580 320 Z" />
-          <path d="M 1430 280 Q 1435 265 1450 270 L 1510 228 L 1570 270 Q 1585 265 1590 280" fill="none" strokeWidth="2" stroke="#fde047" />
-
-          {/* ----------------- 3. แนวกำแพงแก้ว ใบเสมา และบันไดท่าน้ำโบราณ ----------------- */}
-          {/* แนวระเบียงกำแพงแก้วตลอดแนวริมฝั่ง */}
+          {/* ----------------- 3. แนวกำแพงแก้ว ใบเสมา ----------------- */}
           <rect x="0" y="302" width="1600" height="18" fill="#1c2541" stroke="#f59e0b" strokeWidth="1" />
-          
-          {/* เสาหัวเม็ด & ซุ้มใบเสมาบนกำแพงแก้ว */}
-          {[120, 260, 480, 620, 680, 920, 980, 1100, 1240, 1380, 1480].map((pos, i) => (
+          {[120, 240, 430, 560, 1040, 1170, 1340, 1480].map((pos, i) => (
             <g key={i} transform={`translate(${pos}, 288)`}>
               <rect x="0" y="0" width="10" height="16" rx="2" fill="#d97706" />
               <circle cx="5" cy="-2" r="4.5" fill="#fde047" />
             </g>
           ))}
+        </g>
 
-          {/* บันไดท่าน้ำโบราณ (Riverbank Landing Steps) ทอดยาวลงสู่แม่น้ำ */}
-          <path d="M 710 320 L 890 320 L 870 340 L 730 340 Z" fill="#b45309" opacity="0.8" />
+        {/* ----------------- 4. ตึกฟักทอง สัญลักษณ์คณะวิทยาศาสตร์ (Center Stage Landmark) ----------------- */}
+        {/* แท่นฐานรองรับบารมีตึกฟักทอง สไตล์ศาลาจัตุรมุขไทย-โมเดิร์น */}
+        <g>
+          {/* แสงสปอตไลท์สีทองทรงกลมหลังยอดตึกฟักทอง */}
+          <circle cx="800" cy="140" r="130" fill="url(#pumpkinDomeGlow)" opacity="0.85" className="animate-pulse" />
+
+          {/* ฐานแท่นหินอ่อนขอบทอง */}
+          <polygon points="630,320 970,320 940,245 660,245" fill="#0b132b" stroke="#f59e0b" strokeWidth="2" />
+          <polygon points="660,245 940,245 925,230 675,230" fill="#1c2541" stroke="#fde047" strokeWidth="1.5" />
+
+          {/* ลายบัวหงาย-บัวคว่ำรองรับฐานอาคาร */}
+          <rect x="670" y="240" width="260" height="5" fill="#fde047" />
+
+          {/* ภาพตึกฟักทอง คมชัด โดดเด่น ยิ่งใหญ่ อาบแสงไฟเทศกาล */}
+          <g filter="url(#festiveGoldShine)">
+            <image
+              href="/pumpkin-building.webp"
+              x="625"
+              y="20"
+              width="350"
+              height="240"
+              preserveAspectRatio="xMidYMid meet"
+              className="drop-shadow-[0_0_30px_rgba(251,191,36,0.9)]"
+            />
+          </g>
+
+          {/* ป้ายชื่อทรงเกียรติยศสีทองใต้ตึกฟักทอง */}
+          <g transform="translate(800, 275)">
+            <rect x="-140" y="-12" width="280" height="25" rx="12" fill="#0b132b" stroke="#fde047" strokeWidth="1.5" className="drop-shadow-[0_2px_10px_rgba(245,158,11,0.5)]" />
+            <text x="0" y="5" textAnchor="middle" fill="#fffbeb" fontSize="13" fontWeight="bold" letterSpacing="1.5">
+              ตึกฟักทอง • คณะวิทยาศาสตร์
+            </text>
+          </g>
+
+          {/* บันไดท่าน้ำหลวง ทอดยาวตรงกลางลงสู่แม่น้ำเจ้าพระยา */}
+          <polygon points="700,320 900,320 930,345 670,345" fill="#b45309" stroke="#fde047" strokeWidth="1" />
         </g>
       </svg>
 
-      {/* Shimmering Golden Water Reflection of Temple Skyline */}
-      <div className="absolute -bottom-10 inset-x-0 h-16 bg-gradient-to-b from-amber-400/25 via-amber-500/10 to-transparent blur-md pointer-events-none transform scale-y-[-0.6] opacity-75" />
+      {/* Shimmering Golden Water Reflection ทอดเงาตึกฟักทองลงบนผิวน้ำกึ่งกลางจอ */}
+      <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-[380px] sm:w-[500px] h-20 bg-gradient-to-b from-amber-400/40 via-yellow-500/20 to-transparent blur-md pointer-events-none transform scale-y-[-0.8]" />
     </div>
   );
 };
