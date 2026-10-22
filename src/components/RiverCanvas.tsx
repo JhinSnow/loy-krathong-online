@@ -514,40 +514,41 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       {/* Foreground & Edge Borders: โคมแขวนล้านนา ลายกนกมุมจอ และกอดอกบัวริมตลิ่ง */}
       <DecorativeScreenBorders />
 
-      {/* Floating QR Code & Stage Mode Watermark (Frosted Glassmorphism Container) */}
+      {/* Floating QR Code & Stage Mode Watermark (Frosted Glassmorphism with High-Contrast Scannable QR) */}
       {showControls && (
-        <div className="absolute top-5 left-5 flex flex-col sm:flex-row items-center sm:items-start space-y-2 sm:space-y-0 sm:space-x-3.5 p-3 sm:p-3.5 bg-[#0b132b]/45 backdrop-blur-[12px] rounded-2xl border border-amber-500/35 text-amber-50 shadow-[0_0_20px_rgba(245,158,11,0.18)] transition-all z-20">
-          <div className="w-28 h-28 sm:w-32 sm:h-32 bg-transparent rounded-xl flex items-center justify-center p-1 shrink-0">
+        <div className="absolute top-5 left-5 flex flex-col sm:flex-row items-center sm:items-start space-y-2 sm:space-y-0 sm:space-x-3.5 p-3 sm:p-3.5 bg-[#0b132b]/55 backdrop-blur-[14px] rounded-2xl border border-amber-500/40 text-amber-50 shadow-[0_4px_24px_rgba(0,0,0,0.5),0_0_15px_rgba(245,158,11,0.2)] transition-all z-20">
+          {/* QR Code Container with High-Contrast Cream Background */}
+          <div className="w-28 h-28 sm:w-32 sm:h-32 bg-[#fffbeb] rounded-xl flex items-center justify-center p-2 shrink-0 border border-amber-300/80 shadow-md">
             <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&color=fffbeb&bgcolor=0b132b-00&data=${encodeURIComponent(
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=280x280&color=0b132b&bgcolor=fffbeb&margin=1&data=${encodeURIComponent(
                 window.location.href.includes('localhost')
                   ? window.location.href.replace('localhost', '172.24.135.154')
                   : window.location.href
               )}`}
               alt="Scan to Float"
-              className="w-full h-full object-contain filter drop-shadow-[0_0_8px_rgba(253,224,71,0.35)]"
+              className="w-full h-full object-contain"
             />
           </div>
           <div className="text-center sm:text-left flex flex-col justify-center self-center sm:self-auto pr-1">
             <div className="flex items-center justify-center sm:justify-start space-x-1.5">
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping shrink-0"></span>
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping shrink-0"></span>
               <p className="font-bold text-sm tracking-wide text-amber-200">สแกนร่วมลอยกระทง</p>
             </div>
-            <p className="text-[11px] text-amber-100/75 mt-0.5">ปล่อยกระทงจากมือถือขึ้นจอนี้</p>
-            <p className="text-[11px] text-amber-300 font-mono mt-1 px-2 py-0.5 rounded-lg bg-amber-950/40 inline-block border border-amber-500/30">
+            <p className="text-[11px] text-amber-100/85 mt-0.5 font-medium">ปล่อยกระทงจากมือถือขึ้นจอนี้</p>
+            <p className="text-[11px] text-amber-300 font-mono mt-1 px-2.5 py-0.5 rounded-lg bg-[#0b132b]/80 inline-block border border-amber-500/40 shadow-inner">
               {window.location.hostname === 'localhost' ? '172.24.135.154:5173' : window.location.host}
             </p>
           </div>
         </div>
       )}
 
-      {/* Header Central Brand (ยกให้อยู่ด้านหน้าโคมไฟชัดเจน) */}
+      {/* Header Central Brand (Absolute Center 100% กึ่งกลางหน้าจอแน่นอน) */}
       {showControls && (
-        <div className="absolute top-5 left-1/2 -translate-x-1/2 text-center pointer-events-none z-20">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-yellow-300 to-amber-500 drop-shadow-[0_2px_18px_rgba(245,158,11,0.65)] tracking-wide">
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 text-center pointer-events-none z-20 flex flex-col items-center justify-center">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-yellow-300 to-amber-500 drop-shadow-[0_2px_18px_rgba(245,158,11,0.65)] tracking-wide whitespace-nowrap">
             เทศกาลลอยกระทงออนไลน์ 🌕
           </h1>
-          <p className="text-xs sm:text-sm text-amber-200 tracking-widest uppercase mt-1 font-semibold drop-shadow">
+          <p className="text-xs sm:text-sm text-amber-200/90 tracking-[0.25em] uppercase mt-1 font-semibold drop-shadow text-center">
             Loy Krathong River of Lights
           </p>
         </div>
