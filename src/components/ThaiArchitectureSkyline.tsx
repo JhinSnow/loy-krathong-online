@@ -116,153 +116,95 @@ export const ThaiArchitectureSkyline: React.FC = () => {
           ))}
         </g>
 
-        {/* ----------------- 3. ตึกฟักทอง คณะวิทยาศาสตร์ ม.อ. (Perspective/Radial Fan-shape: ไล่ระดับความสูงโค้งมน + เอียงแกนรัศมี + เลเยอร์ซ้อนมิติ) ----------------- */}
-        <g id="realPumpkinBuildingPSU" className="drop-shadow-[0_0_24px_rgba(251,191,36,0.75)]">
-          {/* ช่องซุ้มเงาลึกด้านใน (Under-shell Shadow Arc) */}
-          <rect x="500" y="292" width="600" height="13" fill="#060c1a" stroke="#d97706" strokeWidth="1" />
+        {/* ----------------- 3. ตึกฟักทอง คณะวิทยาศาสตร์ ม.อ. (Single Continuous Path ตามโค้ดที่กำหนด) ----------------- */}
+        <g id="realPumpkinBuildingPSU" className="drop-shadow-[0_0_25px_rgba(251,191,36,0.55)]" transform="translate(485, 45) scale(0.63)">
+          <defs>
+            {/* สี Gradient ผิวกลีบสีทอง */}
+            <linearGradient id="petalGlowPSU" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#FEF08A" />
+              <stop offset="35%" stopColor="#F59E0B" />
+              <stop offset="85%" stopColor="#D97706" />
+              <stop offset="100%" stopColor="#78350F" />
+            </linearGradient>
 
-          {/* เสาค้ำรอบอาคารรับแรงกลีบเปลือกบาง ติดแนบตลิ่ง */}
-          {[515, 545, 575, 605, 635, 665, 695, 725, 755, 785, 815, 845, 875, 905, 935, 965, 995, 1025, 1055, 1085].map((x, i) => (
-            <line key={i} x1={x} y1="292" x2={x} y2="305" stroke="#f59e0b" strokeWidth="1.2" opacity="0.8" />
-          ))}
+            {/* ซุ้มโค้งสีขาวเรืองแสงด้านล่าง */}
+            <linearGradient id="whiteArchGlowPSU" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#FFFFFF" />
+              <stop offset="100%" stopColor="#E2E8F0" />
+            </linearGradient>
 
-          {/* 
-            Geometry & Perspective Radial Fan-Shape:
-            1. Dome Envelope Profile (ยอดโค้งพาราโบลาลาดลงตามธรรมชาติ):
-               - กลีบ 4, 5 (คู่กลาง): ยอดสูงที่สุด y = 142 (100% Height)
-               - กลีบ 3, 6 (ถัดมา): ยอด y = 157 (~90% Height)
-               - กลีบ 2, 7 (ถัดมา): ยอด y = 179 (~75% Height)
-               - กลีบ 1, 8 (ขอบนอก): ยอด y = 202 (~60% Height)
-            2. Radial Splay / Tilt: ยอดกลีบสอบเอียงเข้าหาจุดศูนย์กลาง และแผ่ผายออกด้านข้าง
-            3. Render Order Layering: กลีบนอกสุดวาดก่อน -> กลีบในและกลีบคู่กลางวาดทับหน้าสุด (Front layer)
-          */}
+            <filter id="softGlowPSU" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
+          </defs>
 
-          {/* ================= LAYER 1: กลีบขอบนอกสุด (1 และ 8) ความสูง ~60% (y_peak = 202) เอียง 14° ================= */}
-          {/* กลีบ 1 (ซ้ายสุด) */}
-          <g id="petal-1">
-            <path
-              d="M 505 292 C 498 245, 524 202, 546 202 C 568 202, 584 240, 582 292 Z"
-              fill="url(#vaultShadowGrad)"
-              stroke="#fde68a"
-              strokeWidth="1.3"
-            />
-            <path d="M 510 292 Q 544 266 578 292" fill="#FFFFFF" stroke="#fde047" strokeWidth="1.2" />
-            <path d="M 542 202 Q 550 248 544 292" fill="none" stroke="#fffbeb" strokeWidth="1.4" opacity="0.85" />
-          </g>
+          {/* 1. แนวระเบียงฐานล่างสุด (เตี้ยติดตลิ่ง) */}
+          <rect x="30" y="315" width="940" height="15" rx="3" fill="#0F172A" stroke="#B45309" strokeWidth="2" />
+          <line x1="30" y1="322" x2="970" y2="322" stroke="#FDE68A" strokeWidth="1" opacity="0.6" />
 
-          {/* กลีบ 8 (ขวาสุด) */}
-          <g id="petal-8">
-            <path
-              d="M 1018 292 C 1016 240, 1032 202, 1054 202 C 1076 202, 1102 245, 1095 292 Z"
-              fill="url(#vaultShadowGrad)"
-              stroke="#fde68a"
-              strokeWidth="1.3"
-            />
-            <path d="M 1022 292 Q 1056 266 1090 292" fill="#FFFFFF" stroke="#fde047" strokeWidth="1.2" />
-            <path d="M 1058 202 Q 1050 248 1056 292" fill="none" stroke="#fffbeb" strokeWidth="1.4" opacity="0.85" />
-          </g>
-
-          {/* ================= LAYER 2: กลีบถัดมา (2 และ 7) ความสูง ~75% (y_peak = 179) เอียง 8° ================= */}
-          {/* กลีบ 2 (ซ้าย) ซ้อนทับขอบกลีบ 1 */}
-          <g id="petal-2">
-            <path
-              d="M 572 292 C 568 228, 595 179, 620 179 C 646 179, 663 228, 660 292 Z"
-              fill="url(#vaultGoldGrad)"
-              stroke="#fde047"
-              strokeWidth="1.5"
-            />
-            <path d="M 577 292 Q 618 262 656 292" fill="#FFFFFF" stroke="#fde047" strokeWidth="1.2" />
-            <path d="M 616 179 Q 624 236 617 292" fill="none" stroke="#fffbeb" strokeWidth="1.5" />
-          </g>
-
-          {/* กลีบ 7 (ขวา) ซ้อนทับขอบกลีบ 8 */}
-          <g id="petal-7">
-            <path
-              d="M 940 292 C 937 228, 954 179, 980 179 C 1005 179, 1032 228, 1028 292 Z"
-              fill="url(#vaultGoldGrad)"
-              stroke="#fde047"
-              strokeWidth="1.5"
-            />
-            <path d="M 944 292 Q 982 262 1023 292" fill="#FFFFFF" stroke="#fde047" strokeWidth="1.2" />
-            <path d="M 984 179 Q 976 236 983 292" fill="none" stroke="#fffbeb" strokeWidth="1.5" />
-          </g>
-
-          {/* ================= LAYER 3: กลีบถัดมา (3 และ 6) ความสูง ~90% (y_peak = 157) เอียง 4° ================= */}
-          {/* กลีบ 3 (ซ้าย) ซ้อนทับขอบกลีบ 2 */}
-          <g id="petal-3">
-            <path
-              d="M 648 292 C 646 215, 672 157, 698 157 C 723 157, 737 215, 734 292 Z"
-              fill="url(#vaultShadowGrad)"
-              stroke="#fde68a"
-              strokeWidth="1.5"
-            />
-            <path d="M 653 292 Q 694 256 730 292" fill="#FFFFFF" stroke="#fde047" strokeWidth="1.2" />
-            <path d="M 696 157 Q 701 226 695 292" fill="none" stroke="#fffbeb" strokeWidth="1.6" />
-          </g>
-
-          {/* กลีบ 6 (ขวา) ซ้อนทับขอบกลีบ 7 */}
-          <g id="petal-6">
-            <path
-              d="M 866 292 C 863 215, 877 157, 902 157 C 928 157, 954 215, 952 292 Z"
-              fill="url(#vaultShadowGrad)"
-              stroke="#fde68a"
-              strokeWidth="1.5"
-            />
-            <path d="M 870 292 Q 906 256 947 292" fill="#FFFFFF" stroke="#fde047" strokeWidth="1.2" />
-            <path d="M 904 157 Q 899 226 905 292" fill="none" stroke="#fffbeb" strokeWidth="1.6" />
-          </g>
-
-          {/* ================= LAYER 4 (FRONT): กลีบคู่กลาง (4 และ 5) สูงที่สุด 100% (y_peak = 142) หน้าตรง นูนเด่นสุด ================= */}
-          {/* กลีบ 4 (กลางซ้าย) */}
-          <g id="petal-4">
-            <path
-              d="M 724 292 C 722 205, 745 142, 770 142 C 794 142, 800 205, 797 292 Z"
-              fill="url(#vaultGoldGrad)"
-              stroke="#fffbeb"
-              strokeWidth="2.0"
-            />
-            <path d="M 729 292 Q 763 250 793 292" fill="#FFFFFF" stroke="#fffbeb" strokeWidth="1.5" />
-            <path d="M 769 142 Q 771 220 766 292" fill="none" stroke="#fffbeb" strokeWidth="2.0" />
-          </g>
-
-          {/* === รอยแยกตรงกลางชัดเจน (Center Gap: x: 797 ถึง 803 กว้าง 6px) === */}
-          <line x1="800" y1="142" x2="800" y2="292" stroke="#060c1a" strokeWidth="2.5" opacity="0.9" />
-
-          {/* กลีบ 5 (กลางขวา) */}
-          <g id="petal-5">
-            <path
-              d="M 803 292 C 800 205, 806 142, 830 142 C 855 142, 878 205, 876 292 Z"
-              fill="url(#vaultGoldGrad)"
-              stroke="#fffbeb"
-              strokeWidth="2.0"
-            />
-            <path d="M 807 292 Q 837 250 871 292" fill="#FFFFFF" stroke="#fffbeb" strokeWidth="1.5" />
-            <path d="M 831 142 Q 829 220 834 292" fill="none" stroke="#fffbeb" strokeWidth="2.0" />
-          </g>
-
-          {/* ชายคาระเบียงคลื่นหยักโค้งต่อเนื่องแบบ Seamless Scalloped Ribbon โค้งรับมิติความลึก */}
+          {/* 2. ผืนหลังคาตึกฟักทองฝั่งซ้าย (4 กลีบเชื่อมต่อกันเป็นเส้นเดียว ยอดสัมผัสกันต่อเนื่อง) */}
           <path
-            d="M 505 292 
-               Q 542 278 578 292 
-               Q 616 276 654 292 
-               Q 692 274 730 292 
-               Q 763 270 797 292 
-               M 803 292
-               Q 837 270 871 292 
-               Q 909 274 947 292 
-               Q 985 276 1023 292 
-               Q 1058 278 1095 292"
-            fill="none"
-            stroke="#fffbeb"
-            strokeWidth="2.8"
+            d="
+              M 40 315 
+              C 40 180, 80 160, 145 160
+              C 185 160, 195 190, 200 210
+              C 210 130, 260 110, 320 110
+              C 365 110, 380 145, 385 170
+              C 395 85,  440 60,  495 60
+              L 495 315
+              Z
+            "
+            fill="url(#petalGlowPSU)"
           />
 
-          {/* ฐานตึกเตี้ยบางๆ แนบสนิทบนแนวพื้นหินตลิ่งริมแม่น้ำ */}
-          <rect x="495" y="304" width="610" height="16" fill="#1c2541" stroke="#fde047" strokeWidth="1.5" />
-          <line x1="500" y1="316" x2="1100" y2="316" stroke="#f59e0b" strokeWidth="1.5" />
+          {/* 3. ผืนหลังคาตึกฟักทองฝั่งขวา (4 กลีบเชื่อมต่อกันเป็นเส้นเดียว พลิกสมมาตร เว้นร่องกลาง 10px) */}
+          <path
+            d="
+              M 960 315 
+              C 960 180, 920 160, 855 160
+              C 815 160, 805 190, 800 210
+              C 790 130, 740 110, 680 110
+              C 635 110, 620 145, 615 170
+              C 605 85,  560 60,  505 60
+              L 505 315
+              Z
+            "
+            fill="url(#petalGlowPSU)"
+          />
 
-          {/* บันไดท่าน้ำกลาง ทอดยาวลงสู่แม่น้ำอย่างกลมกลืน */}
-          <polygon points="730,320 870,320 890,345 710,345" fill="#b45309" stroke="#fde047" strokeWidth="1.2" />
+          {/* 4. เส้นสันแนวแบ่งกลีบสีทองสว่าง (Ridge Lines) */}
+          <g stroke="#FFFBEB" strokeWidth="2.5" strokeLinecap="round" opacity="0.75" filter="url(#softGlowPSU)">
+            {/* ฝั่งซ้าย */}
+            <path d="M 145 160 Q 140 240 135 315" />
+            <path d="M 260 110 Q 255 210 250 315" />
+            <path d="M 380 75 Q 375 195 370 315" />
+            <path d="M 495 60 L 495 315" stroke="#FDE68A" strokeWidth="3" />
+
+            {/* ฝั่งขวา */}
+            <path d="M 855 160 Q 860 240 865 315" />
+            <path d="M 740 110 Q 745 210 750 315" />
+            <path d="M 620 75 Q 625 195 630 315" />
+            <path d="M 505 60 L 505 315" stroke="#FDE68A" strokeWidth="3" />
+          </g>
+
+          {/* 5. ซุ้มโค้งสีขาวใต้ฐานกลีบ (White Arches) เรียงติดกันที่ชายคาล่าง */}
+          <g fill="url(#whiteArchGlowPSU)" stroke="#94A3B8" strokeWidth="1">
+            {/* ซุ้มฝั่งซ้าย */}
+            <path d="M 40 315 Q 92 245 145 315 Z" />
+            <path d="M 145 315 Q 202 245 260 315 Z" />
+            <path d="M 260 315 Q 320 240 380 315 Z" />
+            <path d="M 380 315 Q 437 235 495 315 Z" />
+
+            {/* ซุ้มฝั่งขวา */}
+            <path d="M 505 315 Q 563 235 620 315 Z" />
+            <path d="M 620 315 Q 680 240 740 315 Z" />
+            <path d="M 740 315 Q 798 245 855 315 Z" />
+            <path d="M 855 315 Q 907 245 960 315 Z" />
+          </g>
+
+          {/* 6. เส้นรอยต่อกึ่งกลางตึก (Center Split Line) */}
+          <line x1="500" y1="50" x2="500" y2="315" stroke="#0F172A" strokeWidth="3" opacity="0.8" />
         </g>
       </svg>
 
