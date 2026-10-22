@@ -542,18 +542,23 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         </div>
       )}
 
-      {/* Header Central Brand */}
+      {/* Header Central Brand: แยก Block ภาษาไทย และ Block ภาษาอังกฤษ อิสระต่อกัน วางกึ่งกลางหน้าจอแท้จริง 100% */}
       {showControls && (
-        <header className="fixed top-5 left-1/2 -translate-x-1/2 flex flex-col items-center justify-center text-center pointer-events-none z-30 px-4">
-          <div className="flex flex-col items-center justify-center">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-yellow-300 to-amber-500 drop-shadow-[0_2px_18px_rgba(245,158,11,0.65)] tracking-wide whitespace-nowrap">
+        <>
+          {/* Block 1: ข้อความภาษาไทย (กึ่งกลางหน้าจอแนวนอน) */}
+          <div className="fixed top-5 left-1/2 -translate-x-1/2 pointer-events-none z-30 whitespace-nowrap text-center">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-yellow-300 to-amber-500 drop-shadow-[0_2px_18px_rgba(245,158,11,0.65)] tracking-wide">
               เทศกาลลอยกระทงออนไลน์ 🌕
             </h1>
-            <p className="text-xs sm:text-sm text-amber-200/90 tracking-[0.2em] uppercase mt-1 font-semibold drop-shadow whitespace-nowrap -translate-x-3 sm:-translate-x-4">
+          </div>
+
+          {/* Block 2: ข้อความภาษาอังกฤษ (แยก Block อิสระ กึ่งกลางหน้าจอแนวนอนเป๊ะๆ สมมาตรกันแน่นอน) */}
+          <div className="fixed top-14 sm:top-16 left-1/2 -translate-x-1/2 pointer-events-none z-30 whitespace-nowrap text-center">
+            <p className="text-xs sm:text-sm text-amber-200/90 tracking-[0.2em] uppercase font-semibold drop-shadow pl-[0.2em]">
               Loy Krathong River of Lights
             </p>
           </div>
-        </header>
+        </>
       )}
 
       {/* Bottom Floating Control Bar */}
