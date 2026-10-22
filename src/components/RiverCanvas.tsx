@@ -199,13 +199,13 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
 
       ctx.clearRect(0, 0, w, h);
 
-      // --- Background: Sky & Full Moon ---
-      const skyGrad = ctx.createLinearGradient(0, 0, 0, h * 0.5);
+      // --- Background: Sky & Full Moon (วาดท้องฟ้าเฉพาะช่วงบน ไม่ทับช่วงสิ่งก่อสร้างเพื่อให้ SVG Skyline ส่องสว่างชัดเจน) ---
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, h * 0.42);
       skyGrad.addColorStop(0, '#020617'); // Dark Slate
       skyGrad.addColorStop(0.7, '#0f172a');
-      skyGrad.addColorStop(1, '#1e1b4b'); // Deep Midnight Indigo
+      skyGrad.addColorStop(1, 'rgba(30, 27, 75, 0.4)'); // โปร่งแสงเชื่อมต่อกับฉากหลังสิ่งก่อสร้าง
       ctx.fillStyle = skyGrad;
-      ctx.fillRect(0, 0, w, h * 0.5);
+      ctx.fillRect(0, 0, w, h * 0.42);
 
       // Full Moon (พระจันทร์วันเพ็ญสีทองสว่าง)
       const moonX = w * 0.82;
@@ -503,14 +503,15 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-slate-950 select-none">
+      {/* Background Layer 1: Golden Thai Cultural Architecture Skyline (อยู่หลังแม่น้ำและกระทง) */}
+      <ThaiArchitectureSkyline />
+
+      {/* Layer 2: Main River Canvas (ผิวน้ำ กระทง และ Bubble ข้อความ ลอยทับด้านหน้าสิ่งก่อสร้าง) */}
       <canvas
         ref={canvasRef}
         onClick={handleCanvasClick}
-        className="absolute inset-0 cursor-pointer"
+        className="absolute inset-0 cursor-pointer z-10"
       />
-
-      {/* Background Layer: Golden Thai Cultural Architecture Skyline */}
-      <ThaiArchitectureSkyline />
 
       {/* Foreground & Edge Borders: โคมแขวนล้านนา ลายกนกมุมจอ และกอดอกบัวริมตลิ่ง */}
       <DecorativeScreenBorders />
