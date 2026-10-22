@@ -542,24 +542,16 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         </div>
       )}
 
-      {/* Header Central Brand (กึ่งกลางหน้าจอแท้จริง 100% โดยจัดแนวตัว L ของ Loy ให้ตรงกับตัว ก ของ เทศกาล) */}
+      {/* Header Central Brand */}
       {showControls && (
-        <header className="fixed top-5 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-30 px-4">
-          <div className="relative inline-block text-left">
+        <header className="fixed top-5 left-1/2 -translate-x-1/2 flex flex-col items-center justify-center text-center pointer-events-none z-30 px-4">
+          <div className="flex flex-col items-center justify-center">
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-yellow-300 to-amber-500 drop-shadow-[0_2px_18px_rgba(245,158,11,0.65)] tracking-wide whitespace-nowrap">
-              <span>เท</span>
-              <span className="relative inline-block">
-                ก
-                {/* แถวภาษาอังกฤษ Loy Krathong วางตำแหน่งสัมพันธ์โดยให้ตัว L เริ่มต้นที่จุดกึ่งกลางของตัว ก */}
-                <span className="absolute top-full left-1/2 -translate-x-1/2 mt-1 whitespace-nowrap text-xs sm:text-sm text-amber-200/90 tracking-[0.22em] uppercase font-semibold drop-shadow pl-[0.22em]">
-                  Loy Krathong River of Lights
-                </span>
-              </span>
-              <span>าลลอยกระทงออนไลน์ </span>
-              <span className="inline-block text-xl sm:text-2xl md:text-3xl filter-none drop-shadow">🌕</span>
+              เทศกาลลอยกระทงออนไลน์ 🌕
             </h1>
-            {/* พื้นที่รองรับความสูงของข้อความภาษาอังกฤษด้านล่าง */}
-            <div className="h-6 sm:h-7" aria-hidden="true" />
+            <p className="text-xs sm:text-sm text-amber-200/90 tracking-[0.2em] uppercase mt-1 font-semibold drop-shadow whitespace-nowrap -translate-x-3 sm:-translate-x-4">
+              Loy Krathong River of Lights
+            </p>
           </div>
         </header>
       )}
