@@ -116,8 +116,8 @@ export const ThaiArchitectureSkyline: React.FC = () => {
           ))}
         </g>
 
-        {/* ----------------- 3. ตึกฟักทอง คณะวิทยาศาสตร์ ม.อ. (Single Continuous Path ตามโค้ดที่กำหนด) ----------------- */}
-        <g id="realPumpkinBuildingPSU" className="drop-shadow-[0_0_25px_rgba(251,191,36,0.55)]" transform="translate(485, 45) scale(0.63)">
+        {/* ----------------- 3. ตึกฟักทอง คณะวิทยาศาสตร์ ม.อ. (ปรับระดับฐานให้วางแนบระนาบเดียวกับตลิ่งและกำแพงแก้วที่ y=302) ----------------- */}
+        <g id="realPumpkinBuildingPSU" className="drop-shadow-[0_0_25px_rgba(251,191,36,0.55)]" transform="translate(485, 103) scale(0.63)">
           <defs>
             {/* สี Gradient ผิวกลีบสีทอง */}
             <linearGradient id="petalGlowPSU" x1="0%" y1="0%" x2="0%" y2="100%">
