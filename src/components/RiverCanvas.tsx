@@ -542,10 +542,13 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         </div>
       )}
 
-      {/* Header Central Brand (Absolute Center 100% กึ่งกลางหน้าจอแน่นอน) */}
+      {/* Header Central Brand (Absolute Center 100% กึ่งกลางหน้าจอแน่นอน ไม่โดน QR code หรือ element อื่นดัน) */}
       {showControls && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 text-center pointer-events-none z-20 flex flex-col items-center justify-center">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-yellow-300 to-amber-500 drop-shadow-[0_2px_18px_rgba(245,158,11,0.65)] tracking-wide whitespace-nowrap">
+        <div
+          style={{ position: 'fixed', left: '50%', transform: 'translateX(-50%)' }}
+          className="top-5 text-center pointer-events-none z-30 flex flex-col items-center justify-center w-auto whitespace-nowrap"
+        >
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-yellow-300 to-amber-500 drop-shadow-[0_2px_18px_rgba(245,158,11,0.65)] tracking-wide">
             เทศกาลลอยกระทงออนไลน์ 🌕
           </h1>
           <p className="text-xs sm:text-sm text-amber-200/90 tracking-[0.25em] uppercase mt-1 font-semibold drop-shadow text-center">
