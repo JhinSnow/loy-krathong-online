@@ -1,7 +1,7 @@
 // src/components/RiverCanvas.tsx
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { KrathongItem } from '../types';
-import { Sparkles, Maximize2, Minimize2, Eye, ShieldAlert } from 'lucide-react';
+import { Sparkles, Maximize2, Minimize2, Eye, ShieldAlert, QrCode, ChevronUp, ChevronDown } from 'lucide-react';
 import { supabase } from '../utils/supabase';
 import { ThaiArchitectureSkyline } from './ThaiArchitectureSkyline';
 import { DecorativeScreenBorders } from './DecorativeScreenBorders';
@@ -25,6 +25,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectedKrathong, setSelectedKrathong] = useState<KrathongItem | null>(null);
   const [showControls, setShowControls] = useState(true);
+  const [isQrExpanded, setIsQrExpanded] = useState(true);
 
   // สุ่ม Bot กระทง เพื่อให้แม่น้ำไม่ร้าง
   const spawnBot = useCallback((): KrathongItem => {
@@ -51,7 +52,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       flower_type: flowers[Math.floor(Math.random() * flowers.length)],
       candle_color: candles[Math.floor(Math.random() * candles.length)],
       x: -120 - Math.random() * 80,
-      y: winH * 0.48 + Math.random() * (winH * 0.42),
+      y: winH * 0.44 + Math.random() * (winH * 0.44),
       speed: 0.5 + Math.random() * 0.4,
       opacity: 1,
       age: 0,
@@ -78,7 +79,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
             krathongsRef.current.push({
               ...item,
               x: 120 + index * 160 + Math.random() * 60,
-              y: winH * 0.48 + Math.random() * (winH * 0.42),
+              y: winH * 0.44 + Math.random() * (winH * 0.44),
               speed: 0.55 + Math.random() * 0.35,
               opacity: 1,
               age: 0,
@@ -106,7 +107,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
             krathongsRef.current.push({
               ...data,
               x: -120,
-              y: winH * 0.48 + Math.random() * (winH * 0.42),
+              y: winH * 0.44 + Math.random() * (winH * 0.44),
               speed: 0.65 + Math.random() * 0.35,
               opacity: 1,
               age: 0,
@@ -127,7 +128,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         const newK: KrathongItem = {
           ...data,
           x: -120,
-          y: winH * 0.48 + Math.random() * (winH * 0.42),
+          y: winH * 0.44 + Math.random() * (winH * 0.44),
           speed: 0.65 + Math.random() * 0.35,
           opacity: 1,
           age: 0,
@@ -263,8 +264,8 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         ctx.restore();
       });
 
-      // --- River (แม่น้ำเจ้าพระยาจำลอง: ผสมผสานโทนสีกรมท่าลึกและประกายสะท้อนทอง) ---
-      const riverTop = h * 0.45;
+      // --- River (แม่น้ำเจ้าพระยาจำลอง: ปรับระดับให้สูงขึ้นเป็น 0.38h ขยายพื้นที่ผิวน้ำให้กว้างขึ้น) ---
+      const riverTop = h * 0.38;
       const riverGrad = ctx.createLinearGradient(0, riverTop, 0, h);
       riverGrad.addColorStop(0, '#0b132b');
       riverGrad.addColorStop(0.25, '#1c2541');
@@ -285,8 +286,8 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
 
       // Water Ripple Lines with Golden Tint
       const time = currentTime * 0.002;
-      for (let i = 0; i < 11; i++) {
-        const y = riverTop + 15 + i * (h * 0.048);
+      for (let i = 0; i < 13; i++) {
+        const y = riverTop + 15 + i * (h * 0.046);
         ctx.beginPath();
         // เส้นคลื่นผิวน้ำประกายทองอ่อน
         ctx.strokeStyle = i % 2 === 0 ? 'rgba(253, 224, 71, 0.12)' : 'rgba(255, 255, 255, 0.05)';
@@ -514,31 +515,57 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       {/* Foreground & Edge Borders: โคมแขวนล้านนา ลายกนกมุมจอ และกอดอกบัวริมตลิ่ง */}
       <DecorativeScreenBorders />
 
-      {/* Floating QR Code & Stage Mode Watermark (Frosted Glassmorphism with High-Contrast Scannable QR) */}
+      {/* Floating QR Code & Stage Mode Watermark (Frosted Glassmorphism with Collapsible Toggle) */}
       {showControls && (
-        <div className="absolute top-5 left-5 flex flex-col sm:flex-row items-center sm:items-start space-y-2 sm:space-y-0 sm:space-x-3.5 p-3 sm:p-3.5 bg-[#0b132b]/55 backdrop-blur-[14px] rounded-2xl border border-amber-500/40 text-amber-50 shadow-[0_4px_24px_rgba(0,0,0,0.5),0_0_15px_rgba(245,158,11,0.2)] transition-all z-20">
-          {/* QR Code Container with High-Contrast Cream Background */}
-          <div className="w-28 h-28 sm:w-32 sm:h-32 bg-[#fffbeb] rounded-xl flex items-center justify-center p-2 shrink-0 border border-amber-300/80 shadow-md">
-            <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=280x280&color=0b132b&bgcolor=fffbeb&margin=1&data=${encodeURIComponent(
-                window.location.href.includes('localhost')
-                  ? window.location.href.replace('localhost', '172.24.135.154')
-                  : window.location.href
-              )}`}
-              alt="Scan to Float"
-              className="w-full h-full object-contain"
-            />
-          </div>
-          <div className="text-center sm:text-left flex flex-col justify-center self-center sm:self-auto pr-1">
-            <div className="flex items-center justify-center sm:justify-start space-x-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping shrink-0"></span>
-              <p className="font-bold text-sm tracking-wide text-amber-200">สแกนร่วมลอยกระทง</p>
+        <div className="absolute top-5 left-5 z-20 transition-all duration-300 ease-in-out">
+          {isQrExpanded ? (
+            <div className="relative flex flex-col sm:flex-row items-center sm:items-start space-y-2 sm:space-y-0 sm:space-x-3.5 p-3 sm:p-3.5 bg-[#0b132b]/65 backdrop-blur-[16px] rounded-2xl border border-amber-500/40 text-amber-50 shadow-[0_4px_24px_rgba(0,0,0,0.5),0_0_15px_rgba(245,158,11,0.2)] transition-all">
+              {/* ปุ่มพับเก็บกล่อง QR (Collapse Button) */}
+              <button
+                onClick={() => setIsQrExpanded(false)}
+                title="พับเก็บกล่อง QR Code"
+                className="absolute top-2 right-2 p-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/25 text-amber-300 hover:text-amber-100 border border-amber-500/30 transition shadow"
+              >
+                <ChevronUp className="w-3.5 h-3.5" />
+              </button>
+
+              {/* QR Code Container with High-Contrast Cream Background */}
+              <div className="w-28 h-28 sm:w-32 sm:h-32 bg-[#fffbeb] rounded-xl flex items-center justify-center p-2 shrink-0 border border-amber-300/80 shadow-md">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=280x280&color=0b132b&bgcolor=fffbeb&margin=1&data=${encodeURIComponent(
+                    window.location.href.includes('localhost')
+                      ? window.location.href.replace('localhost', '172.24.135.154')
+                      : window.location.href
+                  )}`}
+                  alt="Scan to Float"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <div className="text-center sm:text-left flex flex-col justify-center self-center sm:self-auto pr-6 sm:pr-4">
+                <div className="flex items-center justify-center sm:justify-start space-x-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping shrink-0"></span>
+                  <p className="font-bold text-sm tracking-wide text-amber-200">สแกนร่วมลอยกระทง</p>
+                </div>
+                <p className="text-[11px] text-amber-100/85 mt-0.5 font-medium">ปล่อยกระทงจากมือถือขึ้นจอนี้</p>
+                <p className="text-[11px] text-amber-300 font-mono mt-1 px-2.5 py-0.5 rounded-lg bg-[#0b132b]/80 inline-block border border-amber-500/40 shadow-inner">
+                  {window.location.hostname === 'localhost' ? '172.24.135.154:5173' : window.location.host}
+                </p>
+              </div>
             </div>
-            <p className="text-[11px] text-amber-100/85 mt-0.5 font-medium">ปล่อยกระทงจากมือถือขึ้นจอนี้</p>
-            <p className="text-[11px] text-amber-300 font-mono mt-1 px-2.5 py-0.5 rounded-lg bg-[#0b132b]/80 inline-block border border-amber-500/40 shadow-inner">
-              {window.location.hostname === 'localhost' ? '172.24.135.154:5173' : window.location.host}
-            </p>
-          </div>
+          ) : (
+            /* สถานะพับเก็บ (Collapsed): แสดงแถบ/ปุ่มขนาดกะทัดรัด พร้อม Tooltip และไอคอน QR */
+            <button
+              onClick={() => setIsQrExpanded(true)}
+              title="คลิกเพื่อขยาย QR Code สำหรับสแกนลอยกระทง"
+              className="group flex items-center space-x-2 px-3 py-2 bg-[#0b132b]/80 hover:bg-[#0b132b] backdrop-blur-[14px] rounded-xl border border-amber-500/50 hover:border-amber-400 text-amber-200 hover:text-amber-100 shadow-[0_4px_16px_rgba(0,0,0,0.4),0_0_12px_rgba(245,158,11,0.25)] transition-all active:scale-95 cursor-pointer"
+            >
+              <div className="p-1 rounded-lg bg-amber-500/20 text-amber-300 group-hover:bg-amber-500/30">
+                <QrCode className="w-4 h-4" />
+              </div>
+              <span className="text-xs font-semibold tracking-wide">สแกนร่วมงาน</span>
+              <ChevronDown className="w-3.5 h-3.5 text-amber-400/80 group-hover:translate-y-0.5 transition-transform" />
+            </button>
+          )}
         </div>
       )}
 
