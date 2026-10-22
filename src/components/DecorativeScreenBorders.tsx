@@ -38,15 +38,18 @@ export const DecorativeScreenBorders: React.FC = () => {
         </svg>
       </div>
 
-      {/* ---------------- 2. สายพาดโคมแขวนด้านบน (Hanging Lantern Garland) ---------------- */}
-      <div className="absolute top-0 inset-x-0 h-32 sm:h-40 overflow-visible">
-        {/* สายเชือกโค้งสลัว (Garland Wire) */}
-        <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="w-full h-24 overflow-visible">
+      {/* ---------------- 2. สายพาดโคมแขวนด้านบน (Hanging Lantern Garland - ปรับหลบกึ่งกลางและกล่อง QR code) ---------------- */}
+      <div className="absolute top-0 inset-x-0 h-28 sm:h-36 overflow-visible pointer-events-none">
+        {/* สายเชือกโค้งสลัว (Garland Wire) 2 ฝั่ง ซ้ายและขวา โดยเปิดเว้นช่องตรงกลางและมุมบนซ้าย */}
+        <svg viewBox="0 0 1200 100" preserveAspectRatio="none" className="w-full h-20 overflow-visible opacity-80">
           <defs>
             <linearGradient id="ropeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#d97706" stopOpacity="0.3" />
-              <stop offset="50%" stopColor="#fde047" stopOpacity="0.8" />
-              <stop offset="100%" stopColor="#d97706" stopOpacity="0.3" />
+              <stop offset="0%" stopColor="#d97706" stopOpacity="0.2" />
+              <stop offset="25%" stopColor="#fde047" stopOpacity="0.75" />
+              <stop offset="42%" stopColor="#d97706" stopOpacity="0" />
+              <stop offset="58%" stopColor="#d97706" stopOpacity="0" />
+              <stop offset="75%" stopColor="#fde047" stopOpacity="0.75" />
+              <stop offset="100%" stopColor="#d97706" stopOpacity="0.2" />
             </linearGradient>
             <radialGradient id="lanternGlow" cx="50%" cy="50%" r="50%">
               <stop offset="0%" stopColor="#fffbeb" stopOpacity="0.95" />
@@ -55,20 +58,21 @@ export const DecorativeScreenBorders: React.FC = () => {
               <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
             </radialGradient>
           </defs>
-          {/* แนวสายห้อยตก 3 ช่วงโค้งนุ่มนวล */}
-          <path d="M -50 0 Q 200 48 400 25 Q 600 56 800 25 Q 1000 48 1250 0" fill="none" stroke="url(#ropeGrad)" strokeWidth="1.4" />
+          {/* โค้งเชือกฝั่งซ้าย (หลบ QR Code) */}
+          <path d="M 220 5 Q 310 35 410 8" fill="none" stroke="url(#ropeGrad)" strokeWidth="1.2" />
+          {/* โค้งเชือกฝั่งขวา */}
+          <path d="M 790 8 Q 940 38 1180 5" fill="none" stroke="url(#ropeGrad)" strokeWidth="1.2" />
         </svg>
 
-        {/* รายการโคมแขวนกระดาษ / โคมล้านนาเรืองแสง สลับขนาดและตำแหน่ง */}
+        {/* รายการโคมแขวนกระดาษ (วางเฉพาะฝั่งซ้ายและขวา ไม่บังหัวข้อตรงกลางและไม่ทับกล่อง QR) */}
         {[
-          { left: '12%', top: '18px', size: 'sm', delay: '0s', duration: '5.2s' },
-          { left: '26%', top: '30px', size: 'lg', delay: '1.2s', duration: '6.0s' },
-          { left: '42%', top: '22px', size: 'md', delay: '0.6s', duration: '5.5s' },
-          { left: '58%', top: '28px', size: 'lg', delay: '1.8s', duration: '6.4s' },
-          { left: '74%', top: '20px', size: 'md', delay: '0.4s', duration: '5.8s' },
-          { left: '88%', top: '16px', size: 'sm', delay: '1.5s', duration: '5.0s' },
+          { left: '23%', top: '12px', size: 'sm', delay: '0s', duration: '5.2s' },
+          { left: '31%', top: '22px', size: 'md', delay: '1.2s', duration: '6.0s' },
+          { left: '71%', top: '20px', size: 'md', delay: '0.6s', duration: '5.5s' },
+          { left: '80%', top: '25px', size: 'lg', delay: '1.8s', duration: '6.4s' },
+          { left: '91%', top: '14px', size: 'sm', delay: '0.4s', duration: '5.0s' },
         ].map((item, index) => {
-          const widthClass = item.size === 'lg' ? 'w-10 sm:w-12' : item.size === 'md' ? 'w-8 sm:w-10' : 'w-7 sm:w-8';
+          const widthClass = item.size === 'lg' ? 'w-8 sm:w-10' : item.size === 'md' ? 'w-7 sm:w-8' : 'w-6 sm:w-7';
           return (
             <div
               key={index}

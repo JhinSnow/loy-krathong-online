@@ -80,30 +80,41 @@ export const ThaiArchitectureSkyline: React.FC = () => {
           {/* ฐานเขียง/ฐานแปดเหลี่ยมซ้อนชั้น */}
           <path d="M 380 320 L 380 265 L 392 240 L 448 240 L 460 265 L 460 320 Z" />
 
-          {/* --- กึ่งกลางโดดเด่น: พระปรางค์ประธาน (Royal Phra Prang Landmark) --- */}
+          {/* --- กึ่งกลาง: ตึกฟักทอง สัญลักษณ์ประจำคณะวิทยาศาสตร์ & พระปรางค์ประธาน --- */}
+          {/* ฐานอาคารรองรับตึกฟักทอง */}
+          <path d="M 720 320 L 720 230 L 880 230 L 880 320 Z" fill="#1c2541" stroke="#f59e0b" strokeWidth="1" />
+
           {/* ฝักเพกา/นภศูลยอดปรางค์ */}
-          <path d="M 798 40 L 802 40 L 804 75 L 796 75 Z" fill="url(#prangGoldGrad)" stroke="#fffbeb" strokeWidth="1.5" />
-          {/* เรือนธาตุและชั้นรัดประคดซ้อนทรงกลีบขนุน (Thai Stepped Stupa Structure) */}
+          <path d="M 798 35 L 802 35 L 804 70 L 796 70 Z" fill="url(#prangGoldGrad)" stroke="#fffbeb" strokeWidth="1.5" />
+          {/* พระปรางค์ประธานด้านหลัง */}
           <path
-            d="M 795 75 L 805 75 
-               L 812 105 L 788 105 
-               L 818 140 L 782 140 
-               L 824 178 L 776 178 
-               L 832 215 L 768 215 
-               L 842 255 L 758 255 
-               L 855 295 L 745 295 
-               L 860 320 L 740 320 Z"
+            d="M 795 70 L 805 70 
+               L 812 95 L 788 95 
+               L 818 125 L 782 125 
+               L 824 158 L 776 158 
+               L 832 195 L 768 195 
+               L 842 230 L 758 230 Z"
             fill="url(#prangGoldGrad)"
             stroke="#fde047"
-            strokeWidth="1.8"
+            strokeWidth="1.6"
           />
-          {/* ซุ้มทิศพระปรางค์ (Niche details) */}
-          <path d="M 788 190 Q 800 175 812 190 L 812 215 L 788 215 Z" fill="#0b132b" opacity="0.6" />
-          <path d="M 784 232 Q 800 215 816 232 L 816 255 L 784 255 Z" fill="#0b132b" opacity="0.6" />
+
+          {/* ตึกฟักทอง (Pumpkin Building) สัญลักษณ์คณะวิทยาศาสตร์ อาบแสงสีทองอร่าม */}
+          <g className="drop-shadow-[0_0_20px_rgba(245,158,11,0.65)]">
+            <image
+              href="/pumpkin-building.webp"
+              x="715"
+              y="135"
+              width="170"
+              height="170"
+              preserveAspectRatio="xMidYMid meet"
+              className="opacity-95"
+            />
+          </g>
 
           {/* พระปรางค์ทิศบริวาร (ซ้าย-ขวา) */}
-          <path d="M 710 320 L 710 240 L 725 180 L 730 180 L 745 240 L 745 320 Z" fill="url(#templeGoldGrad)" />
-          <path d="M 855 320 L 855 240 L 870 180 L 875 180 L 890 240 L 890 320 Z" fill="url(#templeGoldGrad)" />
+          <path d="M 680 320 L 680 250 L 695 190 L 700 190 L 715 250 L 715 320 Z" fill="url(#templeGoldGrad)" />
+          <path d="M 885 320 L 885 250 L 900 190 L 905 190 L 920 250 L 920 320 Z" fill="url(#templeGoldGrad)" />
 
           {/* --- ฝั่งขวา: พระเจดีย์ทรงระฆังคว่ำองค์ขวา --- */}
           {/* ปลียอดเจดีย์ */}
