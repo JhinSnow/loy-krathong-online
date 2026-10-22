@@ -116,19 +116,19 @@ export const ThaiArchitectureSkyline: React.FC = () => {
           ))}
         </g>
 
-        {/* ----------------- 3. ตึกฟักทอง คณะวิทยาศาสตร์ ม.อ. (ใช้ภาพกราฟิก vector.png โทนสีทอง ปรับเข้ากับ Theme เว็บ 100%) ----------------- */}
-        <g id="realPumpkinBuildingPSU" className="drop-shadow-[0_0_24px_rgba(251,191,36,0.65)]">
-          {/* เงาสะท้อน/ฐานหลังภาพ */}
-          <rect x="530" y="292" width="540" height="10" fill="#060c1a" opacity="0.6" />
+        {/* ----------------- 3. ตึกฟักทอง คณะวิทยาศาสตร์ ม.อ. (ปรับสีทองสว่างเรืองแสง คมชัดตรงตาม Theme 100%) ----------------- */}
+        <g id="realPumpkinBuildingPSU">
+          {/* Spotlight สีทองส่องหลังตัวตึกฟักทอง */}
+          <ellipse cx="800" cy="245" rx="260" ry="60" fill="url(#spireAura)" opacity="0.35" />
           
           <image
             href="/vector.png"
-            x="525"
-            y="135"
-            width="550"
-            height="170"
+            x="510"
+            y="130"
+            width="580"
+            height="176"
             preserveAspectRatio="xMidYMax meet"
-            className="filter drop-shadow-[0_0_12px_rgba(251,191,36,0.5)]"
+            className="drop-shadow-[0_0_16px_rgba(253,224,71,0.7)]"
           />
         </g>
       </svg>
