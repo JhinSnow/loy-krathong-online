@@ -64,7 +64,147 @@ export const ThaiArchitectureSkyline: React.FC = () => {
             <stop offset="70%" stopColor="#f59e0b" />
             <stop offset="100%" stopColor="#ea580c" />
           </linearGradient>
+
+          {/* Distant Mountain Silhouette Gradient (ทิวเขาคอหงส์สีน้ำเงินเข้มอมครามโปร่งแสง) */}
+          <linearGradient id="mountainDistGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#1e293b" stopOpacity="0.55" />
+            <stop offset="50%" stopColor="#0f172a" stopOpacity="0.7" />
+            <stop offset="100%" stopColor="#0b132b" stopOpacity="0.9" />
+          </linearGradient>
+
+          {/* Mid-distance Foothill Gradient */}
+          <linearGradient id="mountainMidGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#1c2541" stopOpacity="0.6" />
+            <stop offset="60%" stopColor="#111a30" stopOpacity="0.8" />
+            <stop offset="100%" stopColor="#091024" stopOpacity="0.95" />
+          </linearGradient>
+
+          {/* Muted Translucent Gold Gradient for Midground Architecture */}
+          <linearGradient id="mutedGoldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#fde68a" stopOpacity="0.8" />
+            <stop offset="35%" stopColor="#d97706" stopOpacity="0.65" />
+            <stop offset="75%" stopColor="#78350f" stopOpacity="0.6" />
+            <stop offset="100%" stopColor="#0b132b" stopOpacity="0.9" />
+          </linearGradient>
         </defs>
+
+        {/* ----------------- 0. เลเยอร์ภูเขาและขอบฟ้าชั้นหลังสุด (Distant Mountain Silhouette - ทิวเขาคอหงส์ Opacity 45%) ----------------- */}
+        <g id="distantMountainLayer" opacity="0.48">
+          {/* แสงเรืองสีทองสลัวเหนือสันเขา */}
+          <path
+            d="M 0 302 L 0 210 Q 120 158 260 185 Q 410 120 560 162 Q 700 88 830 112 Q 970 78 1130 148 Q 1270 110 1420 172 Q 1520 150 1600 188 L 1600 302 Z"
+            fill="url(#mountainDistGrad)"
+            stroke="#f59e0b"
+            strokeWidth="1"
+            strokeOpacity="0.28"
+          />
+          {/* ทิวเขาชั้นรองด้านหน้า (Foothills Silhouette) */}
+          <path
+            d="M 0 302 L 0 242 Q 180 192 350 222 Q 510 168 680 202 Q 840 152 1010 192 Q 1180 162 1350 212 Q 1480 188 1600 225 L 1600 302 Z"
+            fill="url(#mountainMidGrad)"
+            stroke="#fbbf24"
+            strokeWidth="0.8"
+            strokeOpacity="0.22"
+          />
+        </g>
+
+        {/* ----------------- 0.5 เลเยอร์สิ่งก่อสร้างเสริมและทิวต้นตาล/มะพร้าว ปิดช่องว่างซ้าย-ขวาของตึกฟักทอง ----------------- */}
+        <g
+          id="midgroundGapFillers"
+          opacity="0.68"
+          className="drop-shadow-[0_0_10px_rgba(245,158,11,0.3)]"
+        >
+          {/* ยอดรัศมีเรืองแสงของเจดีย์ย่อมุมไม้สิบสองซ้าย-ขวา */}
+          <circle cx="490" cy="142" r="12" fill="url(#spireAura)" />
+          <circle cx="490" cy="142" r="2" fill="#fffbeb" />
+          <circle cx="1110" cy="142" r="12" fill="url(#spireAura)" />
+          <circle cx="1110" cy="142" r="2" fill="#fffbeb" />
+          <circle cx="385" cy="155" r="10" fill="url(#spireAura)" />
+          <circle cx="1215" cy="155" r="10" fill="url(#spireAura)" />
+
+          <g fill="url(#mutedGoldGrad)" stroke="#fde047" strokeWidth="0.9" strokeOpacity="0.6">
+            {/* --- ฝั่งซ้าย: ปิดช่องว่างระหว่างเจดีย์ซ้าย (350) - พระปรางค์ (420..475) - ตึกฟักทอง (510) --- */}
+            {/* 1. ศาลาริมน้ำทรงจั่วซ้อนชั้น + ยอดมณฑปเล็ก (x: 345..425) */}
+            <path d="M 383 155 L 387 155 L 390 185 L 380 185 Z" />
+            <path d="M 360 220 L 385 182 L 410 220 Z" />
+            <path d="M 348 250 L 385 205 L 422 250 Z" />
+            <path d="M 342 302 L 342 250 L 385 222 L 428 250 L 428 302 Z" />
+
+            {/* 2. เจดีย์ย่อมุมไม้สิบสอง / ยอดปรางค์องค์เล็ก แทรกข้างซ้ายตึกฟักทอง (x: 468..518) */}
+            <path d="M 488 142 L 492 142 L 495 178 L 485 178 Z" />
+            <path d="M 481 178 L 499 178 L 503 202 L 477 202 Z" />
+            {/* องค์ระฆังย่อมุม */}
+            <path d="M 474 202 L 506 202 L 512 232 L 468 232 Z" />
+            {/* ฐานบัวลูกแก้วอกไก่ */}
+            <path d="M 464 302 L 464 232 L 516 232 L 516 302 Z" />
+
+            {/* 3. หลังคาศาลาจั่วซ้อนชั้นเชื่อมเข้าหาด้านซ้ายตึกฟักทอง (x: 500..555) */}
+            <path d="M 505 245 L 530 212 L 555 245 Z" />
+            <path d="M 498 302 L 498 245 L 530 225 L 562 245 L 562 302 Z" />
+
+            {/* --- ฝั่งขวา: ปิดช่องว่างระหว่างตึกฟักทอง (1090) - พระปรางค์ขวา (1125..1180) - เจดีย์ขวา (1250) --- */}
+            {/* 1. หลังคาศาลาจั่วซ้อนชั้นเชื่อมจากด้านขวาตึกฟักทอง (x: 1045..1100) */}
+            <path d="M 1045 245 L 1070 212 L 1095 245 Z" />
+            <path d="M 1038 302 L 1038 245 L 1070 225 L 1102 245 L 1102 302 Z" />
+
+            {/* 2. เจดีย์ย่อมุมไม้สิบสอง / ยอดปรางค์องค์เล็ก แทรกข้างขวาตึกฟักทอง (x: 1082..1132) */}
+            <path d="M 1108 142 L 1112 142 L 1115 178 L 1105 178 Z" />
+            <path d="M 1101 178 L 1119 178 L 1123 202 L 1097 202 Z" />
+            <path d="M 1094 202 L 1126 202 L 1132 232 L 1088 232 Z" />
+            <path d="M 1084 302 L 1084 232 L 1136 232 L 1136 302 Z" />
+
+            {/* 3. ศาลาริมน้ำทรงจั่วซ้อนชั้น + ยอดมณฑปเล็กฝั่งขวา (x: 1175..1255) */}
+            <path d="M 1213 155 L 1217 155 L 1220 185 L 1210 185 Z" />
+            <path d="M 1190 220 L 1215 182 L 1240 220 Z" />
+            <path d="M 1178 250 L 1215 205 L 1252 250 Z" />
+            <path d="M 1172 302 L 1172 250 L 1215 222 L 1258 250 L 1258 302 Z" />
+          </g>
+
+          {/* --- ทิวยอดต้นตาล / ต้นมะพร้าวริมน้ำแบบ Silhouette สีน้ำเงินเข้มขอบทอง (เอกลักษณ์ภูมิทัศน์ตึกฟักทอง ม.อ.) --- */}
+          {[
+            { x: 172, y: 205, scale: 0.85, tilt: -4 },
+            { x: 358, y: 192, scale: 0.9, tilt: 5 },
+            { x: 472, y: 188, scale: 0.95, tilt: -6 },
+            { x: 512, y: 175, scale: 1.05, tilt: -3 },
+            { x: 1088, y: 175, scale: 1.05, tilt: 3 },
+            { x: 1128, y: 188, scale: 0.95, tilt: 6 },
+            { x: 1242, y: 192, scale: 0.9, tilt: -5 },
+            { x: 1485, y: 205, scale: 0.85, tilt: 4 },
+          ].map((palm, idx) => (
+            <g
+              key={`palm-${idx}`}
+              transform={`translate(${palm.x}, ${palm.y}) scale(${palm.scale})`}
+            >
+              {/* ลำต้นตาล/มะพร้าวเรียวโค้งสีน้ำเงินเข้มตัดขอบทอง */}
+              <path
+                d={`M ${palm.tilt * 1.5} 105 Q ${palm.tilt * 0.5} 50 0 0`}
+                fill="none"
+                stroke="#0b132b"
+                strokeWidth="4.5"
+                strokeLinecap="round"
+              />
+              <path
+                d={`M ${palm.tilt * 1.5} 105 Q ${palm.tilt * 0.5} 50 0 0`}
+                fill="none"
+                stroke="#fbbf24"
+                strokeWidth="1.2"
+                strokeOpacity="0.75"
+                strokeLinecap="round"
+              />
+              {/* พุ่มทางมะพร้าว/ใบตาลแผ่รัศมีโค้ง (Silhouette สีน้ำเงินเข้มขอบทอง) */}
+              <g fill="#0f172a" stroke="#fde047" strokeWidth="0.9" strokeOpacity="0.8">
+                <path d="M 0 0 Q -14 -12 -26 -2 Q -12 -4 0 2 Z" />
+                <path d="M 0 0 Q -18 -4 -28 10 Q -14 2 0 3 Z" />
+                <path d="M 0 0 Q -10 4 -18 18 Q -8 8 0 4 Z" />
+                <path d="M 0 0 Q -6 -16 -14 -22 Q -2 -12 0 0 Z" />
+                <path d="M 0 0 Q 6 -16 14 -22 Q 2 -12 0 0 Z" />
+                <path d="M 0 0 Q 14 -12 26 -2 Q 12 -4 0 2 Z" />
+                <path d="M 0 0 Q 18 -4 28 10 Q 14 2 0 3 Z" />
+                <path d="M 0 0 Q 10 4 18 18 Q 8 8 0 4 Z" />
+              </g>
+            </g>
+          ))}
+        </g>
 
         {/* ----------------- 1. ยอดรัศมีเรืองรอง ----------------- */}
         {/* Chedi Left Spire Glow */}
