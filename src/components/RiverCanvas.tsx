@@ -542,14 +542,16 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         </div>
       )}
 
-      {/* Header Central Brand (ขยับเยื้องขวาเพื่อให้สมดุลกับกล่อง QR Code ทางซ้าย) */}
+      {/* Header Central Brand (กึ่งกลางหน้าจอแท้จริง 100% พร้อมปรับความสมมาตรระหว่างข้อความไทย-อังกฤษ) */}
       {showControls && (
-        <header className="fixed top-5 left-1/2 -translate-x-1/2 sm:translate-x-[40px] md:translate-x-[90px] lg:translate-x-[110px] flex flex-col items-center justify-center text-center pointer-events-none z-30 px-4 transition-transform duration-300">
+        <header className="fixed top-5 left-1/2 -translate-x-1/2 flex flex-col items-center justify-center text-center pointer-events-none z-30 px-4">
           <div className="flex flex-col items-center justify-center">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-yellow-300 to-amber-500 drop-shadow-[0_2px_18px_rgba(245,158,11,0.65)] tracking-wide whitespace-nowrap">
-              เทศกาลลอยกระทงออนไลน์ 🌕
+            {/* ข้อความไทยมีอิโมจิพระจันทร์ 🌕 อยู่ทางขวา จึงเพิ่ม offset หรือ padding ซ้ายเพื่อชดเชยน้ำหนักอิโมจิให้อักษรไทยอยู่กึ่งกลางสมมาตรเป๊ะกับแถวอังกฤษ */}
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-yellow-300 to-amber-500 drop-shadow-[0_2px_18px_rgba(245,158,11,0.65)] tracking-wide whitespace-nowrap pl-4 sm:pl-6">
+              เทศกาลลอยกระทงออนไลน์ <span className="inline-block text-xl sm:text-2xl md:text-3xl filter-none drop-shadow">🌕</span>
             </h1>
-            <p className="text-xs sm:text-sm text-amber-200/90 tracking-[0.25em] uppercase mt-1 font-semibold drop-shadow whitespace-nowrap">
+            {/* ซับไตเติลภาษาอังกฤษ จัดให้อยู่กึ่งกลางสมมาตรอย่างพอดีกับข้อความด้านบน */}
+            <p className="text-xs sm:text-sm text-amber-200/90 tracking-[0.25em] uppercase mt-1 font-semibold drop-shadow whitespace-nowrap pl-[0.25em]">
               Loy Krathong River of Lights
             </p>
           </div>
