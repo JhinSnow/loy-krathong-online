@@ -1,24 +1,108 @@
 @import "tailwindcss";
 
 @layer base {
+  :root {
+    --bg-night-top: #0b132b;
+    --bg-night-mid: #1c2541;
+    --bg-river-deep: #0a1128;
+    --bg-river-surface: #1b2a4a;
+    --gold-bright: #fde047;
+    --gold-warm: #fbbf24;
+    --gold-primary: #f59e0b;
+    --gold-deep: #d97706;
+    --gold-border: rgba(251, 191, 36, 0.45);
+    --gold-glow: rgba(245, 158, 11, 0.35);
+    --text-creamy: #fffbeb;
+    --text-gold-soft: #fde68a;
+  }
+
   body {
-    @apply bg-slate-950 text-slate-100 antialiased overflow-x-hidden;
+    background-color: var(--bg-night-top);
+    color: var(--text-creamy);
     font-family: 'Sarabun', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
   }
 }
 
+/* Animations */
 @keyframes floatSlow {
   0%, 100% { transform: translateY(0px) rotate(0deg); }
-  50% { transform: translateY(-8px) rotate(1deg); }
+  50% { transform: translateY(-7px) rotate(1deg); }
 }
 
-@keyframes lanternFloat {
-  0% { transform: translateY(110vh) translateX(0); opacity: 0; }
-  10% { opacity: 0.85; }
-  90% { opacity: 0.85; }
-  100% { transform: translateY(-20vh) translateX(40px); opacity: 0; }
+@keyframes warmPulse {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.4), 0 0 30px rgba(251, 191, 36, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(245, 158, 11, 0.65), 0 0 45px rgba(251, 191, 36, 0.35);
+  }
+}
+
+@keyframes flameFlicker {
+  0%, 100% { transform: scale(1) translateY(0); opacity: 0.95; }
+  50% { transform: scale(1.08, 0.94) translateY(-1px); opacity: 1; }
+}
+
+@keyframes goldenShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
 .animate-float {
   animation: floatSlow 4s ease-in-out infinite;
+}
+
+.animate-flame {
+  animation: flameFlicker 1.8s ease-in-out infinite;
+}
+
+/* Reusable Utility Classes for Warm Festive Gold Theme */
+.btn-gold-primary {
+  background: linear-gradient(135deg, #fde047 0%, #f59e0b 50%, #d97706 100%);
+  color: #1c1917;
+  font-weight: 700;
+  box-shadow: 0 4px 18px rgba(245, 158, 11, 0.35), 0 0 10px rgba(253, 224, 71, 0.25);
+  border: 1px solid rgba(254, 240, 138, 0.6);
+  transition: all 0.25s ease-in-out;
+}
+
+.btn-gold-primary:hover {
+  background: linear-gradient(135deg, #fef08a 0%, #fbbf24 50%, #b45309 100%);
+  box-shadow: 0 6px 24px rgba(245, 158, 11, 0.55), 0 0 16px rgba(253, 224, 71, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-gold-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-gold-outline {
+  background: rgba(28, 37, 65, 0.7);
+  color: #fde68a;
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.15) inset;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-gold-outline:hover {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: #fbbf24;
+  color: #fffbeb;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.3);
+}
+
+.glass-gold-card {
+  background: linear-gradient(180deg, rgba(28, 37, 65, 0.88) 0%, rgba(11, 19, 43, 0.94) 100%);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(245, 158, 11, 0.12);
+  backdrop-filter: blur(16px);
+}
+
+.gold-glow-bubble {
+  background: linear-gradient(180deg, rgba(255, 251, 235, 0.96) 0%, rgba(254, 243, 199, 0.92) 100%);
+  border: 1.5px solid rgba(245, 158, 11, 0.6);
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3), 0 0 8px rgba(253, 224, 71, 0.25);
+  color: #1e1b4b;
 }

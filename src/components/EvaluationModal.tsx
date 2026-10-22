@@ -68,22 +68,22 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50">
-      <div className="bg-slate-900 border border-amber-500/30 rounded-3xl p-6 sm:p-8 max-w-md w-full text-center relative shadow-2xl animate-in fade-in zoom-in-95">
-        <div className="w-16 h-16 mx-auto rounded-full bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-3xl mb-3">
+    <div className="fixed inset-0 bg-[#050a16]/85 backdrop-blur-md flex items-center justify-center p-4 z-50">
+      <div className="bg-gradient-to-b from-[#1c2541]/95 to-[#0b132b]/98 border border-amber-400/40 rounded-3xl p-6 sm:p-8 max-w-md w-full text-center relative shadow-[0_10px_40px_rgba(0,0,0,0.7),0_0_25px_rgba(245,158,11,0.25)] animate-in fade-in zoom-in-95">
+        <div className="w-16 h-16 mx-auto rounded-full bg-amber-400/20 border border-amber-400/50 flex items-center justify-center text-3xl mb-3 shadow-[0_0_15px_rgba(245,158,11,0.4)]">
           ✨
         </div>
 
-        <h3 className="text-xl font-bold text-amber-200">
+        <h3 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-amber-300 to-yellow-200">
           ปล่อยกระทงลงสู่สายน้ำแล้ว!
         </h3>
-        <p className="text-xs text-slate-300 mt-1">
+        <p className="text-xs text-amber-100/80 mt-1">
           โปรดสละเวลาประเมินความพึงพอใจสั้นๆ เพื่อนำไปพัฒนาการจัดงานในครั้งต่อไป
         </p>
 
         {/* 1-5 Star Rating */}
         <div className="my-6">
-          <p className="text-xs text-slate-400 mb-2">ความพึงพอใจในภาพรวมของระบบ</p>
+          <p className="text-xs text-amber-200/90 mb-2 font-medium">ความพึงพอใจในภาพรวมของระบบ</p>
           <div className="flex justify-center space-x-2">
             {[1, 2, 3, 4, 5].map((star) => (
               <button
@@ -97,7 +97,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                 <Star
                   className={`w-8 h-8 ${
                     (hoverRating || rating) >= star
-                      ? 'fill-amber-400 text-amber-400'
+                      ? 'fill-amber-400 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]'
                       : 'text-slate-600'
                   }`}
                 />
@@ -115,7 +115,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
 
         {/* Optional Feedback */}
         <div className="text-left mb-6">
-          <label className="block text-xs text-slate-400 mb-1">
+          <label className="block text-xs text-amber-200/80 mb-1">
             ข้อเสนอแนะเพิ่มเติม (ถ้ามี)
           </label>
           <textarea
@@ -124,7 +124,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
             placeholder="ข้อความติชม หรือสิ่งที่อยากให้เพิ่มในงานครั้งต่อไป..."
             maxLength={300}
             rows={3}
-            className="w-full bg-slate-950/80 border border-slate-700 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 resize-none"
+            className="w-full bg-[#0b132b]/90 border border-amber-500/35 rounded-xl p-3 text-xs text-amber-50 placeholder-slate-400 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 resize-none"
           />
         </div>
 
@@ -133,15 +133,15 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
           <button
             onClick={() => handleSubmit(false)}
             disabled={submitting}
-            className="w-full flex items-center justify-center space-x-2 py-3 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-bold rounded-xl shadow-lg transition"
+            className="w-full flex items-center justify-center space-x-2 py-3 bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 hover:from-amber-300 hover:via-yellow-400 hover:to-amber-500 text-stone-900 font-extrabold rounded-xl shadow-[0_4px_20px_rgba(245,158,11,0.45)] border border-yellow-200/60 transition cursor-pointer"
           >
-            <Send className="w-4 h-4" />
+            <Send className="w-4 h-4 text-stone-900" />
             <span>{submitting ? 'กำลังส่งข้อมูล...' : 'ส่งผลประเมิน & ไปดูแม่น้ำ'}</span>
           </button>
 
           <button
             onClick={() => handleSubmit(true)}
-            className="w-full flex items-center justify-center space-x-1 py-2 text-slate-400 hover:text-slate-200 text-xs transition"
+            className="w-full flex items-center justify-center space-x-1 py-2 text-amber-200/60 hover:text-amber-100 text-xs transition cursor-pointer"
           >
             <span>ข้ามขั้นตอนนี้</span>
             <ArrowRight className="w-3 h-3" />

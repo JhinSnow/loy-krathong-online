@@ -261,34 +261,37 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         ctx.restore();
       });
 
-      // --- River (แม่น้ำเจ้าพระยาจำลอง) ---
+      // --- River (แม่น้ำเจ้าพระยาจำลอง: ผสมผสานโทนสีกรมท่าลึกและประกายสะท้อนทอง) ---
       const riverTop = h * 0.45;
       const riverGrad = ctx.createLinearGradient(0, riverTop, 0, h);
-      riverGrad.addColorStop(0, '#0a192f');
-      riverGrad.addColorStop(0.3, '#032030');
-      riverGrad.addColorStop(0.7, '#001427');
-      riverGrad.addColorStop(1, '#000814');
+      riverGrad.addColorStop(0, '#0b132b');
+      riverGrad.addColorStop(0.25, '#1c2541');
+      riverGrad.addColorStop(0.65, '#0a1128');
+      riverGrad.addColorStop(1, '#050a16');
       ctx.fillStyle = riverGrad;
       ctx.fillRect(0, riverTop, w, h - riverTop);
 
-      // แสงจันทร์สะท้อนผิวน้ำ (Moon Reflection on River)
-      const refGrad = ctx.createLinearGradient(moonX - 80, riverTop, moonX + 80, riverTop);
-      refGrad.addColorStop(0, 'rgba(253, 224, 71, 0)');
-      refGrad.addColorStop(0.5, 'rgba(253, 224, 71, 0.15)');
-      refGrad.addColorStop(1, 'rgba(253, 224, 71, 0)');
+      // แสงจันทร์และประกายเทียนสีทองสะท้อนผิวน้ำ (Golden Moonlight & Candle Shimmer)
+      const refGrad = ctx.createLinearGradient(moonX - 120, riverTop, moonX + 120, riverTop);
+      refGrad.addColorStop(0, 'rgba(245, 158, 11, 0)');
+      refGrad.addColorStop(0.3, 'rgba(251, 191, 36, 0.1)');
+      refGrad.addColorStop(0.5, 'rgba(254, 240, 138, 0.28)');
+      refGrad.addColorStop(0.7, 'rgba(251, 191, 36, 0.1)');
+      refGrad.addColorStop(1, 'rgba(245, 158, 11, 0)');
       ctx.fillStyle = refGrad;
-      ctx.fillRect(moonX - 100, riverTop, 200, h - riverTop);
+      ctx.fillRect(moonX - 150, riverTop, 300, h - riverTop);
 
-      // Water Ripple Lines
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
-      ctx.lineWidth = 1.2;
+      // Water Ripple Lines with Golden Tint
       const time = currentTime * 0.002;
-      for (let i = 0; i < 10; i++) {
-        const y = riverTop + 20 + i * (h * 0.05);
+      for (let i = 0; i < 11; i++) {
+        const y = riverTop + 15 + i * (h * 0.048);
         ctx.beginPath();
+        // เส้นคลื่นผิวน้ำประกายทองอ่อน
+        ctx.strokeStyle = i % 2 === 0 ? 'rgba(253, 224, 71, 0.12)' : 'rgba(255, 255, 255, 0.05)';
+        ctx.lineWidth = i % 2 === 0 ? 1.5 : 1.0;
         ctx.moveTo(0, y);
-        for (let x = 0; x < w; x += 60) {
-          ctx.lineTo(x, y + Math.sin(x * 0.015 + time + i) * 3);
+        for (let x = 0; x < w; x += 55) {
+          ctx.lineTo(x, y + Math.sin(x * 0.016 + time + i) * 3.5);
         }
         ctx.stroke();
       }
@@ -373,33 +376,58 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         ctx.fillStyle = flameColor;
         ctx.fillRect((k.x || 0) + 38, currentY - 20, 5, 18);
 
-        // Candle Flame
+        // Candle Flame with Warm Halo
+        // 1. Outer flame halo
         ctx.beginPath();
-        ctx.arc((k.x || 0) + 40.5, currentY - 24, 5 + Math.sin(currentTime * 0.02) * 1.5, 0, Math.PI * 2);
+        ctx.arc((k.x || 0) + 40.5, currentY - 24, 12 + Math.sin(currentTime * 0.02) * 2, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(251, 191, 36, 0.28)';
+        ctx.fill();
+
+        // 2. Middle flame body
+        ctx.beginPath();
+        ctx.arc((k.x || 0) + 40.5, currentY - 24, 6 + Math.sin(currentTime * 0.02) * 1.5, 0, Math.PI * 2);
         ctx.fillStyle = flameColor;
+        ctx.fill();
+
+        // 3. Inner hot white-yellow core
+        ctx.beginPath();
+        ctx.arc((k.x || 0) + 40.5, currentY - 23, 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#fffbeb';
         ctx.fill();
 
         // Ambient Water Reflection underneath
-        ctx.fillStyle = flameColor;
-        ctx.globalAlpha = (k.opacity ?? 1) * 0.25;
+        ctx.fillStyle = '#f59e0b';
+        ctx.globalAlpha = (k.opacity ?? 1) * 0.35;
         ctx.beginPath();
-        ctx.ellipse((k.x || 0) + 40, currentY + 28, 25, 6, 0, 0, Math.PI * 2);
+        ctx.ellipse((k.x || 0) + 40, currentY + 28, 28, 7, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.globalAlpha = k.opacity ?? 1;
 
-        // --- Speech Bubble สำหรับคำอวยพร ---
+        // --- Speech Bubble สำหรับคำอวยพร (โทนอุ่น ขอบทองเรืองรอง) ---
         const bubbleW = Math.min(220, Math.max(140, (k.owner_name.length + 10) * 8.5));
         const bubbleH = 34;
         const bx = (k.x || 0) - bubbleW / 2 + 40;
         const by = currentY - 68;
 
-        // Bubble Background with rounded corners
-        ctx.fillStyle = k.isMine ? 'rgba(254, 240, 138, 0.95)' : 'rgba(255, 255, 255, 0.92)';
+        // Bubble Shadow Glow
+        ctx.shadowColor = 'rgba(245, 158, 11, 0.45)';
+        ctx.shadowBlur = 8;
+
+        // Bubble Background with creamy/warm gold
+        ctx.fillStyle = k.isMine ? '#fef3c7' : '#fffbeb';
         ctx.beginPath();
         ctx.roundRect(bx, by, bubbleW, bubbleH, 10);
         ctx.fill();
 
+        // Bubble Golden Border
+        ctx.strokeStyle = k.isMine ? '#d97706' : '#f59e0b';
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+
+        ctx.shadowBlur = 0; // reset shadow
+
         // Bubble Arrow Tip
+        ctx.fillStyle = k.isMine ? '#fef3c7' : '#fffbeb';
         ctx.beginPath();
         ctx.moveTo((k.x || 0) + 36, by + bubbleH);
         ctx.lineTo((k.x || 0) + 40, by + bubbleH + 6);
@@ -407,12 +435,12 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         ctx.fill();
 
         // Bubble Text
-        ctx.fillStyle = '#0f172a';
+        ctx.fillStyle = '#92400e'; // Warm dark amber for name
         ctx.font = 'bold 11px sans-serif';
         ctx.fillText(k.owner_name, bx + 10, by + 14);
 
         ctx.font = '10px sans-serif';
-        ctx.fillStyle = '#334155';
+        ctx.fillStyle = '#1c1917'; // Rich dark warm charcoal
         const displayWish = k.wish_message.length > 20 ? k.wish_message.slice(0, 19) + '…' : k.wish_message;
         ctx.fillText(displayWish, bx + 10, by + 28);
 
@@ -480,8 +508,8 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
 
       {/* Floating QR Code & Stage Mode Watermark (ฉายขึ้นจอโปรเจกเตอร์) */}
       {showControls && (
-        <div className="absolute top-6 left-6 flex flex-col sm:flex-row items-center sm:items-start space-y-2 sm:space-y-0 sm:space-x-3.5 p-3.5 bg-slate-900/85 backdrop-blur-md rounded-2xl border border-amber-500/40 text-white shadow-2xl transition-all">
-          <div className="w-24 h-24 sm:w-28 sm:h-28 bg-white rounded-xl flex items-center justify-center p-1.5 shadow-inner shrink-0">
+        <div className="absolute top-6 left-6 flex flex-col sm:flex-row items-center sm:items-start space-y-2 sm:space-y-0 sm:space-x-3.5 p-3.5 bg-[#0b132b]/85 backdrop-blur-md rounded-2xl border border-amber-400/40 text-amber-50 shadow-[0_4px_25px_rgba(245,158,11,0.25)] transition-all">
+          <div className="w-24 h-24 sm:w-28 sm:h-28 bg-[#fffbeb] rounded-xl flex items-center justify-center p-1.5 shadow-inner shrink-0 border border-amber-300">
             <img
               src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
                 window.location.href.includes('localhost')
@@ -494,11 +522,11 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
           </div>
           <div className="text-center sm:text-left">
             <div className="flex items-center justify-center sm:justify-start space-x-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping shrink-0"></span>
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping shrink-0"></span>
               <p className="font-bold text-sm tracking-wide text-amber-200">สแกนร่วมลอยกระทง</p>
             </div>
-            <p className="text-xs text-slate-300 mt-1">สัมผัสค่ำคืนวันเพ็ญบนจอนี้</p>
-            <p className="text-[11px] text-amber-300 font-mono mt-1 px-2 py-0.5 rounded bg-slate-800/80 inline-block border border-slate-700">
+            <p className="text-xs text-amber-100/80 mt-1">สัมผัสค่ำคืนวันเพ็ญบนจอนี้</p>
+            <p className="text-[11px] text-amber-300 font-mono mt-1 px-2 py-0.5 rounded bg-amber-950/40 inline-block border border-amber-500/30">
               {window.location.hostname === 'localhost' ? '172.24.135.154:5173' : window.location.host}
             </p>
           </div>
@@ -508,31 +536,31 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       {/* Header Central Brand */}
       {showControls && (
         <div className="absolute top-6 left-1/2 -translate-x-1/2 text-center pointer-events-none">
-          <h1 className="text-2xl md:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-100 drop-shadow">
+          <h1 className="text-2xl md:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-yellow-300 to-amber-500 drop-shadow-[0_2px_15px_rgba(245,158,11,0.5)]">
             เทศกาลลอยกระทงออนไลน์ 🌕
           </h1>
-          <p className="text-xs text-amber-200/70 tracking-widest uppercase mt-0.5">
+          <p className="text-xs text-amber-200/90 tracking-widest uppercase mt-0.5 font-medium">
             Loy Krathong River of Lights
           </p>
         </div>
       )}
 
       {/* Bottom Floating Control Bar */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center space-x-3 bg-slate-900/80 backdrop-blur-lg px-5 py-3 rounded-full border border-slate-700/80 shadow-2xl z-20">
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center space-x-3 bg-[#0b132b]/85 backdrop-blur-lg px-5 py-3 rounded-full border border-amber-500/40 shadow-[0_8px_30px_rgba(0,0,0,0.6),0_0_15px_rgba(245,158,11,0.25)] z-20">
         <button
           onClick={onNavigateCustomize}
-          className="flex items-center space-x-2 px-5 py-2.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-bold rounded-full shadow-lg transition active:scale-95"
+          className="flex items-center space-x-2 px-5 py-2.5 bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 hover:from-amber-300 hover:via-yellow-400 hover:to-amber-500 text-stone-900 font-bold rounded-full shadow-[0_0_20px_rgba(245,158,11,0.5)] border border-yellow-200/60 transition active:scale-95"
         >
-          <Sparkles className="w-4 h-4" />
+          <Sparkles className="w-4 h-4 text-stone-900" />
           <span>สร้างกระทงของคุณ</span>
         </button>
 
         {myKrathongId && (
           <button
             onClick={handleFindMyKrathong}
-            className="flex items-center space-x-1.5 px-4 py-2.5 bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 border border-amber-400/50 rounded-full text-sm font-medium transition"
+            className="flex items-center space-x-1.5 px-4 py-2.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-400/60 rounded-full text-sm font-semibold shadow-[0_0_12px_rgba(245,158,11,0.25)] transition"
           >
-            <Eye className="w-4 h-4" />
+            <Eye className="w-4 h-4 text-amber-300" />
             <span className="hidden sm:inline">ดูกระทงของฉัน</span>
           </button>
         )}
@@ -540,7 +568,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         <button
           onClick={toggleFullscreen}
           title="เปิด/ปิด โหมดเต็มจอสำหรับขึ้นจอใหญ่"
-          className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-full border border-slate-700 transition"
+          className="p-2.5 bg-slate-900/80 hover:bg-amber-950/40 text-amber-200 rounded-full border border-amber-500/30 hover:border-amber-400 transition"
         >
           {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
         </button>
@@ -548,7 +576,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         <button
           onClick={() => setShowControls(!showControls)}
           title="ซ่อนแถบควบคุมสำหรับฉายโปรเจกเตอร์"
-          className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 text-xs rounded-full border border-slate-700"
+          className="px-3 py-2 bg-slate-900/80 hover:bg-amber-950/40 text-amber-200/80 text-xs rounded-full border border-amber-500/30 hover:border-amber-400"
         >
           {showControls ? 'ซ่อน UI' : 'แสดง UI'}
         </button>

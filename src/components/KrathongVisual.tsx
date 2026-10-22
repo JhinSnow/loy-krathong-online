@@ -51,11 +51,12 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
     <div className={`relative ${sizeClasses} flex items-center justify-center select-none`}>
       <svg viewBox="0 0 200 200" className="w-full h-full drop-shadow-2xl">
         <defs>
-          {/* Candle Glow */}
+          {/* Candle Warm Multi-layer Glow */}
           <radialGradient id="candleGlow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor={candle.flame} stopOpacity="0.9" />
-            <stop offset="40%" stopColor={candle.flame} stopOpacity="0.4" />
-            <stop offset="100%" stopColor={candle.flame} stopOpacity="0" />
+            <stop offset="0%" stopColor="#fffbeb" stopOpacity="1" />
+            <stop offset="25%" stopColor={candle.flame} stopOpacity="0.85" />
+            <stop offset="60%" stopColor="#f59e0b" stopOpacity="0.45" />
+            <stop offset="100%" stopColor="#d97706" stopOpacity="0" />
           </radialGradient>
           {/* Base Gradient */}
           <linearGradient id="baseGrad" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -64,8 +65,9 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
           </linearGradient>
         </defs>
 
-        {/* Ambient Candle Light Glow */}
-        <circle cx="100" cy="55" r="40" fill="url(#candleGlow)" className="animate-pulse" />
+        {/* Ambient Candle Light Glow Multi-level */}
+        <circle cx="101" cy="50" r="48" fill="url(#candleGlow)" className="animate-pulse" />
+        <circle cx="101" cy="50" r="28" fill="url(#candleGlow)" opacity="0.8" />
 
         {/* --- Incense Sticks (ธูป 3 ดอก) --- */}
         <line x1="88" y1="90" x2="84" y2="45" stroke="#78350f" strokeWidth="2.5" strokeLinecap="round" />
