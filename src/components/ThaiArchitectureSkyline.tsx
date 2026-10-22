@@ -104,11 +104,11 @@ export const ThaiArchitectureSkyline: React.FC = () => {
           <path d="M 1340 275 L 1420 215 L 1500 275 Z" />
           <path d="M 1310 320 L 1310 280 L 1420 230 L 1530 280 L 1530 320 Z" />
 
-          {/* ----------------- แนวกำแพงแก้ว ใบเสมา ----------------- */}
-          <rect x="0" y="302" width="580" height="18" fill="#1c2541" stroke="#f59e0b" strokeWidth="1" />
-          <rect x="1020" y="302" width="580" height="18" fill="#1c2541" stroke="#f59e0b" strokeWidth="1" />
+          {/* ----------------- แนวกำแพงแก้ว/ฐานตลิ่งทอดยาวต่อเนื่องตลอดแนวหน้าจอ (เชื่อมต่อกัน 100% ไม่เว้นช่องว่างตรงกลาง) ----------------- */}
+          <rect x="0" y="302" width="1600" height="18" fill="#1c2541" stroke="#f59e0b" strokeWidth="1" />
+          <line x1="0" y1="316" x2="1600" y2="316" stroke="#f59e0b" strokeWidth="1.2" opacity="0.7" />
 
-          {[80, 180, 390, 510, 1080, 1210, 1360, 1490].map((pos, i) => (
+          {[80, 180, 320, 440, 1160, 1280, 1400, 1500].map((pos, i) => (
             <g key={i} transform={`translate(${pos}, 288)`}>
               <rect x="0" y="0" width="10" height="16" rx="2" fill="#d97706" />
               <circle cx="5" cy="-2" r="4.5" fill="#fde047" />
