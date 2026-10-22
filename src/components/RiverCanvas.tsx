@@ -4,6 +4,7 @@ import type { KrathongItem } from '../types';
 import { Sparkles, Maximize2, Minimize2, Eye, ShieldAlert } from 'lucide-react';
 import { supabase } from '../utils/supabase';
 import { ThaiArchitectureSkyline } from './ThaiArchitectureSkyline';
+import { DecorativeScreenBorders } from './DecorativeScreenBorders';
 
 interface RiverCanvasProps {
   myKrathongId?: string | null;
@@ -507,8 +508,11 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         className="absolute inset-0 cursor-pointer"
       />
 
-      {/* Background Layer: Golden Thai Cultural Architecture Skyline (อยู่เหนือผิวน้ำ แต่ใต้ UI และกระทง) */}
+      {/* Background Layer: Golden Thai Cultural Architecture Skyline */}
       <ThaiArchitectureSkyline />
+
+      {/* Foreground & Edge Borders: โคมแขวนล้านนา ลายกนกมุมจอ และกอดอกบัวริมตลิ่ง */}
+      <DecorativeScreenBorders />
 
       {/* Floating QR Code & Stage Mode Watermark (ฉายขึ้นจอโปรเจกเตอร์) */}
       {showControls && (
