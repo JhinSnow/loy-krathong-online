@@ -514,27 +514,27 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       {/* Foreground & Edge Borders: โคมแขวนล้านนา ลายกนกมุมจอ และกอดอกบัวริมตลิ่ง */}
       <DecorativeScreenBorders />
 
-      {/* Floating QR Code & Stage Mode Watermark (ฉายขึ้นจอโปรเจกเตอร์) */}
+      {/* Floating QR Code & Stage Mode Watermark (Frosted Glassmorphism Container) */}
       {showControls && (
-        <div className="absolute top-5 left-5 flex flex-col sm:flex-row items-center sm:items-start space-y-2 sm:space-y-0 sm:space-x-4 p-4 bg-[#0b132b]/90 backdrop-blur-md rounded-2xl border-2 border-amber-400/50 text-amber-50 shadow-[0_8px_32px_rgba(245,158,11,0.35)] transition-all z-20">
-          <div className="w-32 h-32 sm:w-36 sm:h-36 md:w-40 md:h-40 bg-[#fffbeb] rounded-xl flex items-center justify-center p-2 shadow-inner shrink-0 border-2 border-amber-300">
+        <div className="absolute top-5 left-5 flex flex-col sm:flex-row items-center sm:items-start space-y-2 sm:space-y-0 sm:space-x-3.5 p-3 sm:p-3.5 bg-[#0b132b]/45 backdrop-blur-[12px] rounded-2xl border border-amber-500/35 text-amber-50 shadow-[0_0_20px_rgba(245,158,11,0.18)] transition-all z-20">
+          <div className="w-28 h-28 sm:w-32 sm:h-32 bg-transparent rounded-xl flex items-center justify-center p-1 shrink-0">
             <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&color=fffbeb&bgcolor=0b132b-00&data=${encodeURIComponent(
                 window.location.href.includes('localhost')
                   ? window.location.href.replace('localhost', '172.24.135.154')
                   : window.location.href
               )}`}
               alt="Scan to Float"
-              className="w-full h-full object-contain"
+              className="w-full h-full object-contain filter drop-shadow-[0_0_8px_rgba(253,224,71,0.35)]"
             />
           </div>
-          <div className="text-center sm:text-left flex flex-col justify-center self-center sm:self-auto">
-            <div className="flex items-center justify-center sm:justify-start space-x-2">
-              <span className="w-3 h-3 rounded-full bg-amber-400 animate-ping shrink-0"></span>
-              <p className="font-extrabold text-base sm:text-lg tracking-wide text-amber-200">สแกนร่วมลอยกระทง</p>
+          <div className="text-center sm:text-left flex flex-col justify-center self-center sm:self-auto pr-1">
+            <div className="flex items-center justify-center sm:justify-start space-x-1.5">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping shrink-0"></span>
+              <p className="font-bold text-sm tracking-wide text-amber-200">สแกนร่วมลอยกระทง</p>
             </div>
-            <p className="text-xs sm:text-sm text-amber-100/90 mt-1">สแกนผ่านมือถือ เพื่อปล่อยกระทงขึ้นจอนี้</p>
-            <p className="text-xs sm:text-sm text-amber-300 font-mono font-bold mt-2 px-2.5 py-1 rounded-lg bg-amber-950/60 inline-block border border-amber-400/40 shadow-sm">
+            <p className="text-[11px] text-amber-100/75 mt-0.5">ปล่อยกระทงจากมือถือขึ้นจอนี้</p>
+            <p className="text-[11px] text-amber-300 font-mono mt-1 px-2 py-0.5 rounded-lg bg-amber-950/40 inline-block border border-amber-500/30">
               {window.location.hostname === 'localhost' ? '172.24.135.154:5173' : window.location.host}
             </p>
           </div>
