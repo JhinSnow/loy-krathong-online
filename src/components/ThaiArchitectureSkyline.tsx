@@ -116,7 +116,7 @@ export const ThaiArchitectureSkyline: React.FC = () => {
           ))}
         </g>
 
-        {/* ----------------- 3. ตึกฟักทอง คณะวิทยาศาสตร์ ม.อ. (เพิ่ม Gap ตรงกลาง 6px และต่อปลายขอบกลีบแบบ Seamless Snapping) ----------------- */}
+        {/* ----------------- 3. ตึกฟักทอง คณะวิทยาศาสตร์ ม.อ. (ซุ้มสีขาวนวล Pure White Under-arches + ขอบและยอดกลีบแตะชนกันสนิท Adjoining Petals) ----------------- */}
         <g id="realPumpkinBuildingPSU" className="drop-shadow-[0_0_22px_rgba(251,191,36,0.7)]">
           {/* ช่องซุ้มเงาลึกด้านใน (Under-shell Shadow Arc) */}
           <rect x="525" y="290" width="550" height="15" fill="#060c1a" stroke="#d97706" strokeWidth="1" />
@@ -126,94 +126,102 @@ export const ThaiArchitectureSkyline: React.FC = () => {
             <line key={i} x1={x} y1="290" x2={x} y2="304" stroke="#f59e0b" strokeWidth="1.2" opacity="0.8" />
           ))}
 
-          {/* 8 กลีบคอนกรีต: ปลายขอบกลีบชนกันต่อเนื่อง (Seamless Junctions) + แยก Center Gap 6px (797 vs 803) */}
+          {/* 8 กลีบคอนกรีต: ขอบข้างและยอดกลีบแตะสัมผัสชนกันสนิท (Adjoining & Seamless) + ซุ้มโค้งใต้กลีบสีขาวบริสุทธิ์ #FFFFFF */}
           
-          {/* กลีบ 1 (x: 520 -> 590, จุดต่อ x=590) */}
+          {/* กลีบ 1 (x: 520 -> 590, ยอดชนที่ 585) */}
           <path
-            d="M 520 292 C 512 210, 555 178, 580 180 C 596 182, 594 245, 590 292 Z"
+            d="M 520 292 C 516 200, 555 178, 585 180 C 596 182, 594 245, 590 292 Z"
             fill="url(#vaultShadowGrad)"
             stroke="#fde68a"
             strokeWidth="1.4"
           />
-          <path d="M 524 292 Q 555 264 586 292" fill="#060c1a" stroke="#fde047" strokeWidth="1" />
+          {/* ซุ้มโค้งใต้กลีบ 1 (สีขาวล้วน #FFFFFF ขอบทอง) */}
+          <path d="M 524 292 Q 555 264 586 292" fill="#FFFFFF" stroke="#fde047" strokeWidth="1.2" />
 
-          {/* กลีบ 2 (x: 590 -> 660, จุดต่อ x=660) */}
+          {/* กลีบ 2 (x: 590 -> 660, ยอดเริ่มที่ 585 ชนกลีบ 1 สนิท, ไปยอด 655) */}
           <path
-            d="M 590 292 C 586 190, 632 154, 658 156 C 674 158, 666 240, 660 292 Z"
+            d="M 590 292 C 586 205, 585 180, 615 158 C 638 154, 655 156, 660 292 Z"
             fill="url(#vaultGoldGrad)"
             stroke="#fde047"
             strokeWidth="1.5"
           />
-          <path d="M 594 292 Q 625 258 656 292" fill="#060c1a" stroke="#fde047" strokeWidth="1.2" />
+          {/* ซุ้มโค้งใต้กลีบ 2 (สีขาวล้วน #FFFFFF) */}
+          <path d="M 594 292 Q 625 258 656 292" fill="#FFFFFF" stroke="#fde047" strokeWidth="1.2" />
 
-          {/* กลีบ 3 (x: 660 -> 728, จุดต่อ x=728) */}
+          {/* กลีบ 3 (x: 660 -> 728, ยอดเริ่มที่ 655 ชนกลีบ 2 สนิท, ไปยอด 725) */}
           <path
-            d="M 660 292 C 658 172, 702 138, 726 140 C 740 142, 734 235, 728 292 Z"
+            d="M 660 292 C 658 190, 655 156, 690 138 C 712 136, 725 140, 728 292 Z"
             fill="url(#vaultShadowGrad)"
             stroke="#fde68a"
             strokeWidth="1.5"
           />
-          <path d="M 664 292 Q 694 252 724 292" fill="#060c1a" stroke="#fde047" strokeWidth="1.2" />
+          {/* ซุ้มโค้งใต้กลีบ 3 (สีขาวล้วน #FFFFFF) */}
+          <path d="M 664 292 Q 694 252 724 292" fill="#FFFFFF" stroke="#fde047" strokeWidth="1.2" />
 
-          {/* กลีบ 4 (กลางซ้าย, x: 728 -> 797 | ชนกลีบ 3 ที่ 728, จบที่ 797 เพื่อเปิด Gap) */}
+          {/* กลีบ 4 (กลางซ้าย, x: 728 -> 797, ยอดเริ่มที่ 725 ชนกลีบ 3 สนิท, ไปยอด 796) */}
           <path
-            d="M 728 292 C 726 160, 770 130, 792 130 C 802 130, 800 230, 797 292 Z"
+            d="M 728 292 C 726 175, 725 140, 762 130 C 785 130, 796 130, 797 292 Z"
             fill="url(#vaultGoldGrad)"
             stroke="#fffbeb"
             strokeWidth="2"
           />
-          <path d="M 732 292 Q 762 244 793 292" fill="#060c1a" stroke="#fffbeb" strokeWidth="1.5" />
+          {/* ซุ้มโค้งใต้กลีบ 4 (สีขาวล้วน #FFFFFF) */}
+          <path d="M 732 292 Q 762 244 793 292" fill="#FFFFFF" stroke="#fffbeb" strokeWidth="1.5" />
 
-          {/* === รอยแยกตรงกลางชัดเจน (Vertical Seam / Center Gap: x: 797 ถึง 803 กว้าง 6px) === */}
+          {/* === รอยแยกตรงกลางชัดเจน (Center Gap Seam: x: 797 ถึง 803 กว้าง 6px) === */}
           <line x1="800" y1="130" x2="800" y2="292" stroke="#060c1a" strokeWidth="2.5" opacity="0.9" />
 
-          {/* กลีบ 5 (กลางขวา, x: 803 -> 872 | เริ่มที่ 803 เว้น Gap, จบที่ 872 เพื่อชนกลีบ 6) */}
+          {/* กลีบ 5 (กลางขวา, x: 803 -> 872, ยอดเริ่มที่ 804 เว้น Gap, ไปยอด 875) */}
           <path
-            d="M 803 292 C 800 230, 798 130, 808 130 C 830 130, 874 160, 872 292 Z"
+            d="M 803 292 C 804 175, 804 130, 838 130 C 875 130, 874 140, 872 292 Z"
             fill="url(#vaultGoldGrad)"
             stroke="#fffbeb"
             strokeWidth="2"
           />
-          <path d="M 807 292 Q 838 244 868 292" fill="#060c1a" stroke="#fffbeb" strokeWidth="1.5" />
+          {/* ซุ้มโค้งใต้กลีบ 5 (สีขาวล้วน #FFFFFF) */}
+          <path d="M 807 292 Q 838 244 868 292" fill="#FFFFFF" stroke="#fffbeb" strokeWidth="1.5" />
 
-          {/* กลีบ 6 (x: 872 -> 940, จุดต่อ x=872 และ x=940) */}
+          {/* กลีบ 6 (x: 872 -> 940, ยอดเริ่มที่ 875 ชนกลีบ 5 สนิท, ไปยอด 945) */}
           <path
-            d="M 872 292 C 866 235, 860 142, 874 140 C 898 138, 942 172, 940 292 Z"
+            d="M 872 292 C 874 190, 875 140, 910 138 C 945 156, 942 190, 940 292 Z"
             fill="url(#vaultShadowGrad)"
             stroke="#fde68a"
             strokeWidth="1.5"
           />
-          <path d="M 876 292 Q 906 252 936 292" fill="#060c1a" stroke="#fde047" strokeWidth="1.2" />
+          {/* ซุ้มโค้งใต้กลีบ 6 (สีขาวล้วน #FFFFFF) */}
+          <path d="M 876 292 Q 906 252 936 292" fill="#FFFFFF" stroke="#fde047" strokeWidth="1.2" />
 
-          {/* กลีบ 7 (x: 940 -> 1010, จุดต่อ x=940 และ x=1010) */}
+          {/* กลีบ 7 (x: 940 -> 1010, ยอดเริ่มที่ 945 ชนกลีบ 6 สนิท, ไปยอด 1015) */}
           <path
-            d="M 940 292 C 934 240, 926 158, 942 156 C 968 154, 1014 190, 1010 292 Z"
+            d="M 940 292 C 942 205, 945 156, 985 158 C 1015 180, 1014 205, 1010 292 Z"
             fill="url(#vaultGoldGrad)"
             stroke="#fde047"
             strokeWidth="1.5"
           />
-          <path d="M 944 292 Q 975 258 1006 292" fill="#060c1a" stroke="#fde047" strokeWidth="1.2" />
+          {/* ซุ้มโค้งใต้กลีบ 7 (สีขาวล้วน #FFFFFF) */}
+          <path d="M 944 292 Q 975 258 1006 292" fill="#FFFFFF" stroke="#fde047" strokeWidth="1.2" />
 
-          {/* กลีบ 8 (x: 1010 -> 1080, จุดต่อ x=1010) */}
+          {/* กลีบ 8 (x: 1010 -> 1080, ยอดเริ่มที่ 1015 ชนกลีบ 7 สนิท) */}
           <path
-            d="M 1010 292 C 1006 245, 1004 182, 1020 180 C 1045 178, 1088 210, 1080 292 Z"
+            d="M 1010 292 C 1014 245, 1015 182, 1045 180 C 1075 178, 1084 200, 1080 292 Z"
             fill="url(#vaultShadowGrad)"
             stroke="#fde68a"
             strokeWidth="1.4"
           />
-          <path d="M 1014 292 Q 1045 264 1076 292" fill="#060c1a" stroke="#fde047" strokeWidth="1" />
+          {/* ซุ้มโค้งใต้กลีบ 8 (สีขาวล้วน #FFFFFF) */}
+          <path d="M 1014 292 Q 1045 264 1076 292" fill="#FFFFFF" stroke="#fde047" strokeWidth="1" />
 
           {/* สันโครงนูนกลมมนลากผ่านกลางกลีบ (Symmetric Perspective Vault Rib Highlights) */}
-          <path d="M 568 180 Q 576 235 572 292" fill="none" stroke="#fffbeb" strokeWidth="1.5" />
-          <path d="M 640 156 Q 648 225 644 292" fill="none" stroke="#fffbeb" strokeWidth="1.6" />
-          <path d="M 710 140 Q 716 220 712 292" fill="none" stroke="#fffbeb" strokeWidth="1.7" />
-          <path d="M 776 130 Q 782 215 780 292" fill="none" stroke="#fffbeb" strokeWidth="2.0" />
+          <path d="M 552 180 Q 562 235 558 292" fill="none" stroke="#fffbeb" strokeWidth="1.5" />
+          <path d="M 625 158 Q 632 225 628 292" fill="none" stroke="#fffbeb" strokeWidth="1.6" />
+          <path d="M 694 138 Q 700 220 696 292" fill="none" stroke="#fffbeb" strokeWidth="1.7" />
+          <path d="M 762 130 Q 768 215 764 292" fill="none" stroke="#fffbeb" strokeWidth="2.0" />
 
           {/* สันกลางฝั่งขวา */}
-          <path d="M 824 130 Q 818 215 820 292" fill="none" stroke="#fffbeb" strokeWidth="2.0" />
-          <path d="M 890 140 Q 884 220 888 292" fill="none" stroke="#fffbeb" strokeWidth="1.7" />
-          <path d="M 960 156 Q 952 225 956 292" fill="none" stroke="#fffbeb" strokeWidth="1.6" />
-          <path d="M 1032 180 Q 1024 235 1028 292" fill="none" stroke="#fffbeb" strokeWidth="1.5" />
+          <path d="M 838 130 Q 832 215 836 292" fill="none" stroke="#fffbeb" strokeWidth="2.0" />
+          <path d="M 906 138 Q 900 220 904 292" fill="none" stroke="#fffbeb" strokeWidth="1.7" />
+          <path d="M 975 158 Q 968 225 972 292" fill="none" stroke="#fffbeb" strokeWidth="1.6" />
+          <path d="M 1048 180 Q 1038 235 1042 292" fill="none" stroke="#fffbeb" strokeWidth="1.5" />
 
           {/* ชายคาระเบียงคลื่นหยักโค้งต่อเนื่องแบบ Seamless Scalloped Ribbon (มีรอยเว้น Gap ตรงกลาง 797->803) */}
           <path
