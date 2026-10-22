@@ -3,15 +3,15 @@ import React from 'react';
 
 export const ThaiArchitectureSkyline: React.FC = () => {
   return (
-    <div className="absolute inset-x-0 bottom-[40vh] md:bottom-[45vh] h-48 md:h-64 pointer-events-none select-none z-0 overflow-hidden">
+    <div className="absolute inset-x-0 bottom-[48vh] sm:bottom-[50vh] h-44 sm:h-56 md:h-68 pointer-events-none select-none z-10 overflow-hidden">
       {/* Golden Backlight Ambient Aura behind Temples */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-4/5 h-44 bg-gradient-to-t from-amber-500/20 via-yellow-500/10 to-transparent blur-3xl pointer-events-none" />
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-full h-40 bg-gradient-to-t from-amber-500/30 via-yellow-500/15 to-transparent blur-2xl pointer-events-none" />
 
       {/* Responsive Thai Architecture Skyline SVG Layer */}
       <svg
         viewBox="0 0 1600 320"
-        preserveAspectRatio="none"
-        className="w-full h-full drop-shadow-[0_-2px_15px_rgba(245,158,11,0.35)] opacity-85"
+        preserveAspectRatio="xMidYMax meet"
+        className="w-full h-full drop-shadow-[0_-4px_20px_rgba(245,158,11,0.55)] opacity-95"
       >
         <defs>
           {/* Main Architecture Golden Gradient */}

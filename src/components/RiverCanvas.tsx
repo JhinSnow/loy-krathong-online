@@ -501,14 +501,14 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-slate-950 select-none">
-      {/* Background Layer: Golden Thai Cultural Architecture Skyline */}
-      <ThaiArchitectureSkyline />
-
       <canvas
         ref={canvasRef}
         onClick={handleCanvasClick}
         className="absolute inset-0 cursor-pointer"
       />
+
+      {/* Background Layer: Golden Thai Cultural Architecture Skyline (อยู่เหนือผิวน้ำ แต่ใต้ UI และกระทง) */}
+      <ThaiArchitectureSkyline />
 
       {/* Floating QR Code & Stage Mode Watermark (ฉายขึ้นจอโปรเจกเตอร์) */}
       {showControls && (
