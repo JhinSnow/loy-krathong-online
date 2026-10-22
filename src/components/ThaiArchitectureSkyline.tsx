@@ -116,133 +116,138 @@ export const ThaiArchitectureSkyline: React.FC = () => {
           ))}
         </g>
 
-        {/* ----------------- 3. ตึกฟักทอง คณะวิทยาศาสตร์ ม.อ. (ซุ้มสีขาวนวล Pure White Under-arches + ขอบและยอดกลีบแตะชนกันสนิท Adjoining Petals) ----------------- */}
-        <g id="realPumpkinBuildingPSU" className="drop-shadow-[0_0_22px_rgba(251,191,36,0.7)]">
+        {/* ----------------- 3. ตึกฟักทอง คณะวิทยาศาสตร์ ม.อ. (Brutalist Fluted Shell โค้งแผ่บานออกด้านข้าง ป้านต่ำ กว้างกว่าสูง) ----------------- */}
+        <g id="realPumpkinBuildingPSU" className="drop-shadow-[0_0_24px_rgba(251,191,36,0.75)]">
           {/* ช่องซุ้มเงาลึกด้านใน (Under-shell Shadow Arc) */}
-          <rect x="525" y="290" width="550" height="15" fill="#060c1a" stroke="#d97706" strokeWidth="1" />
+          <rect x="500" y="292" width="600" height="13" fill="#060c1a" stroke="#d97706" strokeWidth="1" />
 
-          {/* เสาค้ำรอบอาคารรับแรงกลีบเปลือกบาง */}
-          {[540, 570, 600, 630, 660, 690, 720, 750, 780, 810, 840, 870, 900, 930, 960, 990, 1020, 1050].map((x, i) => (
-            <line key={i} x1={x} y1="290" x2={x} y2="304" stroke="#f59e0b" strokeWidth="1.2" opacity="0.8" />
+          {/* เสาค้ำรอบอาคารรับแรงกลีบเปลือกบาง ติดแนบตลิ่ง */}
+          {[520, 550, 580, 610, 640, 670, 700, 730, 760, 785, 815, 840, 870, 900, 930, 960, 990, 1020, 1050, 1080].map((x, i) => (
+            <line key={i} x1={x} y1="292" x2={x} y2="305" stroke="#f59e0b" strokeWidth="1.2" opacity="0.8" />
           ))}
 
-          {/* 8 กลีบคอนกรีต: ขอบข้างและยอดกลีบแตะสัมผัสชนกันสนิท (Adjoining & Seamless) + ซุ้มโค้งใต้กลีบสีขาวบริสุทธิ์ #FFFFFF */}
-          
-          {/* กลีบ 1 (x: 520 -> 590, ยอดชนที่ 585) */}
+          {/* 
+            สถาปัตยกรรมตึกฟักทองที่ถูกต้อง:
+            - ทรงเตี้ยแผ่กว้างตามแนวนอน (Fluted Shell Dome) ปลายกลีบด้านข้างจะ "โค้งบานออกผายกว้าง" (Fanning outwards) 
+            - สันกลีบสอบเข้าหาจุดศูนย์กลางบนยอดโดมเตี้ยมน
+            - ขอบล่างเว้าเป็นซุ้มโค้งรูปเกือกม้าสีขาวล้วน (#FFFFFF)
+          */}
+
+          {/* กลีบ 1 (ซ้ายสุด - แผ่บานโค้งผายออกไปทางซ้ายกว้างมาก x: 505 -> 585) */}
           <path
-            d="M 520 292 C 516 200, 555 178, 585 180 C 596 182, 594 245, 590 292 Z"
+            d="M 505 292 C 485 240, 530 205, 580 195 C 588 235, 588 270, 585 292 Z"
             fill="url(#vaultShadowGrad)"
             stroke="#fde68a"
             strokeWidth="1.4"
           />
-          {/* ซุ้มโค้งใต้กลีบ 1 (สีขาวล้วน #FFFFFF ขอบทอง) */}
-          <path d="M 524 292 Q 555 264 586 292" fill="#FFFFFF" stroke="#fde047" strokeWidth="1.2" />
+          {/* ซุ้มโค้งใต้กลีบ 1 สีขาวล้วน */}
+          <path d="M 510 292 Q 545 264 580 292" fill="#FFFFFF" stroke="#fde047" strokeWidth="1.2" />
 
-          {/* กลีบ 2 (x: 590 -> 660, ยอดเริ่มที่ 585 ชนกลีบ 1 สนิท, ไปยอด 655) */}
+          {/* กลีบ 2 (ซ้ายนอก - โค้งผายสอบเอียงตามมุมมอง x: 585 -> 660) */}
           <path
-            d="M 590 292 C 586 205, 585 180, 615 158 C 638 154, 655 156, 660 292 Z"
+            d="M 585 292 C 580 220, 610 178, 655 170 C 665 215, 664 265, 660 292 Z"
             fill="url(#vaultGoldGrad)"
             stroke="#fde047"
             strokeWidth="1.5"
           />
-          {/* ซุ้มโค้งใต้กลีบ 2 (สีขาวล้วน #FFFFFF) */}
-          <path d="M 594 292 Q 625 258 656 292" fill="#FFFFFF" stroke="#fde047" strokeWidth="1.2" />
+          {/* ซุ้มโค้งใต้กลีบ 2 สีขาวล้วน */}
+          <path d="M 590 292 Q 622 258 655 292" fill="#FFFFFF" stroke="#fde047" strokeWidth="1.2" />
 
-          {/* กลีบ 3 (x: 660 -> 728, ยอดเริ่มที่ 655 ชนกลีบ 2 สนิท, ไปยอด 725) */}
+          {/* กลีบ 3 (ซ้ายใน - โค้งเริ่มตั้งชันขึ้นแต่ยังเอียงรับกลีบประธาน x: 660 -> 728) */}
           <path
-            d="M 660 292 C 658 190, 655 156, 690 138 C 712 136, 725 140, 728 292 Z"
+            d="M 660 292 C 658 200, 680 156, 725 150 C 732 205, 730 260, 728 292 Z"
             fill="url(#vaultShadowGrad)"
             stroke="#fde68a"
             strokeWidth="1.5"
           />
-          {/* ซุ้มโค้งใต้กลีบ 3 (สีขาวล้วน #FFFFFF) */}
-          <path d="M 664 292 Q 694 252 724 292" fill="#FFFFFF" stroke="#fde047" strokeWidth="1.2" />
+          {/* ซุ้มโค้งใต้กลีบ 3 สีขาวล้วน */}
+          <path d="M 665 292 Q 696 252 725 292" fill="#FFFFFF" stroke="#fde047" strokeWidth="1.2" />
 
-          {/* กลีบ 4 (กลางซ้าย, x: 728 -> 797, ยอดเริ่มที่ 725 ชนกลีบ 3 สนิท, ไปยอด 796) */}
+          {/* กลีบ 4 (กลางซ้าย - ประธานหน้าตรง โค้งพาราโบลาคว่ำ กว้าง อวบอิ่ม x: 728 -> 797) */}
           <path
-            d="M 728 292 C 726 175, 725 140, 762 130 C 785 130, 796 130, 797 292 Z"
+            d="M 728 292 C 726 185, 750 145, 792 145 C 798 195, 798 255, 797 292 Z"
             fill="url(#vaultGoldGrad)"
             stroke="#fffbeb"
             strokeWidth="2"
           />
-          {/* ซุ้มโค้งใต้กลีบ 4 (สีขาวล้วน #FFFFFF) */}
-          <path d="M 732 292 Q 762 244 793 292" fill="#FFFFFF" stroke="#fffbeb" strokeWidth="1.5" />
+          {/* ซุ้มโค้งใต้กลีบ 4 สีขาวล้วน */}
+          <path d="M 732 292 Q 764 246 793 292" fill="#FFFFFF" stroke="#fffbeb" strokeWidth="1.5" />
 
-          {/* === รอยแยกตรงกลางชัดเจน (Center Gap Seam: x: 797 ถึง 803 กว้าง 6px) === */}
-          <line x1="800" y1="130" x2="800" y2="292" stroke="#060c1a" strokeWidth="2.5" opacity="0.9" />
+          {/* === รอยแยกตรงกลางชัดเจน (Center Gap: x: 797 ถึง 803 กว้าง 6px) === */}
+          <line x1="800" y1="145" x2="800" y2="292" stroke="#060c1a" strokeWidth="2.5" opacity="0.9" />
 
-          {/* กลีบ 5 (กลางขวา, x: 803 -> 872, ยอดเริ่มที่ 804 เว้น Gap, ไปยอด 875) */}
+          {/* กลีบ 5 (กลางขวา - ประธานหน้าตรง โค้งพาราโบลาคว่ำ กว้าง อวบอิ่ม x: 803 -> 872) */}
           <path
-            d="M 803 292 C 804 175, 804 130, 838 130 C 875 130, 874 140, 872 292 Z"
+            d="M 803 292 C 802 255, 802 195, 808 145 C 850 145, 874 185, 872 292 Z"
             fill="url(#vaultGoldGrad)"
             stroke="#fffbeb"
             strokeWidth="2"
           />
-          {/* ซุ้มโค้งใต้กลีบ 5 (สีขาวล้วน #FFFFFF) */}
-          <path d="M 807 292 Q 838 244 868 292" fill="#FFFFFF" stroke="#fffbeb" strokeWidth="1.5" />
+          {/* ซุ้มโค้งใต้กลีบ 5 สีขาวล้วน */}
+          <path d="M 807 292 Q 836 246 868 292" fill="#FFFFFF" stroke="#fffbeb" strokeWidth="1.5" />
 
-          {/* กลีบ 6 (x: 872 -> 940, ยอดเริ่มที่ 875 ชนกลีบ 5 สนิท, ไปยอด 945) */}
+          {/* กลีบ 6 (ขวาใน - โค้งเอียงสอบออกทางขวา x: 872 -> 940) */}
           <path
-            d="M 872 292 C 874 190, 875 140, 910 138 C 945 156, 942 190, 940 292 Z"
+            d="M 872 292 C 870 260, 868 205, 875 150 C 920 156, 942 200, 940 292 Z"
             fill="url(#vaultShadowGrad)"
             stroke="#fde68a"
             strokeWidth="1.5"
           />
-          {/* ซุ้มโค้งใต้กลีบ 6 (สีขาวล้วน #FFFFFF) */}
-          <path d="M 876 292 Q 906 252 936 292" fill="#FFFFFF" stroke="#fde047" strokeWidth="1.2" />
+          {/* ซุ้มโค้งใต้กลีบ 6 สีขาวล้วน */}
+          <path d="M 875 292 Q 904 252 935 292" fill="#FFFFFF" stroke="#fde047" strokeWidth="1.2" />
 
-          {/* กลีบ 7 (x: 940 -> 1010, ยอดเริ่มที่ 945 ชนกลีบ 6 สนิท, ไปยอด 1015) */}
+          {/* กลีบ 7 (ขวานอก - โค้งผายสอบเอียงออกทางขวา x: 940 -> 1015) */}
           <path
-            d="M 940 292 C 942 205, 945 156, 985 158 C 1015 180, 1014 205, 1010 292 Z"
+            d="M 940 292 C 936 265, 935 215, 945 170 C 990 178, 1020 220, 1015 292 Z"
             fill="url(#vaultGoldGrad)"
             stroke="#fde047"
             strokeWidth="1.5"
           />
-          {/* ซุ้มโค้งใต้กลีบ 7 (สีขาวล้วน #FFFFFF) */}
-          <path d="M 944 292 Q 975 258 1006 292" fill="#FFFFFF" stroke="#fde047" strokeWidth="1.2" />
+          {/* ซุ้มโค้งใต้กลีบ 7 สีขาวล้วน */}
+          <path d="M 945 292 Q 978 258 1010 292" fill="#FFFFFF" stroke="#fde047" strokeWidth="1.2" />
 
-          {/* กลีบ 8 (x: 1010 -> 1080, ยอดเริ่มที่ 1015 ชนกลีบ 7 สนิท) */}
+          {/* กลีบ 8 (ขวาสุด - แผ่บานโค้งผายออกไปทางขวากว้างมาก x: 1015 -> 1095) */}
           <path
-            d="M 1010 292 C 1014 245, 1015 182, 1045 180 C 1075 178, 1084 200, 1080 292 Z"
+            d="M 1015 292 C 1012 270, 1012 235, 1020 195 C 1070 205, 1115 240, 1095 292 Z"
             fill="url(#vaultShadowGrad)"
             stroke="#fde68a"
             strokeWidth="1.4"
           />
-          {/* ซุ้มโค้งใต้กลีบ 8 (สีขาวล้วน #FFFFFF) */}
-          <path d="M 1014 292 Q 1045 264 1076 292" fill="#FFFFFF" stroke="#fde047" strokeWidth="1" />
+          {/* ซุ้มโค้งใต้กลีบ 8 สีขาวล้วน */}
+          <path d="M 1020 292 Q 1055 264 1090 292" fill="#FFFFFF" stroke="#fde047" strokeWidth="1.2" />
 
-          {/* สันโครงนูนกลมมนลากผ่านกลางกลีบ (Symmetric Perspective Vault Rib Highlights) */}
-          <path d="M 552 180 Q 562 235 558 292" fill="none" stroke="#fffbeb" strokeWidth="1.5" />
-          <path d="M 625 158 Q 632 225 628 292" fill="none" stroke="#fffbeb" strokeWidth="1.6" />
-          <path d="M 694 138 Q 700 220 696 292" fill="none" stroke="#fffbeb" strokeWidth="1.7" />
-          <path d="M 762 130 Q 768 215 764 292" fill="none" stroke="#fffbeb" strokeWidth="2.0" />
+          {/* สันโครงนูนกลมมนลากผ่านกลางกลีบ (Curved Rib Highlights สอบเข้าสู่ยอดโดมเตี้ย) */}
+          <path d="M 545 198 Q 555 245, 545 292" fill="none" stroke="#fffbeb" strokeWidth="1.5" />
+          <path d="M 622 172 Q 630 235, 622 292" fill="none" stroke="#fffbeb" strokeWidth="1.6" />
+          <path d="M 696 152 Q 700 225, 695 292" fill="none" stroke="#fffbeb" strokeWidth="1.7" />
+          <path d="M 765 145 Q 768 220, 763 292" fill="none" stroke="#fffbeb" strokeWidth="2.0" />
 
           {/* สันกลางฝั่งขวา */}
-          <path d="M 838 130 Q 832 215 836 292" fill="none" stroke="#fffbeb" strokeWidth="2.0" />
-          <path d="M 906 138 Q 900 220 904 292" fill="none" stroke="#fffbeb" strokeWidth="1.7" />
-          <path d="M 975 158 Q 968 225 972 292" fill="none" stroke="#fffbeb" strokeWidth="1.6" />
-          <path d="M 1048 180 Q 1038 235 1042 292" fill="none" stroke="#fffbeb" strokeWidth="1.5" />
+          <path d="M 835 145 Q 832 220, 837 292" fill="none" stroke="#fffbeb" strokeWidth="2.0" />
+          <path d="M 905 152 Q 900 225, 905 292" fill="none" stroke="#fffbeb" strokeWidth="1.7" />
+          <path d="M 978 172 Q 970 235, 978 292" fill="none" stroke="#fffbeb" strokeWidth="1.6" />
+          <path d="M 1055 198 Q 1045 245, 1055 292" fill="none" stroke="#fffbeb" strokeWidth="1.5" />
 
-          {/* ชายคาระเบียงคลื่นหยักโค้งต่อเนื่องแบบ Seamless Scalloped Ribbon (มีรอยเว้น Gap ตรงกลาง 797->803) */}
+          {/* ชายคาระเบียงคลื่นหยักโค้งต่อเนื่องแบบ Seamless Scalloped Ribbon แผ่กว้างตามแนวระนาบ */}
           <path
-            d="M 520 292 
-               Q 555 278 590 292 
-               Q 625 276 660 292 
+            d="M 505 292 
+               Q 545 278 585 292 
+               Q 622 276 660 292 
                Q 694 274 728 292 
                Q 762 272 797 292 
                M 803 292
                Q 838 272 872 292 
                Q 906 274 940 292 
-               Q 975 276 1010 292 
-               Q 1045 278 1080 292"
+               Q 978 276 1015 292 
+               Q 1055 278 1095 292"
             fill="none"
             stroke="#fffbeb"
             strokeWidth="2.8"
           />
 
           {/* ฐานตึกเตี้ยบางๆ แนบสนิทบนแนวพื้นหินตลิ่งริมแม่น้ำ */}
-          <rect x="510" y="304" width="580" height="16" fill="#1c2541" stroke="#fde047" strokeWidth="1.5" />
-          <line x1="515" y1="316" x2="1085" y2="316" stroke="#f59e0b" strokeWidth="1.5" />
+          <rect x="495" y="304" width="610" height="16" fill="#1c2541" stroke="#fde047" strokeWidth="1.5" />
+          <line x1="500" y1="316" x2="1100" y2="316" stroke="#f59e0b" strokeWidth="1.5" />
 
           {/* บันไดท่าน้ำกลาง ทอดยาวลงสู่แม่น้ำอย่างกลมกลืน */}
           <polygon points="720,320 880,320 900,345 700,345" fill="#b45309" stroke="#fde047" strokeWidth="1.2" />

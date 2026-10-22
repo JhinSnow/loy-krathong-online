@@ -3,7 +3,7 @@ import React from 'react';
 
 export const DecorativeScreenBorders: React.FC = () => {
   return (
-    <div className="fixed inset-0 pointer-events-none select-none overflow-hidden z-15">
+    <div className="fixed inset-0 pointer-events-none select-none overflow-hidden z-25">
       {/* ---------------- 1. ลายประดับมุมบนซ้ายและมุมบนขวา (Thai Golden Corner Accents) ---------------- */}
       {/* มุมบนซ้าย (Top-Left Thai Kranok Pattern) */}
       <div className="absolute top-0 left-0 w-36 h-36 sm:w-48 sm:h-48 opacity-45 drop-shadow-[0_0_12px_rgba(245,158,11,0.35)]">

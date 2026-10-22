@@ -52,7 +52,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       flower_type: flowers[Math.floor(Math.random() * flowers.length)],
       candle_color: candles[Math.floor(Math.random() * candles.length)],
       x: -120 - Math.random() * 80,
-      y: winH * 0.44 + Math.random() * (winH * 0.44),
+      y: winH * 0.49 + Math.random() * (winH * 0.39),
       speed: 0.5 + Math.random() * 0.4,
       opacity: 1,
       age: 0,
@@ -79,7 +79,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
             krathongsRef.current.push({
               ...item,
               x: 120 + index * 160 + Math.random() * 60,
-              y: winH * 0.44 + Math.random() * (winH * 0.44),
+              y: winH * 0.49 + Math.random() * (winH * 0.39),
               speed: 0.55 + Math.random() * 0.35,
               opacity: 1,
               age: 0,
@@ -107,7 +107,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
             krathongsRef.current.push({
               ...data,
               x: -120,
-              y: winH * 0.44 + Math.random() * (winH * 0.44),
+              y: winH * 0.49 + Math.random() * (winH * 0.39),
               speed: 0.65 + Math.random() * 0.35,
               opacity: 1,
               age: 0,
@@ -128,7 +128,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         const newK: KrathongItem = {
           ...data,
           x: -120,
-          y: winH * 0.44 + Math.random() * (winH * 0.44),
+          y: winH * 0.49 + Math.random() * (winH * 0.39),
           speed: 0.65 + Math.random() * 0.35,
           opacity: 1,
           age: 0,
