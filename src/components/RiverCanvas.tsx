@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { KrathongItem } from '../types';
 import { Sparkles, Maximize2, Minimize2, Eye, ShieldAlert } from 'lucide-react';
 import { supabase } from '../utils/supabase';
+import { ThaiArchitectureSkyline } from './ThaiArchitectureSkyline';
 
 interface RiverCanvasProps {
   myKrathongId?: string | null;
@@ -500,6 +501,9 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-slate-950 select-none">
+      {/* Background Layer: Golden Thai Cultural Architecture Skyline */}
+      <ThaiArchitectureSkyline />
+
       <canvas
         ref={canvasRef}
         onClick={handleCanvasClick}
