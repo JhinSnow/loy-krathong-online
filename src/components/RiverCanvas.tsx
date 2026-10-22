@@ -518,18 +518,9 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
 
       {/* Floating QR Code & Stage Mode Watermark (Frosted Glassmorphism with Collapsible Toggle) */}
       {showControls && (
-        <div className="absolute top-5 left-5 z-20 transition-all duration-300 ease-in-out">
+        <div className="absolute top-5 left-5 z-30 transition-all duration-300 ease-in-out">
           {isQrExpanded ? (
-            <div className="relative flex flex-col sm:flex-row items-center sm:items-start space-y-2 sm:space-y-0 sm:space-x-3.5 p-3 sm:p-3.5 bg-[#0b132b]/65 backdrop-blur-[16px] rounded-2xl border border-amber-500/40 text-amber-50 shadow-[0_4px_24px_rgba(0,0,0,0.5),0_0_15px_rgba(245,158,11,0.2)] transition-all">
-              {/* ปุ่มพับเก็บกล่อง QR (Collapse Button) */}
-              <button
-                onClick={() => setIsQrExpanded(false)}
-                title="พับเก็บกล่อง QR Code"
-                className="absolute top-2 right-2 p-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/25 text-amber-300 hover:text-amber-100 border border-amber-500/30 transition shadow"
-              >
-                <ChevronUp className="w-3.5 h-3.5" />
-              </button>
-
+            <div className="relative flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-3.5 p-3 sm:p-3.5 bg-[#0b132b]/65 backdrop-blur-[16px] rounded-2xl border border-amber-500/40 text-amber-50 shadow-[0_4px_24px_rgba(0,0,0,0.5),0_0_15px_rgba(245,158,11,0.2)] transition-all">
               {/* QR Code Container with High-Contrast Cream Background */}
               <div className="w-28 h-28 sm:w-32 sm:h-32 bg-[#fffbeb] rounded-xl flex items-center justify-center p-2 shrink-0 border border-amber-300/80 shadow-md">
                 <img
@@ -542,16 +533,28 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
                   className="w-full h-full object-contain"
                 />
               </div>
-              <div className="text-center sm:text-left flex flex-col justify-center self-center sm:self-auto pr-6 sm:pr-4">
+
+              {/* Header Text Container: เว้น padding-right (pr-9 sm:pr-10 = 36-40px) ป้องกันข้อความชนปุ่มมุมบนขวา */}
+              <div className="text-center sm:text-left flex flex-col justify-center self-center sm:self-auto pr-9 sm:pr-10 pt-0.5">
                 <div className="flex items-center justify-center sm:justify-start space-x-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping shrink-0"></span>
-                  <p className="font-bold text-sm tracking-wide text-amber-200">สแกนร่วมลอยกระทง</p>
+                  <p className="font-bold text-sm tracking-wide text-amber-200 whitespace-nowrap">สแกนร่วมลอยกระทง</p>
                 </div>
-                <p className="text-[11px] text-amber-100/85 mt-0.5 font-medium">ปล่อยกระทงจากมือถือขึ้นจอนี้</p>
-                <p className="text-[11px] text-amber-300 font-mono mt-1 px-2.5 py-0.5 rounded-lg bg-[#0b132b]/80 inline-block border border-amber-500/40 shadow-inner">
+                <p className="text-[11px] text-amber-100/85 mt-0.5 font-medium whitespace-nowrap">ปล่อยกระทงจากมือถือขึ้นจอนี้</p>
+                <p className="text-[11px] text-amber-300 font-mono mt-1.5 px-2.5 py-0.5 rounded-lg bg-[#0b132b]/80 inline-block border border-amber-500/40 shadow-inner">
                   {window.location.hostname === 'localhost' ? '172.24.135.154:5173' : window.location.host}
                 </p>
               </div>
+
+              {/* ปุ่มพับเก็บกล่อง QR (Collapse Button) วางมุมบนขวา มี Hitbox 28x28px (w-7 h-7) กดง่าย ไม่ทับข้อความ */}
+              <button
+                onClick={() => setIsQrExpanded(false)}
+                title="พับเก็บกล่อง QR Code"
+                aria-label="พับเก็บกล่อง QR Code"
+                className="absolute top-2.5 right-2.5 z-20 w-7 h-7 flex items-center justify-center rounded-lg bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 hover:text-amber-100 border border-amber-500/40 transition shadow cursor-pointer active:scale-95"
+              >
+                <ChevronUp className="w-4 h-4" />
+              </button>
             </div>
           ) : (
             /* สถานะพับเก็บ (Collapsed): แสดงแถบ/ปุ่มขนาดกะทัดรัด พร้อม Tooltip และไอคอน QR */

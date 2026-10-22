@@ -56,6 +56,14 @@ export const ThaiArchitectureSkyline: React.FC = () => {
             <stop offset="40%" stopColor="#f59e0b" stopOpacity="0.4" />
             <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
           </radialGradient>
+
+          {/* Festive Hanging Lantern Gradient (โคมแขวนสีเหลืองส้มเรืองแสง) */}
+          <linearGradient id="festiveLanternGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#fffbeb" />
+            <stop offset="30%" stopColor="#fde047" />
+            <stop offset="70%" stopColor="#f59e0b" />
+            <stop offset="100%" stopColor="#ea580c" />
+          </linearGradient>
         </defs>
 
         {/* ----------------- 1. ยอดรัศมีเรืองรอง ----------------- */}
@@ -116,11 +124,71 @@ export const ThaiArchitectureSkyline: React.FC = () => {
           ))}
         </g>
 
-        {/* ----------------- 3. ตึกฟักทอง คณะวิทยาศาสตร์ ม.อ. (ลายเส้นสีขาวบริสุทธิ์ Pure White) ----------------- */}
+        {/* ----------------- 2.5 สิ่งก่อสร้างฉากหลังด้านหลังตึกฟักทอง (Background Skyline Layer: Opacity 50% สร้างมิติ Depth of Field) ----------------- */}
+        <g
+          id="backgroundCenterSkyline"
+          opacity="0.5"
+          className="drop-shadow-[0_0_12px_rgba(251,191,36,0.4)]"
+        >
+          {/* ยอดรัศมีเรืองแสงของพระเจดีย์ฉากหลัง 3 องค์ */}
+          <circle cx="800" cy="48" r="18" fill="url(#spireAura)" className="animate-pulse" />
+          <circle cx="800" cy="48" r="2.5" fill="#fffbeb" />
+          <circle cx="645" cy="74" r="14" fill="url(#spireAura)" className="animate-pulse" />
+          <circle cx="645" cy="74" r="2" fill="#fffbeb" />
+          <circle cx="955" cy="74" r="14" fill="url(#spireAura)" className="animate-pulse" />
+          <circle cx="955" cy="74" r="2" fill="#fffbeb" />
+
+          <g fill="url(#templeGoldGrad)" stroke="#fde047" strokeWidth="1" strokeOpacity="0.65">
+            {/* 1. พระมหาเจดีย์ทรงระฆังคว่ำองค์ประธานด้านหลัง (โผล่พ้นยอดตึกฟักทองตรงกลาง) */}
+            <path d="M 798 48 L 802 48 L 805 96 L 795 96 Z" />
+            <path d="M 790 96 L 810 96 L 807 114 L 793 114 Z" />
+            <path d="M 782 114 L 818 114 L 828 152 Q 832 175 800 178 Q 768 175 772 152 Z" />
+            <path d="M 760 260 L 760 178 L 840 178 L 840 260 Z" />
+
+            {/* 2. พระเจดีย์คู่องค์ซ้าย (x=645) */}
+            <path d="M 643 74 L 647 74 L 650 115 L 640 115 Z" />
+            <path d="M 636 115 L 654 115 L 651 132 L 639 132 Z" />
+            <path d="M 629 132 L 661 132 L 668 164 Q 670 185 645 188 Q 620 185 622 164 Z" />
+            <path d="M 612 260 L 612 188 L 678 188 L 678 260 Z" />
+
+            {/* 3. พระเจดีย์คู่องค์ขวา (x=955) */}
+            <path d="M 953 74 L 957 74 L 960 115 L 950 115 Z" />
+            <path d="M 946 115 L 964 115 L 961 132 L 949 132 Z" />
+            <path d="M 939 132 L 971 132 L 978 164 Q 980 185 955 188 Q 930 185 932 164 Z" />
+            <path d="M 922 260 L 922 188 L 988 188 L 988 260 Z" />
+
+            {/* 4. หลังคาพระวิหารซ้อนชั้นด้านหลังฝั่งซ้าย (x=560 & x=725) */}
+            <path d="M 520 175 L 565 130 L 610 175 Z" />
+            <path d="M 563 130 Q 560 118 565 110 Q 570 118 567 130" fill="none" strokeWidth="2" stroke="#fffbeb" />
+            <path d="M 505 205 L 565 152 L 625 205 Z" />
+
+            <path d="M 685 158 L 725 116 L 765 158 Z" />
+            <path d="M 723 116 Q 720 105 725 98 Q 730 105 727 116" fill="none" strokeWidth="2" stroke="#fffbeb" />
+            <path d="M 672 185 L 725 136 L 778 185 Z" />
+
+            {/* 5. หลังคาพระวิหารซ้อนชั้นด้านหลังฝั่งขวา (x=875 & x=1035) */}
+            <path d="M 835 158 L 875 116 L 915 158 Z" />
+            <path d="M 873 116 Q 870 105 875 98 Q 880 105 877 116" fill="none" strokeWidth="2" stroke="#fffbeb" />
+            <path d="M 822 185 L 875 136 L 928 185 Z" />
+
+            <path d="M 990 175 L 1035 130 L 1080 175 Z" />
+            <path d="M 1033 130 Q 1030 118 1035 110 Q 1040 118 1037 130" fill="none" strokeWidth="2" stroke="#fffbeb" />
+            <path d="M 975 205 L 1035 152 L 1095 205 Z" />
+          </g>
+        </g>
+
+        {/* ----------------- 3. ตึกฟักทอง คณะวิทยาศาสตร์ ม.อ. (ลายเส้นสีขาวบริสุทธิ์ Pure White ด้านหน้า) ----------------- */}
         <g id="realPumpkinBuildingPSU">
           {/* Spotlight แสงนวลส่องหลังตัวตึกฟักทอง */}
-          <ellipse cx="800" cy="245" rx="260" ry="60" fill="url(#spireAura)" opacity="0.25" />
-          
+          <ellipse cx="800" cy="245" rx="260" ry="60" fill="url(#spireAura)" opacity="0.28" />
+
+          {/* Silhouette บังฉากหลังเฉพาะช่วงตัวอาคารตึกฟักทอง เพื่อไม่ให้เส้นเจดีย์ด้านหลังทะลุเข้ามาซ้อนในลายเส้นตึก */}
+          <path
+            d="M 512 302 C 512 225, 575 176, 650 162 C 710 150, 755 148, 800 148 C 845 148, 890 150, 950 162 C 1025 176, 1088 225, 1088 302 Z"
+            fill="#091024"
+            opacity="0.92"
+          />
+
           <image
             href="/vector.png?v=white"
             x="510"
@@ -130,6 +198,90 @@ export const ThaiArchitectureSkyline: React.FC = () => {
             preserveAspectRatio="xMidYMax meet"
             className="drop-shadow-[0_0_12px_rgba(255,255,255,0.65)]"
           />
+        </g>
+
+        {/* ----------------- 4. ของห้อยตกแต่งบนตึกฟักทองตามธีมลอยกระทง (Festive Hanging Lanterns & Bunting Garland) ----------------- */}
+        <g id="pumpkinFestiveDecorations">
+          {/* สายพาดโคมแขวนและธงราวโค้งรับแนวหลังคาตึกฟักทอง */}
+          <path
+            d="M 540 198 Q 608 220 675 166 Q 738 188 800 148 Q 862 188 925 166 Q 992 220 1060 198"
+            fill="none"
+            stroke="#fde047"
+            strokeWidth="1.3"
+            strokeDasharray="3 2"
+            opacity="0.85"
+          />
+          {/* สายพาดเส้นคู่ด้านล่างสำหรับธงราวสามเหลี่ยม */}
+          <path
+            d="M 540 198 Q 608 226 675 166 Q 738 194 800 148 Q 862 194 925 166 Q 992 226 1060 198"
+            fill="none"
+            stroke="#f59e0b"
+            strokeWidth="0.9"
+            opacity="0.65"
+          />
+
+          {/* ธงราวสามเหลี่ยมสีทองขนาดเล็กประดับตามสาย (Festive Bunting Flags) */}
+          {[
+            { x: 575, y: 206 },
+            { x: 640, y: 192 },
+            { x: 708, y: 174 },
+            { x: 768, y: 166 },
+            { x: 832, y: 166 },
+            { x: 892, y: 174 },
+            { x: 960, y: 192 },
+            { x: 1025, y: 206 },
+          ].map((flag, idx) => (
+            <polygon
+              key={`flag-${idx}`}
+              points={`${flag.x - 4},${flag.y} ${flag.x + 4},${flag.y} ${flag.x},${flag.y + 8}`}
+              fill={idx % 2 === 0 ? '#fde047' : '#f59e0b'}
+              opacity="0.85"
+            />
+          ))}
+
+          {/* โคมไฟกระดาษ/โคมล้านนาแปดเหลี่ยมเรืองแสง 5 จุดหลัก (พร้อม Subtle Sway Animation) */}
+          {[
+            { x: 545, y: 198, scale: 0.85, dur: '3.2s', delay: '0s' },
+            { x: 608, y: 208, scale: 0.75, dur: '2.8s', delay: '0.4s' },
+            { x: 675, y: 166, scale: 0.95, dur: '3.5s', delay: '0.2s' },
+            { x: 738, y: 176, scale: 0.8, dur: '3.0s', delay: '0.6s' },
+            { x: 800, y: 148, scale: 1.05, dur: '3.4s', delay: '0.1s' },
+            { x: 862, y: 176, scale: 0.8, dur: '3.1s', delay: '0.5s' },
+            { x: 925, y: 166, scale: 0.95, dur: '3.6s', delay: '0.3s' },
+            { x: 992, y: 208, scale: 0.75, dur: '2.9s', delay: '0.7s' },
+            { x: 1055, y: 198, scale: 0.85, dur: '3.3s', delay: '0.2s' },
+          ].map((lan, idx) => (
+            <g
+              key={`pumpkin-lantern-${idx}`}
+              style={{
+                transformOrigin: `${lan.x}px ${lan.y}px`,
+                animation: `swaySlow ${lan.dur} ease-in-out ${lan.delay} infinite alternate`,
+              }}
+              className="drop-shadow-[0_0_8px_rgba(251,191,36,0.75)]"
+            >
+              <g transform={`translate(${lan.x}, ${lan.y}) scale(${lan.scale})`}>
+                {/* แสงออร่าสีทองส้มรอบโคม */}
+                <circle cx="0" cy="14" r="14" fill="url(#spireAura)" opacity="0.65" />
+                {/* สายห้อยโคม */}
+                <line x1="0" y1="0" x2="0" y2="6" stroke="#fde047" strokeWidth="1.2" />
+                {/* ฝาครอบบนโคมล้านนา */}
+                <rect x="-4" y="6" width="8" height="2" rx="1" fill="#78350f" stroke="#fde047" strokeWidth="0.6" />
+                {/* ตัวโคมแปดเหลี่ยมสีเหลืองส้มเรืองแสง */}
+                <polygon
+                  points="-4,8 4,8 7,12 7,17 4,21 -4,21 -7,17 -7,12"
+                  fill="url(#festiveLanternGrad)"
+                  stroke="#fffbeb"
+                  strokeWidth="0.8"
+                />
+                {/* ลายเส้นโครงโคม */}
+                <line x1="-6.5" y1="14.5" x2="6.5" y2="14.5" stroke="#b45309" strokeWidth="0.6" opacity="0.6" />
+                {/* ฝาครอบล่าง */}
+                <rect x="-3.5" y="21" width="7" height="2" rx="1" fill="#78350f" stroke="#fde047" strokeWidth="0.5" />
+                {/* พู่ห้อยท้ายโคม */}
+                <path d="M -1.5 23 L -2.5 30 M 0 23 L 0 31 M 1.5 23 L 2.5 30" stroke="#f59e0b" strokeWidth="0.9" strokeLinecap="round" />
+              </g>
+            </g>
+          ))}
         </g>
       </svg>
 
