@@ -1,10 +1,24 @@
 // functions/api/admin/stats.ts
+import { isAuthenticatedAdmin, getSecurityHeaders } from '../../utils/security';
+
 interface Env {
   DB: D1Database;
+  SESSION_SECRET?: string;
+  ALLOWED_ORIGIN?: string;
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const { env } = context;
+  const { request, env } = context;
+  const headers = getSecurityHeaders(request, env);
+
+  // บังคับตรวจสอบสิทธิ์ผู้ดูแลระบบก่อนเข้าถึงข้อมูลสถิติหลังบ้าน
+  const auth = await isAuthenticatedAdmin(request, env);
+  if (!auth.authenticated) {
+    return new Response(JSON.stringify({ error: 'ไม่ได้รับอนุญาต กรุณาเข้าสู่ระบบผู้ดูแล' }), {
+      status: 401,
+      headers
+    });
+  }
 
   try {
     // 1. ผู้ใช้ทั้งหมด แยกตามประเภท
@@ -59,9 +73,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       recentFeedbacks,
       requireApproval: setting?.value === 'true'
     }), {
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      status: 200,
+      headers
     });
-  } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+  } catch (err) {
+    console.error('Admin Stats Error:', err);
+    return new Response(JSON.stringify({ error: 'ไม่สามารถดึงข้อมูลสถิติได้ในขณะนี้' }), {
+      status: 500,
+      headers
+    });
   }
 };
