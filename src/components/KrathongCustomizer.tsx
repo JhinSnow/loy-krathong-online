@@ -19,6 +19,7 @@ import {
   saveLocalKrathongRecord,
   getLocalRequireApproval
 } from '../utils/evaluationHelpers';
+import { soundManager } from '../utils/soundEffects';
 
 interface KrathongCustomizerProps {
   onBackToRiver: () => void;
@@ -266,6 +267,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
       });
 
       markRateLimitAction('krathong_submit');
+      soundManager.playFloatSuccessChime();
       onSuccessFloating(finalId, safeUserType);
     } catch (err: any) {
       console.warn('Using local fallback:', err);
@@ -282,6 +284,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
         created_at: new Date().toISOString()
       });
       markRateLimitAction('krathong_submit');
+      soundManager.playFloatSuccessChime();
       onSuccessFloating(fakeId, safeUserType);
     } finally {
       setLoading(false);

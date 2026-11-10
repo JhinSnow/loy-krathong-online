@@ -24,7 +24,8 @@ import {
   Download,
   Award,
   BarChart3,
-  Trash2
+  Trash2,
+  Search
 } from 'lucide-react';
 import { supabase } from '../utils/supabase';
 import {
@@ -67,6 +68,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
   const [isUsingDemoEvals, setIsUsingDemoEvals] = useState<boolean>(false);
   const [loading, setLoading] = useState(false);
   const [requireApproval, setRequireApproval] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'pending' | 'rejected'>('all');
 
   // ดึงข้อมูลสถิติ รายการกระทง และข้อมูลประเมิน 10 ข้อ (รวมข้อมูลจากทั้ง LocalStorage + Supabase + API)
   const loadData = async () => {
@@ -495,11 +498,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
 
           <button
             onClick={handleExportExcel}
-            title="ดาวน์โหลดไฟล์ Excel (.xlsx) ครบทั้ง Sheet ข้อมูลดิบ และ Sheet ตารางสรุปสถิติ 10 ด้าน"
+            title="ดาวน์โหลดไฟล์ Excel (.xlsx) ครบทั้ง 3 Sheets: ข้อมูลดิบผู้ประเมิน, ตารางสรุปสถิติ 10 ด้าน และรายชื่อผู้ลอยกระทง"
             className="flex items-center space-x-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition shadow-md cursor-pointer"
           >
             <FileSpreadsheet className="w-4 h-4" />
-            <span>Export Excel (.xlsx 2 Sheets)</span>
+            <span>Export Excel (.xlsx 3 Sheets)</span>
           </button>
 
           <button
@@ -736,14 +739,74 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
 
         {/* 3. Live Moderation Table */}
         <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-          <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between">
+          <div className="p-4 sm:p-5 border-b border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
             <div>
               <h2 className="text-base font-bold text-amber-200">
                 รายการกระทงล่าสุด (Live Moderation Stream)
               </h2>
               <p className="text-xs text-slate-400">
-                สามารถตรวจสอบ อนุมัติ หรือซ่อนข้อความที่ไม่เหมาะสมได้ทันที
+                สามารถค้นหา กรองสถานะ ตรวจสอบ อนุมัติ หรือซ่อนข้อความที่ไม่เหมาะสมได้ทันที
               </p>
+            </div>
+
+            {/* Search & Status Filter Controls */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="ค้นหาชื่อ หรือคำอธิษฐาน..."
+                  className="bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none w-48 sm:w-56"
+                />
+              </div>
+
+              <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
+                {[
+                  { id: 'all', label: `ทั้งหมด (${krathongs.length})` },
+                  {
+                    id: 'pending',
+                    label: `รอตรวจ (${krathongs.filter((k) => k.status === 'pending').length})`
+                  },
+                  {
+                    id: 'approved',
+                    label: `แสดงผล (${krathongs.filter((k) => (k.status || 'approved') === 'approved').length})`
+                  },
+                  {
+                    id: 'rejected',
+                    label: `ซ่อนแล้ว (${krathongs.filter((k) => k.status === 'rejected').length})`
+                  }
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setStatusFilter(tab.id as any)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer ${
+                      statusFilter === tab.id
+                        ? 'bg-amber-500/25 text-amber-200 border border-amber-400/40'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {krathongs.some((k) => k.status === 'pending') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    krathongs
+                      .filter((k) => k.status === 'pending')
+                      .forEach((k) => handleModerate(k.id, 'approved'));
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition shadow cursor-pointer flex items-center space-x-1"
+                >
+                  <CheckCircle className="w-3.5 h-3.5" />
+                  <span>อนุมัติที่รอตรวจทั้งหมด</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -760,14 +823,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
-                {krathongs.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-8 text-center text-slate-500">
-                      ยังไม่มีรายการกระทงในขณะนี้
-                    </td>
-                  </tr>
-                ) : (
-                  krathongs.map((k: any) => {
+                {(() => {
+                  const q = searchQuery.trim().toLowerCase();
+                  const filtered = krathongs.filter((k: any) => {
+                    const st = k.status || 'approved';
+                    if (statusFilter !== 'all' && st !== statusFilter) return false;
+                    if (!q) return true;
+                    return (
+                      (k.owner_name || '').toLowerCase().includes(q) ||
+                      (k.wish_message || '').toLowerCase().includes(q)
+                    );
+                  });
+
+                  if (filtered.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-slate-500">
+                          {krathongs.length === 0
+                            ? 'ยังไม่มีรายการกระทงในขณะนี้'
+                            : 'ไม่พบรายการกระทงที่ตรงกับเงื่อนไขการค้นหา'}
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  return filtered.map((k: any) => {
                     const currentStatus = k.status || 'approved';
                     return (
                       <tr key={k.id} className="hover:bg-slate-800/40 transition">
@@ -841,8 +921,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                         </td>
                       </tr>
                     );
-                  })
-                )}
+                  });
+                })()}
               </tbody>
             </table>
           </div>

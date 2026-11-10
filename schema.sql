@@ -110,6 +110,6 @@ ON public.evaluations FOR INSERT
 TO anon, authenticated
 WITH CHECK (
   rating BETWEEN 1 AND 5
-  AND (feedback IS NULL OR char_length(feedback) <= 300)
+  AND (feedback IS NULL OR char_length(feedback) <= 1000)
 );
 */

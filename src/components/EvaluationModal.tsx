@@ -1,6 +1,6 @@
 // src/components/EvaluationModal.tsx
-import React, { useState } from 'react';
-import { Star, ArrowRight, CheckCircle2, Sparkles, UserCheck } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Star, ArrowRight, CheckCircle2, Sparkles, UserCheck, Image as ImageIcon } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { supabase } from '../utils/supabase';
 import {
@@ -13,8 +13,10 @@ import {
   EVALUATION_QUESTIONS,
   RATING_LABELS,
   encodeEvaluationPayload,
-  saveLocalEvaluationRecord
+  saveLocalEvaluationRecord,
+  getLocalKrathongRecords
 } from '../utils/evaluationHelpers';
+import { ShareCardModal } from './ShareCardModal';
 
 interface EvaluationModalProps {
   krathongId: string | null;
@@ -33,6 +35,16 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
   const [feedback, setFeedback] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>('');
+  const [showShareModal, setShowShareModal] = useState<boolean>(false);
+
+  const myKrathongRecord = useMemo(() => {
+    const records = getLocalKrathongRecords();
+    if (krathongId) {
+      const found = records.find((r) => r.id === krathongId);
+      if (found) return found;
+    }
+    return records[0] || null;
+  }, [krathongId]);
 
   const handleScoreChange = (questionIndex: number, scoreValue: number) => {
     setScores((prev) => {
@@ -147,9 +159,21 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
       <div className="bg-gradient-to-b from-[#1c2541]/98 to-[#0b132b] border border-amber-400/40 rounded-3xl p-4 sm:p-6 max-w-2xl w-full relative shadow-[0_15px_50px_rgba(0,0,0,0.85),0_0_25px_rgba(245,158,11,0.25)] my-auto max-h-[94vh] flex flex-col">
         {/* Header */}
         <div className="text-center pb-3 border-b border-amber-500/25 shrink-0">
-          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-amber-400/15 border border-amber-400/40 text-amber-300 text-xs font-semibold mb-1.5">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>ปล่อยกระทงลงสู่สายน้ำสำเร็จแล้ว!</span>
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-1.5">
+            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-amber-400/15 border border-amber-400/40 text-amber-300 text-xs font-semibold">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>ปล่อยกระทงลงสู่สายน้ำสำเร็จแล้ว!</span>
+            </div>
+            {myKrathongRecord && (
+              <button
+                type="button"
+                onClick={() => setShowShareModal(true)}
+                className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-amber-400/25 hover:bg-amber-400/40 border border-amber-300 text-amber-100 text-xs font-bold shadow-[0_0_12px_rgba(245,158,11,0.3)] transition cursor-pointer"
+              >
+                <ImageIcon className="w-3.5 h-3.5 text-amber-300" />
+                <span>📸 ดาวน์โหลดการ์ดที่ระลึก (E-Card)</span>
+              </button>
+            )}
           </div>
           <h3 className="text-lg sm:text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-amber-300 to-yellow-200">
             แบบประเมินความพึงพอใจโครงการเทศกาลลอยกระทง
@@ -332,6 +356,18 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
           </button>
         </div>
       </div>
+
+      {showShareModal && myKrathongRecord && (
+        <ShareCardModal
+          ownerName={myKrathongRecord.owner_name}
+          wishMessage={myKrathongRecord.wish_message}
+          userType={myKrathongRecord.user_type}
+          baseType={myKrathongRecord.base_type}
+          flowerType={myKrathongRecord.flower_type}
+          candleColor={myKrathongRecord.candle_color}
+          onClose={() => setShowShareModal(false)}
+        />
+      )}
     </div>
   );
 };

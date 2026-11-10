@@ -1,13 +1,28 @@
 // src/components/RiverCanvas.tsx
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { KrathongItem } from '../types';
-import { Sparkles, Maximize2, Minimize2, Eye, ShieldAlert, QrCode, ChevronUp, ChevronDown } from 'lucide-react';
+import {
+  Sparkles,
+  Maximize2,
+  Minimize2,
+  Eye,
+  ShieldAlert,
+  QrCode,
+  ChevronUp,
+  ChevronDown,
+  Volume2,
+  VolumeX,
+  Image as ImageIcon,
+  Leaf
+} from 'lucide-react';
 import { supabase } from '../utils/supabase';
 import { containsProfanity, sanitizeInputText } from '../utils/security';
 import { getLocalKrathongRecords, getModerationOverrides, mergeModerationOverrides } from '../utils/evaluationHelpers';
 import { ThaiArchitectureSkyline } from './ThaiArchitectureSkyline';
 import { DecorativeScreenBorders } from './DecorativeScreenBorders';
 import { KrathongVisual } from './KrathongVisual';
+import { ShareCardModal } from './ShareCardModal';
+import { soundManager } from '../utils/soundEffects';
 
 interface RiverCanvasProps {
   myKrathongId?: string | null;
@@ -24,11 +39,49 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
   const krathongsRef = useRef<KrathongItem[]>([]);
   const starsRef = useRef<{ x: number; y: number; size: number; alpha: number; delta: number }[]>([]);
   const lanternsRef = useRef<{ x: number; y: number; speedY: number; speedX: number; size: number; alpha: number }[]>([]);
-  
+  const fireworksRef = useRef<
+    { x: number; y: number; vx: number; vy: number; color: string; alpha: number; size: number; decay: number }[]
+  >([]);
+
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectedKrathong, setSelectedKrathong] = useState<KrathongItem | null>(null);
+  const [shareCardKrathong, setShareCardKrathong] = useState<KrathongItem | null>(null);
   const [showControls, setShowControls] = useState(true);
   const [isQrExpanded, setIsQrExpanded] = useState(true);
+  const [isAudioPlaying, setIsAudioPlaying] = useState<boolean>(() => soundManager.isAudioEnabled());
+  const [totalFloatedCount, setTotalFloatedCount] = useState<number>(128);
+
+  // จุดพลุดอกไม้ไฟเฉลิมฉลองบนท้องฟ้าเหนือตึกฟักทอง
+  const spawnFireworkBurst = useCallback((customX?: number, customY?: number) => {
+    const winW = typeof window !== 'undefined' ? window.innerWidth : 1200;
+    const winH = typeof window !== 'undefined' ? window.innerHeight : 800;
+    const fx = customX ?? winW * (0.2 + Math.random() * 0.6);
+    const fy = customY ?? winH * (0.09 + Math.random() * 0.17);
+    const palettes = [
+      ['#fde047', '#f59e0b', '#fffbeb'],
+      ['#fb7185', '#f43f5e', '#fde047'],
+      ['#38bdf8', '#fde047', '#e0f2fe'],
+      ['#c084fc', '#f472b6', '#fef08a'],
+      ['#34d399', '#fde047', '#a7f3d0']
+    ];
+    const palette = palettes[Math.floor(Math.random() * palettes.length)];
+    const count = 34;
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.12;
+      const speed = 1.2 + Math.random() * 2.8;
+      fireworksRef.current.push({
+        x: fx,
+        y: fy,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        color: palette[i % palette.length],
+        alpha: 1,
+        size: 1.6 + Math.random() * 1.6,
+        decay: 0.012 + Math.random() * 0.01
+      });
+    }
+    soundManager.playFireworkSparkle();
+  }, []);
 
   // สุ่ม Bot กระทงหลากหลายรูปแบบ เพื่อให้แม่น้ำมีสีสันสวยงาม
   const spawnBot = useCallback((): KrathongItem => {
@@ -94,14 +147,16 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         );
 
         let supaItems: any[] = [];
+        let supaTotalCount = 0;
         try {
-          const { data } = await supabase
+          const { data, count } = await supabase
             .from('krathongs')
-            .select('*')
+            .select('*', { count: 'exact' })
             .eq('status', 'approved')
             .order('created_at', { ascending: false })
             .limit(8);
           if (data) supaItems = data;
+          if (typeof count === 'number') supaTotalCount = count;
         } catch {}
 
         const combinedMap = new Map<string, any>();
@@ -112,6 +167,8 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
             combinedMap.set(item.id, item);
           }
         });
+
+        setTotalFloatedCount(128 + Math.max(supaTotalCount, combinedMap.size));
 
         const mergedList = Array.from(combinedMap.values()).slice(0, 8);
         krathongsRef.current = [];
@@ -141,13 +198,30 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
           bot.x = 120 + idx * ((winW * 0.72) / 6) + Math.random() * 40;
           krathongsRef.current.push(bot);
         }
+
+        // จุดพลุฉลองต้อนรับหากผู้ใช้เพิ่งปล่อยกระทงเสร็จ
+        if (myKrathongId) {
+          spawnFireworkBurst(winW * 0.35, winH * 0.16);
+          setTimeout(() => spawnFireworkBurst(winW * 0.65, winH * 0.14), 450);
+        }
       } catch (err) {
         console.warn('Initial krathongs fetch error:', err);
       }
     };
     fetchRecentKrathongs();
 
-    // 1.2 ฟัง Realtime Broadcast เมื่อมีคนลอยกระทงใหม่จาก Supabase
+    // ซิงก์สถานะการซ่อน/ลบ/อนุมัติจาก LocalStorage เมื่อแอดมินจัดการในอีกแท็บ
+    const handleStorageModerationSync = () => {
+      const overrides = getModerationOverrides();
+      krathongsRef.current = krathongsRef.current.filter((k) => {
+        if (k.id.startsWith('bot-')) return true;
+        const status = overrides[k.id];
+        return status !== 'rejected' && status !== 'deleted';
+      });
+    };
+    window.addEventListener('storage', handleStorageModerationSync);
+
+    // 1.2 ฟัง Realtime Broadcast ทั้งการสร้างใหม่ (INSERT), อัปเดตสถานะอนุมัติ/ซ่อน (UPDATE) และลบ (DELETE)
     const channel = supabase
       .channel('realtime_krathongs')
       .on(
@@ -176,6 +250,54 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
               maxLife: 60,
               isMine: data.id === myKrathongId
             });
+            setTotalFloatedCount((prev) => prev + 1);
+            spawnFireworkBurst();
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'krathongs' },
+        (payload) => {
+          const data = payload.new as KrathongItem;
+          if (!data) return;
+          if (data.status === 'rejected' || data.status === 'pending') {
+            // หากแอดมินกดซ่อน ให้ลบออกจากแม่น้ำทันที
+            krathongsRef.current = krathongsRef.current.filter((k) => k.id !== data.id);
+          } else if (
+            data.status === 'approved' &&
+            !containsProfanity(data.owner_name) &&
+            !containsProfanity(data.wish_message)
+          ) {
+            // หากแอดมินกดอนุมัติกระทงที่ค้างอยู่ ให้ปล่อยลงแม่น้ำทันที
+            const exists = krathongsRef.current.some((k) => k.id === data.id);
+            if (!exists) {
+              const winH = window.innerHeight;
+              krathongsRef.current.push({
+                ...data,
+                owner_name: sanitizeInputText(data.owner_name, 40),
+                wish_message: sanitizeInputText(data.wish_message, 150),
+                x: -55,
+                y: winH * 0.49 + Math.random() * (winH * 0.39),
+                speed: 1.5 + Math.random() * 0.85,
+                opacity: 1,
+                age: 0,
+                maxLife: 60,
+                isMine: data.id === myKrathongId
+              });
+              setTotalFloatedCount((prev) => prev + 1);
+              spawnFireworkBurst();
+            }
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'krathongs' },
+        (payload) => {
+          const oldRow = payload.old as { id?: string };
+          if (oldRow?.id) {
+            krathongsRef.current = krathongsRef.current.filter((k) => k.id !== oldRow.id);
           }
         }
       )
@@ -198,14 +320,17 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
           isMine: data.id === myKrathongId
         };
         krathongsRef.current.push(newK);
+        setTotalFloatedCount((prev) => prev + 1);
+        spawnFireworkBurst();
       });
     } catch (_) {}
 
     return () => {
+      window.removeEventListener('storage', handleStorageModerationSync);
       supabase.removeChannel(channel);
       if (eventSource) eventSource.close();
     };
-  }, [myKrathongId, spawnBot]);
+  }, [myKrathongId, spawnBot, spawnFireworkBurst]);
 
   // 2. Initialize Stars & Floating Sky Lanterns (โคมลอย)
   useEffect(() => {
@@ -324,6 +449,30 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         ctx.fillStyle = '#ea580c';
         ctx.fillRect(lan.x - lan.size * 0.2, lan.y + lan.size * 0.4, lan.size * 0.4, lan.size * 0.3);
         ctx.restore();
+      });
+
+      // --- Sky Fireworks (พลุดอกไม้ไฟเฉลิมฉลองเหนือตึกฟักทอง) ---
+      if (fireworksRef.current.length < 15 && Math.random() < 0.007) {
+        spawnFireworkBurst();
+      }
+      fireworksRef.current = fireworksRef.current.filter((fw) => {
+        fw.x += fw.vx;
+        fw.y += fw.vy;
+        fw.vy += 0.032; // gravity
+        fw.vx *= 0.985;
+        fw.alpha -= fw.decay;
+        if (fw.alpha <= 0.02) return false;
+
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, fw.alpha);
+        ctx.fillStyle = fw.color;
+        ctx.shadowColor = fw.color;
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.arc(fw.x, fw.y, fw.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        return true;
       });
 
       // --- River (แม่น้ำเจ้าพระยาจำลอง: ปรับระดับให้สูงขึ้นเป็น 0.38h ขยายพื้นที่ผิวน้ำให้กว้างขึ้น) ---
@@ -782,11 +931,26 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         ctx.fillStyle = '#fffbeb';
         ctx.fill();
 
-        // --- Speech Bubble สำหรับคำอวยพร (โทนอุ่น ขอบทองเรืองรอง) ---
-        const bubbleW = Math.min(220, Math.max(140, (k.owner_name.length + 10) * 8.5));
-        const bubbleH = 34;
+        // --- Speech Bubble สำหรับคำอวยพร (วัดความกว้างจริงด้วย measureText รองรับสระ/วรรณยุกต์ภาษาไทยไม่ให้ถูกตัดสั้นผิดปกติ) ---
+        ctx.font = 'bold 12px "Sarabun", sans-serif';
+        const ownerTextWidth = ctx.measureText(k.owner_name).width;
+
+        ctx.font = '500 11px "Sarabun", sans-serif';
+        const maxWishPixelWidth = 196;
+        let displayWish = k.wish_message;
+        if (ctx.measureText(displayWish).width > maxWishPixelWidth) {
+          let cut = displayWish;
+          while (cut.length > 0 && ctx.measureText(cut + '…').width > maxWishPixelWidth) {
+            cut = cut.slice(0, -1);
+          }
+          displayWish = cut + '…';
+        }
+        const wishTextWidth = ctx.measureText(displayWish).width;
+
+        const bubbleW = Math.min(230, Math.max(142, Math.max(ownerTextWidth, wishTextWidth) + 22));
+        const bubbleH = 36;
         const bx = (k.x || 0) - bubbleW / 2 + 40;
-        const by = currentY - 68;
+        const by = currentY - 70;
 
         // Bubble Shadow Glow
         ctx.shadowColor = 'rgba(245, 158, 11, 0.45)';
@@ -815,13 +979,12 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
 
         // Bubble Text
         ctx.fillStyle = '#92400e'; // Warm dark amber for name
-        ctx.font = 'bold 11px sans-serif';
-        ctx.fillText(k.owner_name, bx + 10, by + 14);
+        ctx.font = 'bold 12px "Sarabun", sans-serif';
+        ctx.fillText(k.owner_name, bx + 11, by + 15);
 
-        ctx.font = '10px sans-serif';
+        ctx.font = '500 11px "Sarabun", sans-serif';
         ctx.fillStyle = '#1c1917'; // Rich dark warm charcoal
-        const displayWish = k.wish_message.length > 20 ? k.wish_message.slice(0, 19) + '…' : k.wish_message;
-        ctx.fillText(displayWish, bx + 10, by + 28);
+        ctx.fillText(displayWish, bx + 11, by + 30);
 
         ctx.restore();
 
@@ -837,7 +1000,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       cancelAnimationFrame(animId);
       window.removeEventListener('resize', handleResize);
     };
-  }, [spawnBot]);
+  }, [spawnBot, spawnFireworkBurst]);
 
   // Click on Canvas to Zoom in on a Krathong
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -875,6 +1038,11 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       document.exitFullscreen();
       setIsFullscreen(false);
     }
+  };
+
+  const handleToggleAudio = () => {
+    const enabled = soundManager.toggleAudio();
+    setIsAudioPlaying(enabled);
   };
 
   return (
@@ -951,7 +1119,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         </div>
       )}
 
-      {/* Header Central Brand (สมมาตรสมบูรณ์แบบ: ทั้งสองบรรทัดอยู่กึ่งกลางเดียวกันเป๊ะๆ ในกล่องเดียวกัน ตัดอิโมจิที่ถ่วงน้ำหนักออก) */}
+      {/* Header Central Brand (สมมาตรสมบูรณ์แบบ พร้อมตัวนับสถิติรักษ์โลก Zero-Waste แบบเรียลไทม์) */}
       {showControls && (
         <header className="fixed top-5 inset-x-0 flex flex-col items-center justify-center text-center pointer-events-none z-30 px-4">
           <div className="flex flex-col items-center justify-center">
@@ -961,34 +1129,61 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
             <p className="text-xs sm:text-sm text-amber-200/90 tracking-[0.25em] uppercase mt-1.5 font-semibold drop-shadow whitespace-nowrap pl-[0.25em]">
               Loy Krathong River of Lights
             </p>
+            {/* Live Eco-Impact & Zero-Waste Counter */}
+            <div className="mt-2 inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-[#0b132b]/80 backdrop-blur-md border border-emerald-400/40 text-[10px] sm:text-xs text-emerald-100 shadow-[0_4px_16px_rgba(0,0,0,0.45),0_0_12px_rgba(16,185,129,0.2)]">
+              <Leaf className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span>
+                ร่วมลอยแล้ว <strong className="text-amber-300 font-bold">{totalFloatedCount.toLocaleString()}</strong> ใบ
+                <span className="hidden sm:inline">
+                  {' '}• ลดขยะในแหล่งน้ำ <strong className="text-emerald-300 font-bold">~{(totalFloatedCount * 0.35).toFixed(1)} กก.</strong> (Zero-Waste 100%)
+                </span>
+              </span>
+            </div>
           </div>
         </header>
       )}
 
       {/* Bottom Floating Control Bar */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center space-x-3 bg-[#0b132b]/85 backdrop-blur-lg px-5 py-3 rounded-full border border-amber-500/40 shadow-[0_8px_30px_rgba(0,0,0,0.6),0_0_15px_rgba(245,158,11,0.25)] z-20">
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center space-x-2 sm:space-x-3 bg-[#0b132b]/85 backdrop-blur-lg px-4 sm:px-5 py-3 rounded-full border border-amber-500/40 shadow-[0_8px_30px_rgba(0,0,0,0.6),0_0_15px_rgba(245,158,11,0.25)] z-20 max-w-[96vw]">
         <button
           onClick={onNavigateCustomize}
-          className="flex items-center space-x-2 px-5 py-2.5 bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 hover:from-amber-300 hover:via-yellow-400 hover:to-amber-500 text-stone-900 font-bold rounded-full shadow-[0_0_20px_rgba(245,158,11,0.5)] border border-yellow-200/60 transition active:scale-95"
+          className="flex items-center space-x-2 px-4 sm:px-5 py-2.5 bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 hover:from-amber-300 hover:via-yellow-400 hover:to-amber-500 text-stone-900 font-bold rounded-full shadow-[0_0_20px_rgba(245,158,11,0.5)] border border-yellow-200/60 transition active:scale-95 whitespace-nowrap cursor-pointer text-xs sm:text-sm"
         >
-          <Sparkles className="w-4 h-4 text-stone-900" />
+          <Sparkles className="w-4 h-4 text-stone-900 shrink-0" />
           <span>สร้างกระทงของคุณ</span>
         </button>
 
         {myKrathongId && (
           <button
             onClick={handleFindMyKrathong}
-            className="flex items-center space-x-1.5 px-4 py-2.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-400/60 rounded-full text-sm font-semibold shadow-[0_0_12px_rgba(245,158,11,0.25)] transition"
+            className="flex items-center space-x-1.5 px-3.5 py-2.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-400/60 rounded-full text-xs sm:text-sm font-semibold shadow-[0_0_12px_rgba(245,158,11,0.25)] transition whitespace-nowrap cursor-pointer"
           >
-            <Eye className="w-4 h-4 text-amber-300" />
+            <Eye className="w-4 h-4 text-amber-300 shrink-0" />
             <span className="hidden sm:inline">ดูกระทงของฉัน</span>
           </button>
         )}
 
         <button
+          onClick={handleToggleAudio}
+          title={isAudioPlaying ? 'ปิดเสียงดนตรีบรรเลงและสายน้ำ' : 'เปิดเสียงดนตรีไทยบรรเลงและสายน้ำ'}
+          className={`flex items-center space-x-1.5 px-3 py-2.5 rounded-full border text-xs font-semibold transition cursor-pointer whitespace-nowrap ${
+            isAudioPlaying
+              ? 'bg-amber-500/25 border-amber-400 text-amber-200 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
+              : 'bg-slate-900/80 hover:bg-amber-950/40 text-amber-200/80 border-amber-500/30 hover:border-amber-400'
+          }`}
+        >
+          {isAudioPlaying ? (
+            <Volume2 className="w-4 h-4 text-amber-300 animate-pulse shrink-0" />
+          ) : (
+            <VolumeX className="w-4 h-4 shrink-0" />
+          )}
+          <span className="hidden md:inline">{isAudioPlaying ? 'เพลงบรรเลง: เปิด' : 'เปิดเพลงบรรเลง'}</span>
+        </button>
+
+        <button
           onClick={toggleFullscreen}
           title="เปิด/ปิด โหมดเต็มจอสำหรับขึ้นจอใหญ่"
-          className="p-2.5 bg-slate-900/80 hover:bg-amber-950/40 text-amber-200 rounded-full border border-amber-500/30 hover:border-amber-400 transition"
+          className="p-2.5 bg-slate-900/80 hover:bg-amber-950/40 text-amber-200 rounded-full border border-amber-500/30 hover:border-amber-400 transition cursor-pointer shrink-0"
         >
           {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
         </button>
@@ -996,7 +1191,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         <button
           onClick={() => setShowControls(!showControls)}
           title="ซ่อนแถบควบคุมสำหรับฉายโปรเจกเตอร์"
-          className="px-3 py-2 bg-slate-900/80 hover:bg-amber-950/40 text-amber-200/80 text-xs rounded-full border border-amber-500/30 hover:border-amber-400"
+          className="px-3 py-2 bg-slate-900/80 hover:bg-amber-950/40 text-amber-200/80 text-xs rounded-full border border-amber-500/30 hover:border-amber-400 whitespace-nowrap cursor-pointer"
         >
           {showControls ? 'ซ่อน UI' : 'แสดง UI'}
         </button>
@@ -1004,7 +1199,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         <button
           onClick={onNavigateAdmin}
           title="เข้าสู่แผงควบคุมผู้ดูแล"
-          className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-amber-300 rounded-full border border-slate-700 transition"
+          className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-amber-300 rounded-full border border-slate-700 transition cursor-pointer shrink-0"
         >
           <ShieldAlert className="w-4 h-4" />
         </button>
@@ -1034,14 +1229,38 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
                 ✨ นี่คือกระทงของคุณ
               </span>
             )}
-            <button
-              onClick={() => setSelectedKrathong(null)}
-              className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-medium transition"
-            >
-              ปิดหน้าต่าง
-            </button>
+            <div className="space-y-2.5">
+              <button
+                onClick={() => {
+                  setShareCardKrathong(selectedKrathong);
+                }}
+                className="w-full flex items-center justify-center space-x-2 py-2.5 bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-stone-950 font-bold rounded-xl shadow-lg transition cursor-pointer text-sm"
+              >
+                <ImageIcon className="w-4 h-4" />
+                <span>📸 ดาวน์โหลดการ์ดที่ระลึก (E-Card)</span>
+              </button>
+              <button
+                onClick={() => setSelectedKrathong(null)}
+                className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-medium transition cursor-pointer text-sm"
+              >
+                ปิดหน้าต่าง
+              </button>
+            </div>
           </div>
         </div>
+      )}
+
+      {/* Share Card Modal when triggered from RiverCanvas */}
+      {shareCardKrathong && (
+        <ShareCardModal
+          ownerName={shareCardKrathong.owner_name}
+          wishMessage={shareCardKrathong.wish_message}
+          userType={shareCardKrathong.user_type}
+          baseType={shareCardKrathong.base_type}
+          flowerType={shareCardKrathong.flower_type}
+          candleColor={shareCardKrathong.candle_color}
+          onClose={() => setShareCardKrathong(null)}
+        />
       )}
     </div>
   );
