@@ -205,13 +205,27 @@ export function parseEvaluationRow(raw: any, index = 0): ParsedEvaluationRecord 
 
 const LOCAL_EVAL_STORAGE_KEY = 'loy_krathong_evaluations_10q_v1';
 const LOCAL_KRATHONG_STORAGE_KEY = 'loy_krathong_items_v1';
+const LOCAL_KRATHONG_CLEAN_FLAG = 'loy_krathong_clean_v2';
 const LOCAL_APPROVAL_SETTING_KEY = 'loy_krathong_require_approval_v1';
 const LOCAL_MODERATION_OVERRIDES_KEY = 'loy_krathong_moderation_overrides_v1';
 
-// รายการ ID ทดสอบระบบที่ซ่อนเริ่มต้นโดยอัตโนมัติ
+// รายการ ID ทดสอบระบบช่วงพัฒนาที่เคลียร์ออกจากหน้าเว็บและสถิติเริ่มต้น
 const DEFAULT_HIDDEN_IDS: Record<string, 'approved' | 'rejected' | 'deleted'> = {
-  'f2d13964-5717-4aea-b14d-d6ad1c8a40b0': 'deleted'
+  'f2d13964-5717-4aea-b14d-d6ad1c8a40b0': 'deleted',
+  '589097cb-612c-43b0-aeba-680958b0c47f': 'deleted',
+  'a8c1eb41-198b-4182-a2a7-6a4783d6aedb': 'deleted',
+  '19dfe3ad-e967-4f78-a638-61ac4b50226a': 'deleted',
+  'e357eecc-e1f0-4ed8-8176-8da4634e2dfb': 'deleted'
 };
+
+function ensureLegacyLocalKrathongsCleared(): void {
+  try {
+    if (typeof localStorage !== 'undefined' && !localStorage.getItem(LOCAL_KRATHONG_CLEAN_FLAG)) {
+      localStorage.removeItem(LOCAL_KRATHONG_STORAGE_KEY);
+      localStorage.setItem(LOCAL_KRATHONG_CLEAN_FLAG, '1');
+    }
+  } catch {}
+}
 
 export interface LocalKrathongRecord {
   id: string;
@@ -254,6 +268,7 @@ export function mergeModerationOverrides(
 
 export function saveLocalKrathongRecord(record: LocalKrathongRecord): void {
   try {
+    ensureLegacyLocalKrathongsCleared();
     const existing = getLocalKrathongRecords();
     const filtered = existing.filter((item) => item.id !== record.id);
     const updated = [record, ...filtered].slice(0, 500);
@@ -263,6 +278,7 @@ export function saveLocalKrathongRecord(record: LocalKrathongRecord): void {
 
 export function getLocalKrathongRecords(): LocalKrathongRecord[] {
   try {
+    ensureLegacyLocalKrathongsCleared();
     const raw = localStorage.getItem(LOCAL_KRATHONG_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);

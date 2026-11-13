@@ -6,7 +6,7 @@ export const DecorativeScreenBorders: React.FC = () => {
     <div className="fixed inset-0 pointer-events-none select-none overflow-hidden z-25 will-change-transform transform-gpu">
       {/* ---------------- 1. ลายประดับมุมบนซ้ายและมุมบนขวา (Thai Golden Corner Accents) ---------------- */}
       {/* มุมบนซ้าย (Top-Left Thai Kranok Pattern) */}
-      <div className="absolute top-0 left-0 w-36 h-36 sm:w-48 sm:h-48 opacity-45 drop-shadow-[0_0_12px_rgba(245,158,11,0.35)]">
+      <div className="absolute top-0 left-0 w-36 h-36 sm:w-48 sm:h-48 opacity-45">
         <svg viewBox="0 0 160 160" className="w-full h-full">
           <defs>
             <linearGradient id="cornerGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -28,7 +28,7 @@ export const DecorativeScreenBorders: React.FC = () => {
       </div>
 
       {/* มุมบนขวา (Top-Right Thai Kranok Pattern - Flip X) */}
-      <div className="absolute top-0 right-0 w-36 h-36 sm:w-48 sm:h-48 opacity-45 drop-shadow-[0_0_12px_rgba(245,158,11,0.35)] transform scale-x-[-1]">
+      <div className="absolute top-0 right-0 w-36 h-36 sm:w-48 sm:h-48 opacity-45 transform scale-x-[-1]">
         <svg viewBox="0 0 160 160" className="w-full h-full">
           <path d="M 0 0 L 150 0 C 110 30 90 60 75 100 C 60 120 40 140 0 150 Z" fill="url(#cornerGoldGrad)" opacity="0.3" />
           <path d="M 0 15 Q 45 20 60 40 Q 80 70 85 110 Q 75 80 50 55 Q 30 35 0 28" fill="url(#cornerGoldGrad)" />
@@ -83,15 +83,21 @@ export const DecorativeScreenBorders: React.FC = () => {
                 animationDelay: item.delay,
                 transformOrigin: 'top center'
               }}
-              className={`absolute flex flex-col items-center ${widthClass} drop-shadow-[0_4px_16px_rgba(245,158,11,0.55)]`}
+              className={`absolute flex flex-col items-center ${widthClass} will-change-transform transform-gpu`}
             >
               {/* สายแขวนโคมสั้นๆ */}
               <div className="w-[1.5px] h-3 sm:h-4 bg-gradient-to-b from-amber-300 to-amber-500" />
               
               {/* ตัวโคมกระดาษทรงแปดเหลี่ยม (Lanna Lantern Body) */}
               <div className="relative w-full aspect-[1/1.25] flex items-center justify-center">
-                {/* แสงเรืองวงกว้างรอบโคม */}
-                <div className="absolute inset-0 bg-amber-400/35 rounded-full blur-md animate-pulse" />
+                {/* แสงเรืองวงกว้างรอบโคม (Radial Gradient ไร้ blur filter) */}
+                <div
+                  className="absolute -inset-2 rounded-full pointer-events-none"
+                  style={{
+                    background:
+                      'radial-gradient(circle, rgba(251, 191, 36, 0.36) 0%, rgba(245, 158, 11, 0.14) 48%, transparent 72%)'
+                  }}
+                />
                 
                 <svg viewBox="0 0 60 75" className="w-full h-full relative z-10">
                   {/* ขอบทองยอดโคม */}
@@ -104,9 +110,9 @@ export const DecorativeScreenBorders: React.FC = () => {
                   <line x1="38" y1="15" x2="42" y2="48" stroke="#d97706" strokeWidth="0.8" opacity="0.6" />
                   {/* ฐานล่างโคม */}
                   <polygon points="4,48 56,48 44,58 16,58" fill="#b45309" stroke="#fde047" strokeWidth="1" />
-                  {/* ไส้เทียนใจกลางโคมสว่างวาบ */}
-                  <circle cx="30" cy="34" r="5" fill="#fffbeb" className="animate-ping" opacity="0.75" />
-                  <circle cx="30" cy="34" r="3" fill="#fffbeb" />
+                  {/* ไส้เทียนใจกลางโคม */}
+                  <circle cx="30" cy="34" r="5" fill="#fde68a" opacity="0.45" />
+                  <circle cx="30" cy="34" r="2.8" fill="#fffbeb" />
                 </svg>
               </div>
 
@@ -120,7 +126,7 @@ export const DecorativeScreenBorders: React.FC = () => {
 
       {/* ---------------- 3. ฉากหน้าริมตลิ่งด้านล่าง (Foreground Riverbank Silhouettes) ---------------- */}
       {/* ฝั่งล่างซ้าย: กอดอกบัวหลวง & ใบบัวริมตลิ่ง (Bottom-Left Lotus Foreground) */}
-      <div className="absolute bottom-0 left-0 w-44 sm:w-64 md:w-80 h-36 sm:h-52 z-15 opacity-80 drop-shadow-[0_-3px_15px_rgba(245,158,11,0.25)]">
+      <div className="absolute bottom-0 left-0 w-44 sm:w-64 md:w-80 h-36 sm:h-52 z-15 opacity-80">
         <svg viewBox="0 0 280 180" className="w-full h-full">
           <defs>
             <linearGradient id="foreLeftGrad" x1="0%" y1="100%" x2="50%" y2="0%">
@@ -154,7 +160,7 @@ export const DecorativeScreenBorders: React.FC = () => {
       </div>
 
       {/* ฝั่งล่างขวา: กอใบตองและก้านบัวริมน้ำ (Bottom-Right Banana Leaves / Foliage Foreground) */}
-      <div className="absolute bottom-0 right-0 w-44 sm:w-64 md:w-80 h-36 sm:h-52 z-15 opacity-80 drop-shadow-[0_-3px_15px_rgba(245,158,11,0.25)] transform scale-x-[-1]">
+      <div className="absolute bottom-0 right-0 w-44 sm:w-64 md:w-80 h-36 sm:h-52 z-15 opacity-80 transform scale-x-[-1]">
         <svg viewBox="0 0 280 180" className="w-full h-full">
           {/* ตลิ่งริมฝั่งขวา */}
           <path d="M 0 180 L 210 180 Q 140 150 70 140 Q 25 130 0 110 Z" fill="#050a16" />

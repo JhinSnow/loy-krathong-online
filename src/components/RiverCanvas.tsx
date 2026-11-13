@@ -37,6 +37,9 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const krathongsRef = useRef<KrathongItem[]>([]);
+  const pendingQueueRef = useRef<KrathongItem[]>([]);
+  const initialLoadedRef = useRef<boolean>(false);
+  const botSlotRef = useRef<number>(0);
   const starsRef = useRef<{ x: number; y: number; size: number; alpha: number; delta: number }[]>([]);
   const lanternsRef = useRef<{ x: number; y: number; speedY: number; speedX: number; size: number; alpha: number }[]>([]);
   const fireworksRef = useRef<
@@ -47,7 +50,9 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
   const [selectedKrathong, setSelectedKrathong] = useState<KrathongItem | null>(null);
   const [shareCardKrathong, setShareCardKrathong] = useState<KrathongItem | null>(null);
   const [showControls, setShowControls] = useState(true);
-  const [isQrExpanded, setIsQrExpanded] = useState(true);
+  const [isQrExpanded, setIsQrExpanded] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 768 : true
+  );
   const [isAudioPlaying, setIsAudioPlaying] = useState<boolean>(() => soundManager.isAudioEnabled());
   const [totalFloatedCount, setTotalFloatedCount] = useState<number>(() => {
     try {
@@ -92,39 +97,47 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
     soundManager.playFireworkSparkle();
   }, []);
 
-  // สุ่ม Bot กระทงหลากหลายรูปแบบ เพื่อให้แม่น้ำมีสีสันสวยงาม
-  const spawnBot = useCallback((): KrathongItem => {
-    const bots = [
-      { name: "น้องฟ้า", wish: "ขอให้ปีนี้เกรด 4.00 ทุกวิชา และครอบครัวมีแต่ความสุขค่ะ 🌸" },
-      { name: "พี่โชคดี", wish: "ขอขมาพระแม่คงคา กิจการรุ่งเรือง ไร้โรคภัยเบียดเบียน" },
-      { name: "ชาวมหาลัย", wish: "ขอให้โปรเจกต์ผ่านฉลุย มีสุขภาพแข็งแรง ร่ำรวยเงินทอง" },
-      { name: "กัปตันมิว", wish: "ขอให้เจอคนที่รักและจริงใจในเร็ววันนี้ด้วยเถิด 🕯️" },
-      { name: "เด็กวิศวะ", wish: "ขอให้ไม่ติด F ไม่โดนแก้บั๊กจนดึกดื่น สาธุ!" },
-      { name: "น้องใบเตย", wish: "ขอให้สอบผ่านทุกวิชา มีความสุขสมหวังตลอดปี ✨" },
-      { name: "ชมรมอนุรักษ์", wish: "สืบสานประเพณีไทย รักษ์สายน้ำและสิ่งแวดล้อม 🪷" }
+  // กระทงตัวอย่าง 3 แบบสำหรับแสดงผลเริ่มต้นบนสายน้ำ
+  const spawnBot = useCallback((slotIndex?: number): KrathongItem => {
+    const sampleBots = [
+      {
+        name: "น้องฟ้า",
+        wish: "ขอให้ปีนี้สมหวังทุกประการ และครอบครัวมีแต่ความสุขค่ะ 🌸",
+        base: "lotus",
+        flower: "lotus_flower",
+        candle: "pink|sparkler"
+      },
+      {
+        name: "พี่โชคดี",
+        wish: "ขอขมาพระแม่คงคา กิจการรุ่งเรือง สุขภาพแข็งแรง 🌕",
+        base: "banana_gold",
+        flower: "marigold",
+        candle: "yellow|pumpkin"
+      },
+      {
+        name: "ชมรมอนุรักษ์",
+        wish: "สืบสานประเพณีไทย รักษ์สายน้ำ Zero-Waste 100% 🪷",
+        base: "peacock_royal",
+        flower: "mixed_garland",
+        candle: "emerald|flag_thai,butterfly"
+      }
     ];
-    const bases = ['banana_leaf', 'banana_gold', 'lotus', 'lotus_crystal', 'coconut', 'bread', 'ice_swan', 'peacock_royal'];
-    const flowers = ['marigold', 'lotus_flower', 'orchid', 'jasmine', 'rose', 'dok_kem', 'anchan', 'mixed_garland'];
-    const candles = ['yellow', 'red', 'orange', 'cyan', 'pink', 'emerald', 'purple', 'rainbow'];
-    const accessories = ['pumpkin', 'sparkler', 'heart_sign', 'grad_cap', 'lucky_coin', 'flag_thai', 'butterfly'];
 
-    const pick = bots[Math.floor(Math.random() * bots.length)];
-    const pickedCandle = candles[Math.floor(Math.random() * candles.length)];
-    const accCount = Math.floor(Math.random() * 3); // 0 ถึง 2 ชิ้น
-    const pickedAccList = [...accessories].sort(() => 0.5 - Math.random()).slice(0, accCount);
+    const slot = typeof slotIndex === 'number' ? slotIndex : botSlotRef.current++;
+    const pick = sampleBots[Math.abs(slot) % sampleBots.length];
     const winH = typeof window !== 'undefined' ? window.innerHeight : 800;
 
     return {
-      id: `bot-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      id: `bot-${Date.now()}-${slot}-${Math.floor(Math.random() * 1000)}`,
       user_type: 'general',
       owner_name: pick.name,
       wish_message: pick.wish,
-      base_type: bases[Math.floor(Math.random() * bases.length)],
-      flower_type: flowers[Math.floor(Math.random() * flowers.length)],
-      candle_color: pickedAccList.length === 0 ? pickedCandle : `${pickedCandle}|${pickedAccList.join(',')}`,
-      x: -55 - Math.random() * 25,
-      y: winH * 0.49 + Math.random() * (winH * 0.39),
-      speed: 1.45 + Math.random() * 0.95,
+      base_type: pick.base,
+      flower_type: pick.flower,
+      candle_color: pick.candle,
+      x: -55,
+      y: winH * 0.52 + ((Math.abs(slot) % 3) * 0.12 + Math.random() * 0.08) * winH,
+      speed: 1.55 + (Math.abs(slot) % 3) * 0.18,
       opacity: 1,
       age: 0,
       maxLife: 60,
@@ -134,6 +147,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
 
   // 1. Listen for new krathongs (LocalStorage + Supabase Realtime + SSE Fallback)
   useEffect(() => {
+    initialLoadedRef.current = false;
     // 1.1 ดึงประวัติกระทงล่าสุดจากทั้ง LocalStorage และ Supabase
     const fetchRecentKrathongs = async () => {
       try {
@@ -157,13 +171,24 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
 
         let supaItems: any[] = [];
         let supaTotalCount = 0;
+        const hiddenUuidList = Object.entries(overrides)
+          .filter(([id, st]) => (st === 'deleted' || st === 'rejected') && /^[0-9a-f-]{36}$/i.test(id))
+          .map(([id]) => id)
+          .slice(0, 50);
+
         try {
-          const { data, count } = await supabase
+          let query = supabase
             .from('krathongs')
             .select('*', { count: 'exact' })
-            .eq('status', 'approved')
+            .eq('status', 'approved');
+
+          if (hiddenUuidList.length > 0) {
+            query = query.not('id', 'in', `(${hiddenUuidList.join(',')})`);
+          }
+
+          const { data, count } = await query
             .order('created_at', { ascending: false })
-            .limit(8);
+            .limit(12);
           if (data) supaItems = data;
           if (typeof count === 'number') supaTotalCount = count;
         } catch {}
@@ -179,8 +204,10 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
 
         setTotalFloatedCount(Math.max(supaTotalCount, combinedMap.size));
 
-        const mergedList = Array.from(combinedMap.values()).slice(0, 8);
+        const mergedList = Array.from(combinedMap.values()).slice(0, 12);
         krathongsRef.current = [];
+        pendingQueueRef.current = [];
+        botSlotRef.current = 0;
 
         mergedList.forEach((item, index) => {
           if (containsProfanity(item.owner_name) || containsProfanity(item.wish_message)) return;
@@ -190,9 +217,9 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
             owner_name: sanitizeInputText(item.owner_name, 40),
             wish_message: sanitizeInputText(item.wish_message, 150),
             // หากเป็นกระทงที่ผู้ใช้เพิ่งปล่อย ให้เริ่มลอยจากฝั่งซ้ายของหน้าจอทันทีเพื่อให้มองเห็นชัด
-            x: isMyItem ? 85 : 110 + index * 155 + Math.random() * 45,
-            y: isMyItem ? winH * 0.62 : winH * 0.49 + Math.random() * (winH * 0.39),
-            speed: isMyItem ? 1.55 : 1.4 + Math.random() * 0.9,
+            x: isMyItem ? 85 : 110 + index * 165 + Math.random() * 40,
+            y: isMyItem ? winH * 0.62 : winH * 0.5 + Math.random() * (winH * 0.36),
+            speed: isMyItem ? 1.55 : 1.45 + Math.random() * 0.65,
             opacity: 1,
             age: 0,
             maxLife: 60,
@@ -200,13 +227,15 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
           });
         });
 
-        // เติม Bot กระทงเริ่มต้นให้กระจายเต็มลำน้ำทันทีที่เปิดหน้าเว็บ (ไม่ให้แม่น้ำโล่งหรือรอนาน)
-        while (krathongsRef.current.length < 6) {
+        // เติมกระทงตัวอย่างให้รวมบนผิวน้ำไม่เกิน 3 ใบเริ่มต้น
+        while (krathongsRef.current.length < 3) {
           const idx = krathongsRef.current.length;
-          const bot = spawnBot();
-          bot.x = 120 + idx * ((winW * 0.72) / 6) + Math.random() * 40;
+          const bot = spawnBot(idx);
+          bot.x = Math.max(80, winW * (0.14 + idx * 0.28));
           krathongsRef.current.push(bot);
+          botSlotRef.current = idx + 1;
         }
+        initialLoadedRef.current = true;
 
         // จุดพลุฉลองต้อนรับหากผู้ใช้เพิ่งปล่อยกระทงเสร็จ
         if (myKrathongId) {
@@ -215,6 +244,8 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         }
       } catch (err) {
         console.warn('Initial krathongs fetch error:', err);
+      } finally {
+        initialLoadedRef.current = true;
       }
     };
     fetchRecentKrathongs();
@@ -248,21 +279,28 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
             !containsProfanity(data.owner_name) &&
             !containsProfanity(data.wish_message)
           ) {
-            const exists = krathongsRef.current.some((k) => k.id === data.id);
+            const exists =
+              krathongsRef.current.some((k) => k.id === data.id) ||
+              pendingQueueRef.current.some((k) => k.id === data.id);
             if (exists) return;
             const winH = window.innerHeight;
-            krathongsRef.current.push({
+            const incomingItem: KrathongItem = {
               ...data,
               owner_name: sanitizeInputText(data.owner_name, 40),
               wish_message: sanitizeInputText(data.wish_message, 150),
               x: -55,
-              y: winH * 0.49 + Math.random() * (winH * 0.39),
-              speed: 1.5 + Math.random() * 0.85,
+              y: winH * 0.5 + Math.random() * (winH * 0.36),
+              speed: 1.5 + Math.random() * 0.7,
               opacity: 1,
               age: 0,
               maxLife: 60,
               isMine: data.id === myKrathongId
-            });
+            };
+            if (krathongsRef.current.length >= 12) {
+              pendingQueueRef.current.push(incomingItem);
+            } else {
+              krathongsRef.current.push(incomingItem);
+            }
             setTotalFloatedCount((prev) => prev + 1);
             spawnFireworkBurst();
           }
@@ -277,6 +315,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
           if (data.status === 'rejected' || data.status === 'pending') {
             // หากแอดมินกดซ่อน ให้ลบออกจากแม่น้ำทันที
             krathongsRef.current = krathongsRef.current.filter((k) => k.id !== data.id);
+            pendingQueueRef.current = pendingQueueRef.current.filter((k) => k.id !== data.id);
             setTotalFloatedCount((prev) => Math.max(0, prev - 1));
           } else if (
             data.status === 'approved' &&
@@ -284,21 +323,28 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
             !containsProfanity(data.wish_message)
           ) {
             // หากแอดมินกดอนุมัติกระทงที่ค้างอยู่ ให้ปล่อยลงแม่น้ำทันที
-            const exists = krathongsRef.current.some((k) => k.id === data.id);
+            const exists =
+              krathongsRef.current.some((k) => k.id === data.id) ||
+              pendingQueueRef.current.some((k) => k.id === data.id);
             if (!exists) {
               const winH = window.innerHeight;
-              krathongsRef.current.push({
+              const approvedItem: KrathongItem = {
                 ...data,
                 owner_name: sanitizeInputText(data.owner_name, 40),
                 wish_message: sanitizeInputText(data.wish_message, 150),
                 x: -55,
-                y: winH * 0.49 + Math.random() * (winH * 0.39),
-                speed: 1.5 + Math.random() * 0.85,
+                y: winH * 0.5 + Math.random() * (winH * 0.36),
+                speed: 1.5 + Math.random() * 0.7,
                 opacity: 1,
                 age: 0,
                 maxLife: 60,
                 isMine: data.id === myKrathongId
-              });
+              };
+              if (krathongsRef.current.length >= 12) {
+                pendingQueueRef.current.push(approvedItem);
+              } else {
+                krathongsRef.current.push(approvedItem);
+              }
               setTotalFloatedCount((prev) => prev + 1);
               spawnFireworkBurst();
             }
@@ -312,33 +358,46 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
           const oldRow = payload.old as { id?: string };
           if (oldRow?.id) {
             krathongsRef.current = krathongsRef.current.filter((k) => k.id !== oldRow.id);
+            pendingQueueRef.current = pendingQueueRef.current.filter((k) => k.id !== oldRow.id);
             setTotalFloatedCount((prev) => Math.max(0, prev - 1));
           }
         }
       )
       .subscribe();
 
+    // เปิด SSE /api/krathongs/stream เฉพาะกรณี Fallback ที่ไม่ได้ใช้ Supabase เพื่อไม่ให้ยิง D1 ซ้ำซ้อน 1,000+ connections
+    const hasSupabaseConfig = Boolean(import.meta.env.VITE_SUPABASE_ANON_KEY);
     let eventSource: EventSource | null = null;
-    try {
-      eventSource = new EventSource('/api/krathongs/stream');
-      eventSource.addEventListener('new_krathong', (e) => {
-        const data = JSON.parse(e.data);
-        const winH = window.innerHeight;
-        const newK: KrathongItem = {
-          ...data,
-          x: -55,
-          y: winH * 0.49 + Math.random() * (winH * 0.39),
-          speed: 1.5 + Math.random() * 0.85,
-          opacity: 1,
-          age: 0,
-          maxLife: 60,
-          isMine: data.id === myKrathongId
-        };
-        krathongsRef.current.push(newK);
-        setTotalFloatedCount((prev) => prev + 1);
-        spawnFireworkBurst();
-      });
-    } catch (_) {}
+    if (!hasSupabaseConfig) {
+      try {
+        eventSource = new EventSource('/api/krathongs/stream');
+        eventSource.addEventListener('new_krathong', (e) => {
+          const data = JSON.parse(e.data);
+          const exists =
+            krathongsRef.current.some((k) => k.id === data.id) ||
+            pendingQueueRef.current.some((k) => k.id === data.id);
+          if (exists) return;
+          const winH = window.innerHeight;
+          const newK: KrathongItem = {
+            ...data,
+            x: -55,
+            y: winH * 0.5 + Math.random() * (winH * 0.36),
+            speed: 1.5 + Math.random() * 0.7,
+            opacity: 1,
+            age: 0,
+            maxLife: 60,
+            isMine: data.id === myKrathongId
+          };
+          if (krathongsRef.current.length >= 12) {
+            pendingQueueRef.current.push(newK);
+          } else {
+            krathongsRef.current.push(newK);
+          }
+          setTotalFloatedCount((prev) => prev + 1);
+          spawnFireworkBurst();
+        });
+      } catch (_) {}
+    }
 
     return () => {
       window.removeEventListener('storage', handleStorageModerationSync);
@@ -853,19 +912,19 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         const bx = kx - bubbleW / 2;
         const by = BUBBLE_PAD_TOP;
 
-        sCtx.shadowColor = 'rgba(245, 158, 11, 0.45)';
-        sCtx.shadowBlur = 8;
-
         sCtx.fillStyle = k.isMine ? '#fef3c7' : '#fffbeb';
         sCtx.beginPath();
         sCtx.roundRect(bx, by, bubbleW, bubbleH, 10);
         sCtx.fill();
 
+        // Soft warm outer glow stroke (zero shadowBlur frame stall)
+        sCtx.strokeStyle = 'rgba(245, 158, 11, 0.22)';
+        sCtx.lineWidth = 4.5;
+        sCtx.stroke();
+
         sCtx.strokeStyle = k.isMine ? '#d97706' : '#f59e0b';
         sCtx.lineWidth = 1.4;
         sCtx.stroke();
-
-        sCtx.shadowBlur = 0;
 
         sCtx.fillStyle = k.isMine ? '#fef3c7' : '#fffbeb';
         sCtx.beginPath();
@@ -912,12 +971,25 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
 
     let animId: number;
     let lastTime = performance.now();
+    let smoothDt = 1 / 60;
     let elapsedMs = 0;
+    let lastQueueReleaseMs = 0;
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        lastTime = performance.now();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     const render = (currentTime: number) => {
       const rawDt = (currentTime - lastTime) / 1000;
       lastTime = currentTime;
-      const dt = Math.min(Math.max(rawDt, 0.001), 0.05);
+      let dt = smoothDt;
+      if (rawDt > 0.001 && rawDt <= 0.1) {
+        smoothDt = smoothDt * 0.85 + rawDt * 0.15;
+        dt = smoothDt;
+      }
       const frameScale = dt * 60;
       elapsedMs += dt * 1000;
 
@@ -1040,9 +1112,24 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       }
       ctx.stroke();
 
-      // 4. Ambient Bot Replenishment
+      // 4. Release queued real krathongs or maintain at most 3 sample krathongs on river
       const krathongs = krathongsRef.current;
-      if (krathongs.length < 7 && Math.random() < Math.min(0.25, 0.045 * frameScale)) {
+      if (
+        pendingQueueRef.current.length > 0 &&
+        krathongs.length < 12 &&
+        elapsedMs - lastQueueReleaseMs > 900
+      ) {
+        const nextReal = pendingQueueRef.current.shift();
+        if (nextReal) {
+          krathongs.push(nextReal);
+          lastQueueReleaseMs = elapsedMs;
+        }
+      } else if (
+        initialLoadedRef.current &&
+        pendingQueueRef.current.length === 0 &&
+        krathongs.length < 3 &&
+        Math.random() < Math.min(0.25, 0.045 * frameScale)
+      ) {
         krathongs.push(spawnBot());
       }
 
@@ -1176,6 +1263,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       fontsCancelled = true;
       cancelAnimationFrame(animId);
       window.removeEventListener('resize', handleResize);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       spriteCache.clear();
     };
   }, [spawnBot, spawnFireworkBurst]);
@@ -1200,7 +1288,9 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
 
   // Find My Krathong
   const handleFindMyKrathong = () => {
-    const mine = krathongsRef.current.find(k => k.isMine || k.id === myKrathongId);
+    const mine =
+      krathongsRef.current.find((k) => k.isMine || k.id === myKrathongId) ||
+      pendingQueueRef.current.find((k) => k.isMine || k.id === myKrathongId);
     if (mine) {
       setSelectedKrathong(mine);
     } else {
@@ -1242,7 +1332,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       {showControls && (
         <div className="absolute top-5 left-5 z-30 transition-all duration-300 ease-in-out">
           {isQrExpanded ? (
-            <div className="relative flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-3.5 p-3 sm:p-3.5 bg-[#0b132b]/65 backdrop-blur-[16px] rounded-2xl border border-amber-500/40 text-amber-50 shadow-[0_4px_24px_rgba(0,0,0,0.5),0_0_15px_rgba(245,158,11,0.2)] transition-all">
+            <div className="relative flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-3.5 p-3 sm:p-3.5 bg-[#0b132b]/90 rounded-2xl border border-amber-500/40 text-amber-50 shadow-[0_4px_24px_rgba(0,0,0,0.5),0_0_15px_rgba(245,158,11,0.2)] transition-all">
               {/* QR Code Container with High-Contrast Cream Background */}
               <div className="w-28 h-28 sm:w-32 sm:h-32 bg-[#fffbeb] rounded-xl flex items-center justify-center p-2 shrink-0 border border-amber-300/80 shadow-md">
                 <img
@@ -1261,7 +1351,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
               {/* Header Text Container: เว้น padding-right (pr-9 sm:pr-10 = 36-40px) ป้องกันข้อความชนปุ่มมุมบนขวา */}
               <div className="text-center sm:text-left flex flex-col justify-center self-center sm:self-auto pr-9 sm:pr-10 pt-0.5">
                 <div className="flex items-center justify-center sm:justify-start space-x-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping shrink-0"></span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.9)] shrink-0"></span>
                   <p className="font-bold text-sm tracking-wide text-amber-200 whitespace-nowrap">สแกนร่วมลอยกระทง</p>
                 </div>
                 <p className="text-[11px] text-amber-100/85 mt-0.5 font-medium whitespace-nowrap">ปล่อยกระทงจากมือถือขึ้นจอนี้</p>
@@ -1285,7 +1375,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
             <button
               onClick={() => setIsQrExpanded(true)}
               title="คลิกเพื่อขยาย QR Code สำหรับสแกนลอยกระทง"
-              className="group flex items-center space-x-2 px-3 py-2 bg-[#0b132b]/80 hover:bg-[#0b132b] backdrop-blur-[14px] rounded-xl border border-amber-500/50 hover:border-amber-400 text-amber-200 hover:text-amber-100 shadow-[0_4px_16px_rgba(0,0,0,0.4),0_0_12px_rgba(245,158,11,0.25)] transition-all active:scale-95 cursor-pointer"
+              className="group flex items-center space-x-2 px-3 py-2 bg-[#0b132b]/92 hover:bg-[#0b132b] rounded-xl border border-amber-500/50 hover:border-amber-400 text-amber-200 hover:text-amber-100 shadow-[0_4px_16px_rgba(0,0,0,0.4),0_0_12px_rgba(245,158,11,0.25)] transition-all active:scale-95 cursor-pointer"
             >
               <div className="p-1 rounded-lg bg-amber-500/20 text-amber-300 group-hover:bg-amber-500/30">
                 <QrCode className="w-4 h-4" />
@@ -1308,7 +1398,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
               Loy Krathong River of Lights
             </p>
             {/* Live Krathong Counter (แสดงเฉพาะจำนวนกระทงที่ลอยจริง) */}
-            <div className="mt-2 inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-[#0b132b]/80 backdrop-blur-md border border-emerald-400/40 text-[10px] sm:text-xs text-emerald-100 shadow-[0_4px_16px_rgba(0,0,0,0.45),0_0_12px_rgba(16,185,129,0.2)]">
+            <div className="mt-2 inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-[#0b132b]/90 border border-emerald-400/40 text-[10px] sm:text-xs text-emerald-100 shadow-[0_4px_16px_rgba(0,0,0,0.45),0_0_12px_rgba(16,185,129,0.2)]">
               <Leaf className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               <span>
                 ร่วมลอยแล้ว <strong className="text-amber-300 font-bold">{totalFloatedCount.toLocaleString()}</strong> ใบ
@@ -1319,7 +1409,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       )}
 
       {/* Bottom Floating Control Bar */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center space-x-2 sm:space-x-3 bg-[#0b132b]/85 backdrop-blur-lg px-4 sm:px-5 py-3 rounded-full border border-amber-500/40 shadow-[0_8px_30px_rgba(0,0,0,0.6),0_0_15px_rgba(245,158,11,0.25)] z-20 max-w-[96vw]">
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center space-x-2 sm:space-x-3 bg-[#0b132b]/92 px-4 sm:px-5 py-3 rounded-full border border-amber-500/40 shadow-[0_8px_30px_rgba(0,0,0,0.6),0_0_15px_rgba(245,158,11,0.25)] z-20 max-w-[96vw]">
         <button
           onClick={onNavigateCustomize}
           className="flex items-center space-x-2 px-4 sm:px-5 py-2.5 bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 hover:from-amber-300 hover:via-yellow-400 hover:to-amber-500 text-stone-900 font-bold rounded-full shadow-[0_0_20px_rgba(245,158,11,0.5)] border border-yellow-200/60 transition active:scale-95 whitespace-nowrap cursor-pointer text-xs sm:text-sm"
@@ -1348,7 +1438,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
           }`}
         >
           {isAudioPlaying ? (
-            <Volume2 className="w-4 h-4 text-amber-300 animate-pulse shrink-0" />
+            <Volume2 className="w-4 h-4 text-amber-300 shrink-0" />
           ) : (
             <VolumeX className="w-4 h-4 shrink-0" />
           )}

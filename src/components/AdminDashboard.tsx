@@ -84,16 +84,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
       let supaEvals: any[] = [];
       let approvalSetting = getLocalRequireApproval();
 
-      // 1. ดึงจาก Supabase (ถ้าเชื่อมต่อได้)
+      // 1. ดึงจาก Supabase แบบแบ่งหน้า (รองรับมากกว่า 1,000 รายการในวันงานจริง)
       try {
-        const [kRes, eRes, sRes] = await Promise.all([
-          supabase.from('krathongs').select('*').order('created_at', { ascending: false }),
-          supabase.from('evaluations').select('*').order('created_at', { ascending: false }),
+        const fetchAllRows = async (table: 'krathongs' | 'evaluations') => {
+          const allRows: any[] = [];
+          const pageSize = 1000;
+          for (let page = 0; page < 10; page++) {
+            const from = page * pageSize;
+            const { data } = await supabase
+              .from(table)
+              .select('*')
+              .order('created_at', { ascending: false })
+              .range(from, from + pageSize - 1);
+            if (!data || data.length === 0) break;
+            allRows.push(...data);
+            if (data.length < pageSize) break;
+          }
+          return allRows;
+        };
+
+        const [kData, eData, sRes] = await Promise.all([
+          fetchAllRows('krathongs'),
+          fetchAllRows('evaluations'),
           supabase.from('system_settings').select('value').eq('key', 'require_approval').maybeSingle()
         ]);
 
-        if (kRes.data) supaKrathongs = kRes.data;
-        if (eRes.data) supaEvals = eRes.data;
+        supaKrathongs = kData;
+        supaEvals = eData;
         if (sRes.data?.value !== undefined) {
           approvalSetting = sRes.data.value === 'true';
           setLocalRequireApproval(approvalSetting);

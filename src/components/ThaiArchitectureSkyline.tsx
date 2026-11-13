@@ -4,17 +4,29 @@ import React from 'react';
 export const ThaiArchitectureSkyline: React.FC = () => {
   return (
     <div className="absolute inset-x-0 bottom-[60vh] sm:bottom-[62vh] h-52 sm:h-64 md:h-80 pointer-events-none select-none z-10 overflow-hidden will-change-transform transform-gpu">
-      {/* Golden Backlight Ambient Spotlight behind Centerpiece Pumpkin Building */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-[420px] sm:w-[560px] md:w-[680px] h-36 bg-gradient-to-t from-amber-500/35 via-yellow-400/20 to-transparent blur-3xl rounded-full pointer-events-none" />
+      {/* Golden Backlight Ambient Spotlight behind Centerpiece Pumpkin Building (Zero-blur Radial Gradient) */}
+      <div
+        className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[520px] sm:w-[680px] md:w-[820px] h-48 pointer-events-none"
+        style={{
+          background:
+            'radial-gradient(ellipse at 50% 85%, rgba(245, 158, 11, 0.36) 0%, rgba(250, 204, 21, 0.16) 42%, transparent 74%)'
+        }}
+      />
 
       {/* Golden Backlight Ambient Aura across riverbank */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-full h-32 bg-gradient-to-t from-amber-500/20 via-yellow-500/10 to-transparent blur-2xl pointer-events-none" />
+      <div
+        className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-36 pointer-events-none"
+        style={{
+          background:
+            'linear-gradient(to top, rgba(245, 158, 11, 0.18) 0%, rgba(234, 179, 8, 0.08) 45%, transparent 100%)'
+        }}
+      />
 
-      {/* Responsive Thai Architecture Skyline SVG Layer */}
+      {/* Responsive Thai Architecture Skyline SVG Layer (Static GPU Texture - Zero Per-Frame SVG Filter Repaint) */}
       <svg
         viewBox="0 0 1600 320"
         preserveAspectRatio="xMidYMax meet"
-        className="w-full h-full drop-shadow-[0_-3px_18px_rgba(245,158,11,0.45)] opacity-95 overflow-visible"
+        className="w-full h-full opacity-95 overflow-visible"
       >
         <defs>
           {/* Main Architecture Golden Gradient */}
@@ -109,11 +121,7 @@ export const ThaiArchitectureSkyline: React.FC = () => {
         </g>
 
         {/* ----------------- 0.5 เลเยอร์สิ่งก่อสร้างเสริมและทิวต้นตาล/มะพร้าว ปิดช่องว่างซ้าย-ขวาของตึกฟักทอง ----------------- */}
-        <g
-          id="midgroundGapFillers"
-          opacity="0.68"
-          className="drop-shadow-[0_0_10px_rgba(245,158,11,0.3)]"
-        >
+        <g id="midgroundGapFillers" opacity="0.68">
           {/* ยอดรัศมีเรืองแสงของเจดีย์ย่อมุมไม้สิบสองซ้าย-ขวา */}
           <circle cx="490" cy="142" r="12" fill="url(#spireAura)" />
           <circle cx="490" cy="142" r="2" fill="#fffbeb" />
@@ -208,11 +216,11 @@ export const ThaiArchitectureSkyline: React.FC = () => {
 
         {/* ----------------- 1. ยอดรัศมีเรืองรอง ----------------- */}
         {/* Chedi Left Spire Glow */}
-        <circle cx="310" cy="85" r="20" fill="url(#spireAura)" className="animate-pulse" />
+        <circle cx="310" cy="85" r="20" fill="url(#spireAura)" />
         <circle cx="310" cy="85" r="3" fill="#fffbeb" />
 
         {/* Chedi Right Spire Glow */}
-        <circle cx="1290" cy="85" r="20" fill="url(#spireAura)" className="animate-pulse" />
+        <circle cx="1290" cy="85" r="20" fill="url(#spireAura)" />
         <circle cx="1290" cy="85" r="3" fill="#fffbeb" />
 
         {/* ----------------- 2. แนวสถาปัตยกรรมไทยริมตลิ่ง (ฝั่งซ้ายและขวา) ----------------- */}
@@ -265,17 +273,13 @@ export const ThaiArchitectureSkyline: React.FC = () => {
         </g>
 
         {/* ----------------- 2.5 สิ่งก่อสร้างฉากหลังด้านหลังตึกฟักทอง (Background Skyline Layer: Opacity 50% สร้างมิติ Depth of Field) ----------------- */}
-        <g
-          id="backgroundCenterSkyline"
-          opacity="0.5"
-          className="drop-shadow-[0_0_12px_rgba(251,191,36,0.4)]"
-        >
+        <g id="backgroundCenterSkyline" opacity="0.5">
           {/* ยอดรัศมีเรืองแสงของพระเจดีย์ฉากหลัง 3 องค์ */}
-          <circle cx="800" cy="48" r="18" fill="url(#spireAura)" className="animate-pulse" />
+          <circle cx="800" cy="48" r="18" fill="url(#spireAura)" />
           <circle cx="800" cy="48" r="2.5" fill="#fffbeb" />
-          <circle cx="645" cy="74" r="14" fill="url(#spireAura)" className="animate-pulse" />
+          <circle cx="645" cy="74" r="14" fill="url(#spireAura)" />
           <circle cx="645" cy="74" r="2" fill="#fffbeb" />
-          <circle cx="955" cy="74" r="14" fill="url(#spireAura)" className="animate-pulse" />
+          <circle cx="955" cy="74" r="14" fill="url(#spireAura)" />
           <circle cx="955" cy="74" r="2" fill="#fffbeb" />
 
           <g fill="url(#templeGoldGrad)" stroke="#fde047" strokeWidth="1" strokeOpacity="0.65">
@@ -320,7 +324,7 @@ export const ThaiArchitectureSkyline: React.FC = () => {
         {/* ----------------- 3. ตึกฟักทอง คณะวิทยาศาสตร์ ม.อ. (ลายเส้นสีขาวบริสุทธิ์ Pure White ด้านหน้า) ----------------- */}
         <g id="realPumpkinBuildingPSU">
           {/* Spotlight แสงนวลส่องหลังตัวตึกฟักทอง */}
-          <ellipse cx="800" cy="245" rx="260" ry="60" fill="url(#spireAura)" opacity="0.28" />
+          <ellipse cx="800" cy="245" rx="280" ry="68" fill="url(#spireAura)" opacity="0.38" />
 
           {/* Silhouette บังฉากหลังเฉพาะช่วงตัวอาคารตึกฟักทอง เพื่อไม่ให้เส้นเจดีย์ด้านหลังทะลุเข้ามาซ้อนในลายเส้นตึก */}
           <path
@@ -336,7 +340,6 @@ export const ThaiArchitectureSkyline: React.FC = () => {
             width="580"
             height="176"
             preserveAspectRatio="xMidYMax meet"
-            className="drop-shadow-[0_0_12px_rgba(255,255,255,0.65)]"
           />
         </g>
 
@@ -391,14 +394,7 @@ export const ThaiArchitectureSkyline: React.FC = () => {
             { x: 992, y: 208, scale: 0.75, dur: '2.9s', delay: '0.7s' },
             { x: 1055, y: 198, scale: 0.85, dur: '3.3s', delay: '0.2s' },
           ].map((lan, idx) => (
-            <g
-              key={`pumpkin-lantern-${idx}`}
-              style={{
-                transformOrigin: `${lan.x}px ${lan.y}px`,
-                animation: `swaySlow ${lan.dur} ease-in-out ${lan.delay} infinite alternate`,
-              }}
-              className="drop-shadow-[0_0_8px_rgba(251,191,36,0.75)]"
-            >
+            <g key={`pumpkin-lantern-${idx}`}>
               <g transform={`translate(${lan.x}, ${lan.y}) scale(${lan.scale})`}>
                 {/* แสงออร่าสีทองส้มรอบโคม */}
                 <circle cx="0" cy="14" r="14" fill="url(#spireAura)" opacity="0.65" />
@@ -425,8 +421,14 @@ export const ThaiArchitectureSkyline: React.FC = () => {
         </g>
       </svg>
 
-      {/* เงาสะท้อนสีทองของทรงกลีบมนตึกฟักทองทอดลงบนผิวน้ำ (Soft Scalloped Water Reflection) */}
-      <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-[340px] sm:w-[480px] h-18 bg-gradient-to-b from-amber-400/35 via-yellow-500/15 to-transparent blur-md pointer-events-none transform scale-y-[-0.7]" />
+      {/* เงาสะท้อนสีทองของทรงกลีบมนตึกฟักทองทอดลงบนผิวน้ำ (Soft Radial Reflection) */}
+      <div
+        className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-[380px] sm:w-[520px] h-20 pointer-events-none"
+        style={{
+          background:
+            'radial-gradient(ellipse at 50% 15%, rgba(251, 191, 36, 0.28) 0%, rgba(234, 179, 8, 0.1) 48%, transparent 74%)'
+        }}
+      />
     </div>
   );
 };
