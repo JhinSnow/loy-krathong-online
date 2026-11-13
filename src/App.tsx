@@ -11,7 +11,7 @@ type ForcedMode = 'stage' | 'attendee' | 'auto';
 
 function resolveInitialRouting(): { initialView: AppView; forcedMode: ForcedMode } {
   if (typeof window === 'undefined') {
-    return { initialView: 'river', forcedMode: 'auto' };
+    return { initialView: 'customize', forcedMode: 'auto' };
   }
   const params = new URLSearchParams(window.location.search);
   const mode = (params.get('mode') || '').trim().toLowerCase();
@@ -19,7 +19,7 @@ function resolveInitialRouting(): { initialView: AppView; forcedMode: ForcedMode
   if (mode === 'create' || mode === 'customize') {
     return { initialView: 'customize', forcedMode: 'attendee' };
   }
-  if (mode === 'mobile' || mode === 'attendee') {
+  if (mode === 'river' || mode === 'mobile' || mode === 'attendee') {
     return { initialView: 'river', forcedMode: 'attendee' };
   }
   if (mode === 'stage' || mode === 'projector') {
@@ -28,7 +28,8 @@ function resolveInitialRouting(): { initialView: AppView; forcedMode: ForcedMode
   if (mode === 'admin') {
     return { initialView: 'admin', forcedMode: 'attendee' };
   }
-  return { initialView: 'river', forcedMode: 'auto' };
+  // ค่าเริ่มต้นของเว็บให้เข้าสู่หน้าสร้าง/ตกแต่งกระทงก่อน (ยกเว้นจอเวทีที่ใช้ ?mode=stage)
+  return { initialView: 'customize', forcedMode: 'auto' };
 }
 
 export const App: React.FC = () => {
@@ -44,6 +45,7 @@ export const App: React.FC = () => {
   const [myKrathongId, setMyKrathongId] = useState<string | null>(null);
   const [currentUserType, setCurrentUserType] = useState<UserType>('general');
   const [showEvaluation, setShowEvaluation] = useState<boolean>(false);
+  const [justFloated, setJustFloated] = useState<boolean>(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -57,7 +59,7 @@ export const App: React.FC = () => {
   // เพื่อประหยัด Concurrent Connections บนแผน Free เมื่อมีผู้ร่วมงาน 1,300+ คนสแกน QR จากมือถือ
   const enableRealtime = forcedMode === 'stage' || (forcedMode === 'auto' && isDesktopViewport);
 
-  const navigateToRiver = () => {
+  const navigateToRiver = (launched = false) => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const mode = (params.get('mode') || '').trim().toLowerCase();
@@ -67,6 +69,7 @@ export const App: React.FC = () => {
         window.history.replaceState(null, '', nextUrl);
       }
     }
+    setJustFloated(launched);
     setCurrentView('river');
   };
 
@@ -78,10 +81,10 @@ export const App: React.FC = () => {
     setShowEvaluation(true);
   };
 
-  // เมื่อส่งแบบประเมินหรือข้ามแบบประเมินเสร็จ -> Redirect ไปหน้าแม่น้ำพร้อมเปิดโหมด Find My Krathong
+  // เมื่อส่งแบบประเมินเสร็จ -> Redirect ไปหน้าสายน้ำแบบโปรเจกเตอร์พร้อมแอนิเมชันกระทงลอยออกมา
   const handleEvaluationFinish = () => {
     setShowEvaluation(false);
-    navigateToRiver();
+    navigateToRiver(true);
   };
 
   return (
@@ -89,22 +92,29 @@ export const App: React.FC = () => {
       {currentView === 'river' && (
         <RiverCanvas
           myKrathongId={myKrathongId}
+          justFloated={justFloated}
           enableRealtime={enableRealtime}
-          onNavigateCustomize={() => setCurrentView('customize')}
-          onNavigateAdmin={() => setCurrentView('admin')}
+          onNavigateCustomize={() => {
+            setJustFloated(false);
+            setCurrentView('customize');
+          }}
+          onNavigateAdmin={() => {
+            setJustFloated(false);
+            setCurrentView('admin');
+          }}
         />
       )}
 
       {currentView === 'customize' && (
         <KrathongCustomizer
-          onBackToRiver={navigateToRiver}
+          onBackToRiver={() => navigateToRiver(false)}
           onSuccessFloating={handleSuccessFloating}
         />
       )}
 
       {currentView === 'admin' && (
         <AdminDashboard
-          onBackToRiver={navigateToRiver}
+          onBackToRiver={() => navigateToRiver(false)}
         />
       )}
 

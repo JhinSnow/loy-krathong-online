@@ -1,6 +1,6 @@
 // src/components/EvaluationModal.tsx
 import React, { useState, useMemo } from 'react';
-import { Star, ArrowRight, CheckCircle2, Sparkles, UserCheck, Image as ImageIcon } from 'lucide-react';
+import { Star, CheckCircle2, Sparkles, UserCheck, Image as ImageIcon } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { supabase } from '../utils/supabase';
 import {
@@ -60,85 +60,80 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
 
   const currentAverage = (scores.reduce((a, b) => a + b, 0) / 10).toFixed(2);
 
-  const handleSubmit = async (isSkip = false) => {
+  const handleSubmit = async () => {
     setErrorMsg('');
-    if (!isSkip) {
-      const cleanFeedback = sanitizeInputText(feedback, 200);
-      const cleanStudentId = sanitizeInputText(studentId, 20);
-      if (
-        (cleanFeedback && containsProfanity(cleanFeedback)) ||
-        (cleanStudentId && containsProfanity(cleanStudentId))
-      ) {
-        setErrorMsg('กรุณาใช้ถ้อยคำที่สุภาพในแบบประเมิน');
-        return;
-      }
+    const cleanFeedback = sanitizeInputText(feedback, 200);
+    const cleanStudentId = sanitizeInputText(studentId, 20);
+    if (
+      (cleanFeedback && containsProfanity(cleanFeedback)) ||
+      (cleanStudentId && containsProfanity(cleanStudentId))
+    ) {
+      setErrorMsg('กรุณาใช้ถ้อยคำที่สุภาพในแบบประเมิน');
+      return;
     }
 
     setSubmitting(true);
     try {
-      if (!isSkip) {
-        const safeUserType = VALID_USER_TYPES.includes(selectedUserType as any)
-          ? selectedUserType
-          : 'general';
-        const cleanStudentId = sanitizeInputText(studentId, 20);
-        const cleanComment = sanitizeInputText(feedback, 180);
+      const safeUserType = VALID_USER_TYPES.includes(selectedUserType as any)
+        ? selectedUserType
+        : 'general';
+      const cleanComment = sanitizeInputText(feedback, 180);
 
-        const avgNumber = Number((scores.reduce((a, b) => a + b, 0) / 10).toFixed(2));
-        const roundedOverallRating = Math.min(Math.max(Math.round(avgNumber), 1), 5);
-        const encodedPayload = encodeEvaluationPayload(scores, cleanStudentId, cleanComment);
+      const avgNumber = Number((scores.reduce((a, b) => a + b, 0) / 10).toFixed(2));
+      const roundedOverallRating = Math.min(Math.max(Math.round(avgNumber), 1), 5);
+      const encodedPayload = encodeEvaluationPayload(scores, cleanStudentId, cleanComment);
 
-        // 1. บันทึกลง Local Storage เสมอเพื่อให้หน้า Admin Dashboard นำไปคำนวณ Radar Chart ได้ทันที
-        saveLocalEvaluationRecord({
-          id: `eval-${Date.now()}`,
-          krathong_id: krathongId,
-          user_type: safeUserType,
-          student_id: cleanStudentId,
-          scores,
-          average_score: avgNumber,
-          comment: cleanComment,
-          created_at: new Date().toISOString()
-        });
+      // 1. บันทึกลง Local Storage เสมอเพื่อให้หน้า Admin Dashboard นำไปคำนวณ Radar Chart ได้ทันที
+      saveLocalEvaluationRecord({
+        id: `eval-${Date.now()}`,
+        krathong_id: krathongId,
+        user_type: safeUserType,
+        student_id: cleanStudentId,
+        scores,
+        average_score: avgNumber,
+        comment: cleanComment,
+        created_at: new Date().toISOString()
+      });
 
-        let savedToSupabase = false;
+      let savedToSupabase = false;
 
-        // 2. ลองส่งเข้า Supabase
+      // 2. ลองส่งเข้า Supabase
+      try {
+        const isValidUUID =
+          krathongId &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(krathongId);
+        const { error: supaErr } = await supabase.from('evaluations').insert([
+          {
+            krathong_id: isValidUUID ? krathongId : null,
+            user_type: safeUserType,
+            rating: roundedOverallRating,
+            feedback: encodedPayload
+          }
+        ]);
+        if (!supaErr) {
+          savedToSupabase = true;
+        }
+      } catch (supaErr) {
+        console.warn('Supabase evaluation note:', supaErr);
+      }
+
+      // 3. สำรองยิง API ฟังก์ชันเฉพาะเมื่อไม่ได้บันทึกลง Supabase
+      if (!savedToSupabase) {
         try {
-          const isValidUUID =
-            krathongId &&
-            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(krathongId);
-          const { error: supaErr } = await supabase.from('evaluations').insert([
-            {
-              krathong_id: isValidUUID ? krathongId : null,
-              user_type: safeUserType,
+          await fetch('/api/evaluations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              krathongId,
+              userType: safeUserType,
               rating: roundedOverallRating,
               feedback: encodedPayload
-            }
-          ]);
-          if (!supaErr) {
-            savedToSupabase = true;
-          }
-        } catch (supaErr) {
-          console.warn('Supabase evaluation note:', supaErr);
-        }
-
-        // 3. สำรองยิง API ฟังก์ชันเฉพาะเมื่อไม่ได้บันทึกลง Supabase
-        if (!savedToSupabase) {
-          try {
-            await fetch('/api/evaluations', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                krathongId,
-                userType: safeUserType,
-                rating: roundedOverallRating,
-                feedback: encodedPayload
-              })
-            });
-          } catch (_) {}
-        }
-
-        markRateLimitAction('evaluation_submit');
+            })
+          });
+        } catch (_) {}
       }
+
+      markRateLimitAction('evaluation_submit');
 
       // จุดพลุเฉลิมฉลอง
       confetti({
@@ -337,22 +332,14 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
         </div>
 
         {/* Footer Action Buttons */}
-        <div className="pt-3 border-t border-amber-500/25 shrink-0 flex flex-col sm:flex-row items-center gap-2.5">
+        <div className="pt-3 border-t border-amber-500/25 shrink-0 flex flex-col items-center gap-2">
           <button
-            onClick={() => handleSubmit(false)}
+            onClick={handleSubmit}
             disabled={submitting}
-            className="w-full sm:flex-1 flex items-center justify-center space-x-2 py-3 bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 hover:from-amber-300 hover:via-yellow-400 hover:to-amber-500 text-stone-950 font-extrabold rounded-xl shadow-[0_4px_20px_rgba(245,158,11,0.45)] border border-yellow-200/60 transition cursor-pointer text-xs sm:text-sm"
+            className="w-full flex items-center justify-center space-x-2 py-3 bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 hover:from-amber-300 hover:via-yellow-400 hover:to-amber-500 text-stone-950 font-extrabold rounded-xl shadow-[0_4px_20px_rgba(245,158,11,0.45)] border border-yellow-200/60 transition cursor-pointer text-xs sm:text-sm"
           >
             <CheckCircle2 className="w-4 h-4 text-stone-950" />
-            <span>{submitting ? 'กำลังบันทึกผลประเมิน...' : 'ส่งแบบประเมิน 10 ข้อ & ไปดูแม่น้ำ'}</span>
-          </button>
-
-          <button
-            onClick={() => handleSubmit(true)}
-            className="w-full sm:w-auto px-4 py-2.5 text-amber-200/60 hover:text-amber-100 text-xs flex items-center justify-center space-x-1 transition cursor-pointer"
-          >
-            <span>ข้ามขั้นตอนนี้</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            <span>{submitting ? 'กำลังบันทึกผลประเมิน & ปล่อยกระทง...' : 'ส่งแบบประเมิน 10 ข้อ & ลอยกระทงสู่สายน้ำ'}</span>
           </button>
         </div>
       </div>

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import type { UserType } from '../types';
 import { KrathongVisual } from './KrathongVisual';
 import { ShareCardModal } from './ShareCardModal';
-import { Sparkles, ArrowLeft, Image as ImageIcon, Dices } from 'lucide-react';
+import { Sparkles, Eye, Image as ImageIcon, Dices } from 'lucide-react';
 import { supabase } from '../utils/supabase';
 import {
   containsProfanity,
@@ -299,8 +299,8 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
           onClick={onBackToRiver}
           className="flex items-center space-x-1.5 text-amber-200/80 hover:text-amber-100 transition text-xs sm:text-sm py-1.5 px-3 rounded-lg bg-[#1c2541]/70 border border-amber-500/30 hover:border-amber-400 cursor-pointer"
         >
-          <ArrowLeft className="w-4 h-4" />
-          <span>กลับแม่น้ำ</span>
+          <Eye className="w-4 h-4" />
+          <span>ดูหน้าสายน้ำ</span>
         </button>
 
         <h2 className="text-sm sm:text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-amber-300 to-yellow-200">
