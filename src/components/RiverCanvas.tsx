@@ -13,7 +13,8 @@ import {
   Volume2,
   VolumeX,
   Image as ImageIcon,
-  Leaf
+  Leaf,
+  Download
 } from 'lucide-react';
 import { supabase } from '../utils/supabase';
 import { containsProfanity, sanitizeInputText } from '../utils/security';
@@ -26,12 +27,14 @@ import { soundManager } from '../utils/soundEffects';
 
 interface RiverCanvasProps {
   myKrathongId?: string | null;
+  enableRealtime?: boolean;
   onNavigateCustomize: () => void;
   onNavigateAdmin: () => void;
 }
 
 export const RiverCanvas: React.FC<RiverCanvasProps> = ({
   myKrathongId,
+  enableRealtime = true,
   onNavigateCustomize,
   onNavigateAdmin
 }) => {
@@ -265,9 +268,10 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
     };
     window.addEventListener('storage', handleStorageModerationSync);
 
-    // 1.2 ฟัง Realtime Broadcast ทั้งการสร้างใหม่ (INSERT), อัปเดตสถานะอนุมัติ/ซ่อน (UPDATE) และลบ (DELETE)
-    const channel = supabase
-      .channel('realtime_krathongs')
+    // 1.2 ฟัง Realtime Broadcast เฉพาะโหมดจอเวที (Stage/Projector Mode) เพื่อไม่ให้เกินโควตา WebSocket บนแผน Free
+    const channel = enableRealtime
+      ? supabase
+          .channel('realtime_krathongs')
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'krathongs' },
@@ -363,12 +367,13 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
           }
         }
       )
-      .subscribe();
+      .subscribe()
+      : null;
 
-    // เปิด SSE /api/krathongs/stream เฉพาะกรณี Fallback ที่ไม่ได้ใช้ Supabase เพื่อไม่ให้ยิง D1 ซ้ำซ้อน 1,000+ connections
+    // เปิด SSE /api/krathongs/stream เฉพาะโหมดจอเวที + Fallback ที่ไม่ได้ใช้ Supabase เพื่อไม่ให้ยิง D1 ซ้ำซ้อน 1,000+ connections
     const hasSupabaseConfig = Boolean(import.meta.env.VITE_SUPABASE_ANON_KEY);
     let eventSource: EventSource | null = null;
-    if (!hasSupabaseConfig) {
+    if (enableRealtime && !hasSupabaseConfig) {
       try {
         eventSource = new EventSource('/api/krathongs/stream');
         eventSource.addEventListener('new_krathong', (e) => {
@@ -401,10 +406,12 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
 
     return () => {
       window.removeEventListener('storage', handleStorageModerationSync);
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
       if (eventSource) eventSource.close();
     };
-  }, [myKrathongId, spawnBot, spawnFireworkBurst]);
+  }, [myKrathongId, enableRealtime, spawnBot, spawnFireworkBurst]);
 
   // 2. Initialize Stars & Floating Sky Lanterns (โคมลอย)
   useEffect(() => {
@@ -1333,17 +1340,11 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         <div className="absolute top-5 left-5 z-30 transition-all duration-300 ease-in-out">
           {isQrExpanded ? (
             <div className="relative flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-3.5 p-3 sm:p-3.5 bg-[#0b132b]/90 rounded-2xl border border-amber-500/40 text-amber-50 shadow-[0_4px_24px_rgba(0,0,0,0.5),0_0_15px_rgba(245,158,11,0.2)] transition-all">
-              {/* QR Code Container with High-Contrast Cream Background */}
-              <div className="w-28 h-28 sm:w-32 sm:h-32 bg-[#fffbeb] rounded-xl flex items-center justify-center p-2 shrink-0 border border-amber-300/80 shadow-md">
+              {/* QR Code Container with High-Contrast Cream Background (Static Local Asset) */}
+              <div className="w-28 h-28 sm:w-32 sm:h-32 bg-[#fffbeb] rounded-xl flex items-center justify-center p-1.5 shrink-0 border border-amber-300/80 shadow-md">
                 <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=280x280&color=0b132b&bgcolor=fffbeb&margin=1&data=${encodeURIComponent(
-                    (window.location.origin + window.location.pathname).includes('localhost')
-                      ? (window.location.origin + window.location.pathname).replace('localhost', '172.24.135.154')
-                      : window.location.origin + window.location.pathname
-                  )}`}
-                  alt="Scan to Float"
-                  referrerPolicy="no-referrer"
-                  loading="lazy"
+                  src="/qr-create.svg"
+                  alt="Scan to Float Krathong"
                   className="w-full h-full object-contain"
                 />
               </div>
@@ -1351,13 +1352,36 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
               {/* Header Text Container: เว้น padding-right (pr-9 sm:pr-10 = 36-40px) ป้องกันข้อความชนปุ่มมุมบนขวา */}
               <div className="text-center sm:text-left flex flex-col justify-center self-center sm:self-auto pr-9 sm:pr-10 pt-0.5">
                 <div className="flex items-center justify-center sm:justify-start space-x-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.9)] shrink-0"></span>
+                  <span
+                    className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                      enableRealtime
+                        ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]'
+                        : 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.9)]'
+                    }`}
+                  ></span>
                   <p className="font-bold text-sm tracking-wide text-amber-200 whitespace-nowrap">สแกนร่วมลอยกระทง</p>
                 </div>
-                <p className="text-[11px] text-amber-100/85 mt-0.5 font-medium whitespace-nowrap">ปล่อยกระทงจากมือถือขึ้นจอนี้</p>
-                <p className="text-[11px] text-amber-300 font-mono mt-1.5 px-2.5 py-0.5 rounded-lg bg-[#0b132b]/80 inline-block border border-amber-500/40 shadow-inner">
-                  {window.location.hostname === 'localhost' ? '172.24.135.154:5173' : window.location.host}
+                <p className="text-[11px] text-amber-100/85 mt-0.5 font-medium whitespace-nowrap">
+                  เปิดหน้าสร้างกระทงบนมือถือทันที
                 </p>
+                <p className="text-[10px] text-amber-300 font-mono mt-1.5 px-2 py-0.5 rounded-lg bg-[#0b132b]/80 inline-block border border-amber-500/40 shadow-inner">
+                  {window.location.hostname === 'localhost'
+                    ? 'loykrathong-online.pages.dev/?mode=create'
+                    : `${window.location.host}/?mode=create`}
+                </p>
+                <div className="mt-1.5 flex items-center justify-center sm:justify-start gap-2">
+                  <span className="text-[10px] text-amber-200/75 whitespace-nowrap">
+                    {enableRealtime ? 'โหมดจอเวที (Realtime)' : 'โหมดผู้ร่วมงาน'}
+                  </span>
+                  <a
+                    href="/qr-create.png"
+                    download="QR-LoyKrathong-Create.png"
+                    className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md bg-amber-500/20 hover:bg-amber-500/35 text-amber-200 border border-amber-400/40 transition whitespace-nowrap"
+                  >
+                    <Download className="w-3 h-3" />
+                    <span>โหลด QR แปะป้าย</span>
+                  </a>
+                </div>
               </div>
 
               {/* ปุ่มพับเก็บกล่อง QR (Collapse Button) วางมุมบนขวา มี Hitbox 28x28px (w-7 h-7) กดง่าย ไม่ทับข้อความ */}
