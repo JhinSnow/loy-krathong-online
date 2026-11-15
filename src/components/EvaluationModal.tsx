@@ -12,8 +12,14 @@ import {
 import {
   EVALUATION_QUESTIONS,
   RATING_LABELS,
+  PSU_FACULTIES,
+  guessFacultyFromStudentId,
+  getOrCreateDeviceToken,
+  getBoundStudentId,
+  bindStudentIdToDevice,
   encodeEvaluationPayload,
   saveLocalEvaluationRecord,
+  getLocalEvaluationRecords,
   getLocalKrathongRecords
 } from '../utils/evaluationHelpers';
 import { ShareCardModal } from './ShareCardModal';
@@ -29,14 +35,6 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
   userType: initialUserType,
   onFinish
 }) => {
-  const [selectedUserType, setSelectedUserType] = useState<string>(initialUserType || 'student');
-  const [studentId, setStudentId] = useState<string>('');
-  const [scores, setScores] = useState<number[]>(() => Array(10).fill(5));
-  const [feedback, setFeedback] = useState<string>('');
-  const [submitting, setSubmitting] = useState<boolean>(false);
-  const [errorMsg, setErrorMsg] = useState<string>('');
-  const [showShareModal, setShowShareModal] = useState<boolean>(false);
-
   const myKrathongRecord = useMemo(() => {
     const records = getLocalKrathongRecords();
     if (krathongId) {
@@ -45,6 +43,34 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
     }
     return records[0] || null;
   }, [krathongId]);
+
+  const [selectedUserType, setSelectedUserType] = useState<string>(initialUserType || 'student');
+  const [studentId, setStudentId] = useState<string>(() => getBoundStudentId() || '');
+  const [studentName, setStudentName] = useState<string>(() => myKrathongRecord?.owner_name || '');
+  const [faculty, setFaculty] = useState<string>(() => {
+    const bound = getBoundStudentId();
+    return bound ? guessFacultyFromStudentId(bound) : '';
+  });
+  const [facultyManuallySelected, setFacultyManuallySelected] = useState<boolean>(false);
+  const [scores, setScores] = useState<number[]>(() => Array(10).fill(5));
+  const [feedback, setFeedback] = useState<string>('');
+  const [submitting, setSubmitting] = useState<boolean>(false);
+  const [errorMsg, setErrorMsg] = useState<string>('');
+  const [showShareModal, setShowShareModal] = useState<boolean>(false);
+
+  const boundStudentIdOnDevice = useMemo(() => getBoundStudentId(), []);
+
+  const handleStudentIdChange = (rawValue: string) => {
+    const digitsOnly = rawValue.replace(/\D/g, '').slice(0, 13);
+    setStudentId(digitsOnly);
+    setErrorMsg('');
+    if (!facultyManuallySelected) {
+      const guessed = guessFacultyFromStudentId(digitsOnly);
+      if (guessed) {
+        setFaculty(guessed);
+      }
+    }
+  };
 
   const handleScoreChange = (questionIndex: number, scoreValue: number) => {
     setScores((prev) => {
@@ -62,65 +88,123 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
 
   const handleSubmit = async () => {
     setErrorMsg('');
-    const cleanFeedback = sanitizeInputText(feedback, 200);
-    const cleanStudentId = sanitizeInputText(studentId, 20);
+    const safeUserType = VALID_USER_TYPES.includes(selectedUserType as any)
+      ? selectedUserType
+      : 'general';
+    const isStudent = safeUserType === 'student';
+
+    const cleanComment = sanitizeInputText(feedback, 140);
+    const cleanStudentId = isStudent ? studentId.replace(/\D/g, '').trim() : '';
+    const cleanStudentName = isStudent ? sanitizeInputText(studentName, 60) : '';
+    const cleanFaculty = isStudent ? sanitizeInputText(faculty, 60) : '';
+
     if (
-      (cleanFeedback && containsProfanity(cleanFeedback)) ||
+      (cleanComment && containsProfanity(cleanComment)) ||
+      (cleanStudentName && containsProfanity(cleanStudentName)) ||
       (cleanStudentId && containsProfanity(cleanStudentId))
     ) {
       setErrorMsg('กรุณาใช้ถ้อยคำที่สุภาพในแบบประเมิน');
       return;
     }
 
+    if (isStudent) {
+      if (!/^\d{8,13}$/.test(cleanStudentId)) {
+        setErrorMsg('กรุณากรอกรหัสนักศึกษาให้ถูกต้อง (ตัวเลข 8–13 หลัก เช่น 6610110245)');
+        return;
+      }
+      if (!cleanStudentName || cleanStudentName.length < 2) {
+        setErrorMsg('กรุณากรอกชื่อ-นามสกุลจริงสำหรับบันทึกชั่วโมงกิจกรรม (Transcript)');
+        return;
+      }
+      if (!cleanFaculty) {
+        setErrorMsg('กรุณาเลือกคณะ / วิทยาลัย เพื่อจัดกลุ่มรายชื่อส่งมหาวิทยาลัย');
+        return;
+      }
+
+      // เช็กการกรอกแทนเพื่อน (1 อุปกรณ์ ต่อ 1 รหัสนักศึกษา)
+      const boundId = getBoundStudentId();
+      if (boundId && boundId !== cleanStudentId) {
+        setErrorMsg(
+          `อุปกรณ์นี้ได้ใช้ลงทะเบียนรหัสนักศึกษา ${boundId} ไปแล้ว (สงวนสิทธิ์ 1 อุปกรณ์ ต่อ 1 รหัสนักศึกษา เพื่อป้องกันการลงชื่อแทนกัน)`
+        );
+        return;
+      }
+
+      // เช็กรหัสนักศึกษาซ้ำในเครื่อง
+      const localDuplicate = getLocalEvaluationRecords().some(
+        (rec) => rec.user_type === 'student' && (rec.student_id || '').trim() === cleanStudentId
+      );
+      if (localDuplicate) {
+        setErrorMsg(`รหัสนักศึกษา ${cleanStudentId} ได้ลงทะเบียนบันทึกชั่วโมงกิจกรรมไปแล้ว`);
+        return;
+      }
+    }
+
     setSubmitting(true);
+    let didSucceed = false;
     try {
-      const safeUserType = VALID_USER_TYPES.includes(selectedUserType as any)
-        ? selectedUserType
-        : 'general';
-      const cleanComment = sanitizeInputText(feedback, 180);
+      const deviceId = getOrCreateDeviceToken();
+
+      // เช็กรหัสนักศึกษาซ้ำบนฐานข้อมูล Supabase ก่อนบันทึก
+      if (isStudent) {
+        try {
+          const { data: dupRows } = await supabase
+            .from('evaluations')
+            .select('id')
+            .ilike('feedback', `%"sid":"${cleanStudentId}"%`)
+            .limit(1);
+          if (dupRows && dupRows.length > 0) {
+            setErrorMsg(`รหัสนักศึกษา ${cleanStudentId} ได้ลงทะเบียนบันทึกชั่วโมงกิจกรรมไปแล้ว`);
+            return;
+          }
+        } catch (dupErr) {
+          console.warn('Duplicate SID check note:', dupErr);
+        }
+      }
 
       const avgNumber = Number((scores.reduce((a, b) => a + b, 0) / 10).toFixed(2));
       const roundedOverallRating = Math.min(Math.max(Math.round(avgNumber), 1), 5);
-      const encodedPayload = encodeEvaluationPayload(scores, cleanStudentId, cleanComment);
-
-      // 1. บันทึกลง Local Storage เสมอเพื่อให้หน้า Admin Dashboard นำไปคำนวณ Radar Chart ได้ทันที
-      saveLocalEvaluationRecord({
-        id: `eval-${Date.now()}`,
-        krathong_id: krathongId,
-        user_type: safeUserType,
-        student_id: cleanStudentId,
+      const encodedPayload = encodeEvaluationPayload(
         scores,
-        average_score: avgNumber,
-        comment: cleanComment,
-        created_at: new Date().toISOString()
-      });
+        cleanStudentId,
+        cleanComment,
+        cleanStudentName,
+        cleanFaculty,
+        deviceId
+      );
 
       let savedToSupabase = false;
+      const isValidUUID =
+        krathongId &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(krathongId);
 
-      // 2. ลองส่งเข้า Supabase
-      try {
-        const isValidUUID =
-          krathongId &&
-          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(krathongId);
-        const { error: supaErr } = await supabase.from('evaluations').insert([
-          {
-            krathong_id: isValidUUID ? krathongId : null,
-            user_type: safeUserType,
-            rating: roundedOverallRating,
-            feedback: encodedPayload
+      // 1. บันทึกเข้า Supabase พร้อม Retry อัตโนมัติสูงสุด 2 ครั้งกรณีเน็ตหนาแน่นในงาน
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const { error: supaErr } = await supabase.from('evaluations').insert([
+            {
+              krathong_id: isValidUUID ? krathongId : null,
+              user_type: safeUserType,
+              rating: roundedOverallRating,
+              feedback: encodedPayload
+            }
+          ]);
+          if (!supaErr) {
+            savedToSupabase = true;
+            break;
           }
-        ]);
-        if (!supaErr) {
-          savedToSupabase = true;
+        } catch (supaErr) {
+          console.warn(`Supabase evaluation retry ${attempt + 1}:`, supaErr);
         }
-      } catch (supaErr) {
-        console.warn('Supabase evaluation note:', supaErr);
+        if (attempt === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 350));
+        }
       }
 
-      // 3. สำรองยิง API ฟังก์ชันเฉพาะเมื่อไม่ได้บันทึกลง Supabase
+      // 2. สำรองยิง API ฟังก์ชันเฉพาะเมื่อไม่ได้บันทึกลง Supabase
       if (!savedToSupabase) {
         try {
-          await fetch('/api/evaluations', {
+          const apiRes = await fetch('/api/evaluations', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -130,10 +214,37 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
               feedback: encodedPayload
             })
           });
+          if (apiRes.status === 409) {
+            const errBody = await apiRes.json().catch(() => ({})) as any;
+            setErrorMsg(
+              errBody.error || `รหัสนักศึกษา ${cleanStudentId} ได้ลงทะเบียนบันทึกชั่วโมงกิจกรรมไปแล้ว`
+            );
+            return;
+          }
         } catch (_) {}
       }
 
+      // 3. บันทึกลง Local Storage และผูกสิทธิ์ 1 เครื่อง = 1 รหัสนักศึกษา หลังผ่านการตรวจครบถ้วน
+      saveLocalEvaluationRecord({
+        id: `eval-${Date.now()}`,
+        krathong_id: krathongId,
+        user_type: safeUserType,
+        student_id: cleanStudentId,
+        student_name: cleanStudentName,
+        faculty: cleanFaculty,
+        device_id: deviceId,
+        scores,
+        average_score: avgNumber,
+        comment: cleanComment,
+        created_at: new Date().toISOString()
+      });
+
+      if (isStudent && cleanStudentId) {
+        bindStudentIdToDevice(cleanStudentId);
+      }
+
       markRateLimitAction('evaluation_submit');
+      didSucceed = true;
 
       // จุดพลุเฉลิมฉลอง
       confetti({
@@ -145,7 +256,9 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
       console.warn('Evaluation failed to save:', e);
     } finally {
       setSubmitting(false);
-      onFinish();
+      if (didSucceed) {
+        onFinish();
+      }
     }
   };
 
@@ -187,49 +300,114 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
               <span>ส่วนที่ 1: ข้อมูลทั่วไปของผู้เข้าร่วมกิจกรรม</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
-              {/* ประเภทผู้เข้าร่วม */}
-              <div className="sm:col-span-7">
-                <label className="block text-[11px] font-medium text-amber-100/85 mb-1">
-                  ประเภทผู้เข้าร่วม <span className="text-amber-400">*</span>
-                </label>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {[
-                    { id: 'student', label: 'นักศึกษา' },
-                    { id: 'staff', label: 'บุคลากร' },
-                    { id: 'general', label: 'บุคคลภายนอก' }
-                  ].map((t) => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => setSelectedUserType(t.id)}
-                      className={`py-2 px-2 rounded-xl text-[11px] font-semibold border transition cursor-pointer ${
-                        selectedUserType === t.id
-                          ? 'bg-amber-500/20 border-amber-400 text-amber-100 shadow-sm'
-                          : 'bg-slate-900/90 border-slate-700 text-slate-300 hover:border-amber-500/40'
-                      }`}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* รหัสนักศึกษา (Optional) */}
-              <div className="sm:col-span-5">
-                <label className="block text-[11px] font-medium text-amber-100/85 mb-1">
-                  รหัสนักศึกษา <span className="text-slate-400 font-normal">(ถ้ามี / ไม่บังคับ)</span>
-                </label>
-                <input
-                  type="text"
-                  value={studentId}
-                  onChange={(e) => setStudentId(e.target.value.replace(/[^0-9a-zA-Z-]/g, ''))}
-                  placeholder="เช่น 6610110xxx"
-                  maxLength={15}
-                  className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-amber-50 placeholder-slate-500 focus:outline-none"
-                />
+            {/* ประเภทผู้เข้าร่วม */}
+            <div>
+              <label className="block text-[11px] font-medium text-amber-100/85 mb-1">
+                ประเภทผู้เข้าร่วม <span className="text-amber-400">*</span>
+              </label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  { id: 'student', label: 'นักศึกษา' },
+                  { id: 'staff', label: 'บุคลากร' },
+                  { id: 'general', label: 'บุคคลภายนอก' }
+                ].map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedUserType(t.id);
+                      setErrorMsg('');
+                    }}
+                    className={`py-2 px-2 rounded-xl text-[11px] font-semibold border transition cursor-pointer ${
+                      selectedUserType === t.id
+                        ? 'bg-amber-500/20 border-amber-400 text-amber-100 shadow-sm'
+                        : 'bg-slate-900/90 border-slate-700 text-slate-300 hover:border-amber-500/40'
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
               </div>
             </div>
+
+            {/* ช่องกรอกบังคับเฉพาะกลุ่มนักศึกษาเพื่อบันทึก Transcript */}
+            {selectedUserType === 'student' && (
+              <div className="pt-2 border-t border-amber-500/20 space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-1">
+                  <p className="text-[11px] font-semibold text-amber-300">
+                    🎓 ข้อมูลนักศึกษาสำหรับบันทึกชั่วโมงกิจกรรม (Activity Transcript)
+                  </p>
+                  {boundStudentIdOnDevice && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-200">
+                      เครื่องนี้ผูกสิทธิ์รหัส {boundStudentIdOnDevice}
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                  <div className="sm:col-span-4">
+                    <label className="block text-[11px] font-medium text-amber-100/85 mb-1">
+                      รหัสนักศึกษา <span className="text-rose-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={studentId}
+                      onChange={(e) => handleStudentIdChange(e.target.value)}
+                      placeholder="เช่น 6610110245"
+                      maxLength={13}
+                      required
+                      className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-amber-50 placeholder-slate-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-4">
+                    <label className="block text-[11px] font-medium text-amber-100/85 mb-1">
+                      ชื่อ-นามสกุลจริง <span className="text-rose-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={studentName}
+                      onChange={(e) => {
+                        setStudentName(e.target.value);
+                        setErrorMsg('');
+                      }}
+                      placeholder="เช่น ธนากร ใจดี"
+                      maxLength={60}
+                      required
+                      className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-amber-50 placeholder-slate-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-4">
+                    <label className="block text-[11px] font-medium text-amber-100/85 mb-1">
+                      คณะ / วิทยาลัย <span className="text-rose-400">*</span>
+                    </label>
+                    <select
+                      value={faculty}
+                      onChange={(e) => {
+                        setFaculty(e.target.value);
+                        setFacultyManuallySelected(true);
+                        setErrorMsg('');
+                      }}
+                      required
+                      className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-2.5 py-2 text-xs text-amber-50 focus:outline-none"
+                    >
+                      <option value="">-- เลือกคณะ --</option>
+                      {PSU_FACULTIES.map((fac) => (
+                        <option key={fac} value={fac}>
+                          {fac}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <p className="text-[10px] text-amber-100/65">
+                  * ระบบสงวนสิทธิ์ 1 อุปกรณ์ ต่อ 1 รหัสนักศึกษา และตัดรายชื่อซ้ำอัตโนมัติก่อนส่งข้อมูลให้คณะ/มหาวิทยาลัย
+                </p>
+              </div>
+            )}
           </div>
 
           {/* ส่วนที่ 2: หัวข้อประเมินความพึงพอใจ 10 ด้าน */}
@@ -323,16 +501,20 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
               value={feedback}
               onChange={(e) => setFeedback(e.target.value)}
               placeholder="ความคิดเห็น ข้อเสนอแนะ หรือความประทับใจจากงานลอยกระทง..."
-              maxLength={180}
+              maxLength={140}
               rows={2}
               className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-amber-50 placeholder-slate-500 focus:outline-none focus:border-amber-400 resize-none"
             />
-            {errorMsg && <p className="text-xs text-rose-400 mt-1.5 font-medium">{errorMsg}</p>}
           </div>
         </div>
 
         {/* Footer Action Buttons */}
         <div className="pt-3 border-t border-amber-500/25 shrink-0 flex flex-col items-center gap-2">
+          {errorMsg && (
+            <p className="w-full px-3 py-2 rounded-xl bg-rose-500/15 border border-rose-500/40 text-xs text-rose-300 font-semibold text-center">
+              {errorMsg}
+            </p>
+          )}
           <button
             onClick={handleSubmit}
             disabled={submitting}

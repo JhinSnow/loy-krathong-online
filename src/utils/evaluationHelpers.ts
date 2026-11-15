@@ -68,15 +68,102 @@ export const RATING_LABELS: Record<number, string> = {
   1: 'น้อยที่สุด'
 };
 
+export const PSU_FACULTIES: readonly string[] = [
+  'คณะวิศวกรรมศาสตร์',
+  'คณะวิทยาศาสตร์',
+  'คณะแพทยศาสตร์',
+  'คณะเภสัชศาสตร์',
+  'คณะวิทยาการจัดการ',
+  'คณะทรัพยากรธรรมชาติ',
+  'คณะพยาบาลศาสตร์',
+  'คณะทันตแพทยศาสตร์',
+  'คณะอุตสาหกรรมเกษตร',
+  'คณะนิติศาสตร์',
+  'คณะเศรษฐศาสตร์',
+  'คณะศิลปศาสตร์',
+  'คณะการแพทย์แผนไทย',
+  'คณะเทคนิคการแพทย์',
+  'คณะสัตวแพทยศาสตร์',
+  'วิทยาลัยนานาชาติ (UIC)',
+  'วิทยาลัยการคอมพิวเตอร์',
+  'บัณฑิตวิทยาลัย',
+  'วิทยาเขตปัตตานี / ภูเก็ต / สุราษฎร์ธานี / ตรัง',
+  'คณะ/หน่วยงานอื่นๆ'
+];
+
+const PSU_FACULTY_CODE_MAP: Record<string, string> = {
+  '101': 'คณะวิศวกรรมศาสตร์',
+  '102': 'คณะวิทยาศาสตร์',
+  '103': 'คณะแพทยศาสตร์',
+  '104': 'คณะเภสัชศาสตร์',
+  '105': 'คณะวิทยาการจัดการ',
+  '106': 'คณะทรัพยากรธรรมชาติ',
+  '107': 'คณะพยาบาลศาสตร์',
+  '108': 'คณะทันตแพทยศาสตร์',
+  '109': 'คณะอุตสาหกรรมเกษตร',
+  '110': 'คณะนิติศาสตร์',
+  '111': 'คณะเศรษฐศาสตร์',
+  '112': 'คณะศิลปศาสตร์',
+  '113': 'คณะการแพทย์แผนไทย',
+  '114': 'วิทยาลัยนานาชาติ (UIC)',
+  '115': 'คณะเทคนิคการแพทย์',
+  '116': 'คณะสัตวแพทยศาสตร์',
+  '120': 'วิทยาลัยการคอมพิวเตอร์'
+};
+
+/**
+ * เดาคณะอัตโนมัติจากรหัสคณะ 3 หลักในรหัสนักศึกษา 10 หลัก (เช่น 6610110xxx -> 101 คณะวิศวกรรมศาสตร์)
+ */
+export function guessFacultyFromStudentId(studentId: string): string {
+  const digits = (studentId || '').replace(/\D/g, '');
+  if (digits.length < 5) return '';
+  const campusFacCode = digits.slice(2, 5);
+  if (PSU_FACULTY_CODE_MAP[campusFacCode]) {
+    return PSU_FACULTY_CODE_MAP[campusFacCode];
+  }
+  const campusChar = digits[2];
+  if (['2', '3', '4', '5'].includes(campusChar)) {
+    return 'วิทยาเขตปัตตานี / ภูเก็ต / สุราษฎร์ธานี / ตรัง';
+  }
+  return '';
+}
+
 export interface ParsedEvaluationRecord {
   id: string;
   krathong_id?: string | null;
   user_type: 'student' | 'staff' | 'general' | string;
   student_id: string;
+  student_name?: string;
+  faculty?: string;
+  device_id?: string;
   scores: number[]; // ความยาว 10 ข้อ (index 0..9)
   average_score: number;
   comment: string;
   created_at: string;
+}
+
+export interface StudentTranscriptEntry {
+  student_id: string;
+  student_name: string;
+  faculty: string;
+  device_id: string;
+  deviceStatus: 'verified' | 'shared_device';
+  created_at: string;
+  krathong_id?: string | null;
+}
+
+export interface FacultyCountRow {
+  faculty: string;
+  count: number;
+  percentage: number;
+}
+
+export interface StudentTranscriptRoster {
+  uniqueStudents: StudentTranscriptEntry[];
+  totalSubmittedStudentRows: number;
+  duplicateIdCount: number;
+  sharedDeviceCount: number;
+  facultyBreakdown: FacultyCountRow[];
 }
 
 export interface QuestionStatRow {
@@ -119,24 +206,32 @@ export function getSatisfactionLevelText(mean: number): string {
 }
 
 /**
- * เข้ารหัสข้อมูลประเมิน 10 ข้อ + รหัสนักศึกษา + ข้อเสนอแนะ ลงในฟิลด์ feedback (JSON string)
+ * เข้ารหัสข้อมูลประเมิน 10 ข้อ + รหัสนักศึกษา + ชื่อ + คณะ + Device ID + ข้อเสนอแนะ ลงในฟิลด์ feedback (JSON string)
  * เพื่อให้บันทึกเข้าตาราง evaluations เดิมของ Supabase และ Cloudflare D1 ได้ทันทีโดยไม่ต้องแก้โครงสร้างตาราง
  */
 export function encodeEvaluationPayload(
   scores: number[],
   studentId: string,
-  comment: string
+  comment: string,
+  studentName = '',
+  faculty = '',
+  deviceId = ''
 ): string {
   const safeScores = EVALUATION_QUESTIONS.map((_, idx) => {
     const val = Math.round(Number(scores[idx]) || 5);
     return Math.min(Math.max(val, 1), 5);
   });
 
-  return JSON.stringify({
+  const payload: Record<string, unknown> = {
     s: safeScores,
-    sid: (studentId || '').trim().slice(0, 20),
-    c: (comment || '').trim().slice(0, 180)
-  });
+    sid: (studentId || '').trim().slice(0, 15)
+  };
+  if (studentName.trim()) payload.name = studentName.trim().slice(0, 60);
+  if (faculty.trim()) payload.fac = faculty.trim().slice(0, 60);
+  if (deviceId.trim()) payload.did = deviceId.trim().slice(0, 16);
+  payload.c = (comment || '').trim().slice(0, 140);
+
+  return JSON.stringify(payload);
 }
 
 /**
@@ -146,6 +241,9 @@ export function parseEvaluationRow(raw: any, index = 0): ParsedEvaluationRecord 
   const baseRating = Math.min(Math.max(Math.round(Number(raw?.rating) || 5), 1), 5);
   let scores: number[] = Array(10).fill(baseRating);
   let studentId = '';
+  let studentName = '';
+  let faculty = '';
+  let deviceId = '';
   let comment = '';
 
   const rawFeedback = typeof raw?.feedback === 'string' ? raw.feedback.trim() : '';
@@ -171,6 +269,21 @@ export function parseEvaluationRow(raw: any, index = 0): ParsedEvaluationRecord 
       } else if (typeof parsed.student_id === 'string') {
         studentId = parsed.student_id;
       }
+      if (typeof parsed.name === 'string') {
+        studentName = parsed.name;
+      } else if (typeof parsed.student_name === 'string') {
+        studentName = parsed.student_name;
+      }
+      if (typeof parsed.fac === 'string') {
+        faculty = parsed.fac;
+      } else if (typeof parsed.faculty === 'string') {
+        faculty = parsed.faculty;
+      }
+      if (typeof parsed.did === 'string') {
+        deviceId = parsed.did;
+      } else if (typeof parsed.device_id === 'string') {
+        deviceId = parsed.device_id;
+      }
       if (typeof parsed.c === 'string') {
         comment = parsed.c;
       } else if (typeof parsed.comment === 'string') {
@@ -184,6 +297,9 @@ export function parseEvaluationRow(raw: any, index = 0): ParsedEvaluationRecord 
   } else if (Array.isArray(raw?.scores) && raw.scores.length === 10) {
     scores = raw.scores.map((n: any) => Math.min(Math.max(Math.round(Number(n) || 5), 1), 5));
     studentId = raw.student_id || '';
+    studentName = raw.student_name || '';
+    faculty = raw.faculty || '';
+    deviceId = raw.device_id || '';
     comment = raw.comment || rawFeedback;
   } else {
     comment = rawFeedback;
@@ -195,7 +311,10 @@ export function parseEvaluationRow(raw: any, index = 0): ParsedEvaluationRecord 
     id: raw?.id || `eval-${index + 1}`,
     krathong_id: raw?.krathong_id || null,
     user_type: raw?.user_type || 'general',
-    student_id: studentId,
+    student_id: (studentId || '').trim(),
+    student_name: (studentName || '').trim(),
+    faculty: (faculty || '').trim(),
+    device_id: (deviceId || '').trim(),
     scores,
     average_score: avg,
     comment,
@@ -208,6 +327,46 @@ const LOCAL_KRATHONG_STORAGE_KEY = 'loy_krathong_items_v1';
 const LOCAL_KRATHONG_CLEAN_FLAG = 'loy_krathong_clean_v2';
 const LOCAL_APPROVAL_SETTING_KEY = 'loy_krathong_require_approval_v1';
 const LOCAL_MODERATION_OVERRIDES_KEY = 'loy_krathong_moderation_overrides_v1';
+const LOCAL_DEVICE_TOKEN_KEY = 'loy_krathong_device_token_v1';
+const LOCAL_BOUND_STUDENT_ID_KEY = 'loy_krathong_bound_sid_v1';
+
+/**
+ * สร้างหรือดึง Device Token ประจำเบราว์เซอร์ เพื่อตรวจสอบกรณีมีการลงทะเบียนหลายรหัสจากอุปกรณ์เดียวกัน
+ */
+export function getOrCreateDeviceToken(): string {
+  try {
+    if (typeof localStorage === 'undefined') return 'srv-device';
+    const existing = localStorage.getItem(LOCAL_DEVICE_TOKEN_KEY);
+    if (existing) return existing;
+    const token =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID().replace(/-/g, '').slice(0, 12)
+        : `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`.slice(0, 12);
+    localStorage.setItem(LOCAL_DEVICE_TOKEN_KEY, token);
+    return token;
+  } catch {
+    return 'mem-device';
+  }
+}
+
+export function getBoundStudentId(): string | null {
+  try {
+    if (typeof localStorage === 'undefined') return null;
+    const sid = localStorage.getItem(LOCAL_BOUND_STUDENT_ID_KEY);
+    return sid ? sid.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+export function bindStudentIdToDevice(studentId: string): void {
+  try {
+    const clean = (studentId || '').trim();
+    if (clean && typeof localStorage !== 'undefined') {
+      localStorage.setItem(LOCAL_BOUND_STUDENT_ID_KEY, clean);
+    }
+  } catch {}
+}
 
 // รายการ ID ทดสอบระบบช่วงพัฒนาที่เคลียร์ออกจากหน้าเว็บและสถิติเริ่มต้น
 const DEFAULT_HIDDEN_IDS: Record<string, 'approved' | 'rejected' | 'deleted'> = {
@@ -271,7 +430,7 @@ export function saveLocalKrathongRecord(record: LocalKrathongRecord): void {
     ensureLegacyLocalKrathongsCleared();
     const existing = getLocalKrathongRecords();
     const filtered = existing.filter((item) => item.id !== record.id);
-    const updated = [record, ...filtered].slice(0, 500);
+    const updated = [record, ...filtered].slice(0, 2000);
     localStorage.setItem(LOCAL_KRATHONG_STORAGE_KEY, JSON.stringify(updated));
   } catch {}
 }
@@ -329,7 +488,7 @@ export function setLocalRequireApproval(val: boolean): void {
 export function saveLocalEvaluationRecord(record: ParsedEvaluationRecord): void {
   try {
     const existing = getLocalEvaluationRecords();
-    const updated = [record, ...existing].slice(0, 500);
+    const updated = [record, ...existing].slice(0, 2000);
     localStorage.setItem(LOCAL_EVAL_STORAGE_KEY, JSON.stringify(updated));
   } catch {}
 }
@@ -355,6 +514,9 @@ export function getDemoEvaluationRecords(): ParsedEvaluationRecord[] {
       id: 'demo-1',
       user_type: 'student',
       student_id: '6610110245',
+      student_name: 'ธนากร ใจดี (ตัวอย่าง)',
+      faculty: 'คณะวิศวกรรมศาสตร์',
+      device_id: 'demo-dev-01',
       scores: [5, 5, 5, 5, 4, 5, 5, 5, 5, 5],
       comment: 'จัดงานบรรยากาศดีมากครับ ชอบระบบลอยกระทงออนไลน์ขึ้นจอหน้าตึกฟักทอง ลดขยะได้ดีมาก',
       created_at: new Date(Date.now() - 3600 * 1000 * 3).toISOString()
@@ -363,6 +525,9 @@ export function getDemoEvaluationRecords(): ParsedEvaluationRecord[] {
       id: 'demo-2',
       user_type: 'student',
       student_id: '6510210118',
+      student_name: 'กัญญาณี สุขสันต์ (ตัวอย่าง)',
+      faculty: 'คณะวิทยาศาสตร์',
+      device_id: 'demo-dev-02',
       scores: [5, 5, 4, 5, 4, 5, 5, 4, 4, 5],
       comment: 'กระทงมีให้เลือกแต่งหลายแบบมาก น่ารักสุดๆ สแกน QR ง่ายและสะดวกมากค่ะ',
       created_at: new Date(Date.now() - 3600 * 1000 * 2.5).toISOString()
@@ -387,6 +552,9 @@ export function getDemoEvaluationRecords(): ParsedEvaluationRecord[] {
       id: 'demo-5',
       user_type: 'student',
       student_id: '6710510089',
+      student_name: 'นภัสสร รักเรียน (ตัวอย่าง)',
+      faculty: 'คณะวิทยาการจัดการ',
+      device_id: 'demo-dev-03',
       scores: [5, 4, 5, 5, 4, 5, 5, 5, 4, 5],
       comment: 'อยากให้จัดกิจกรรมดีๆ แบบนี้ทุกปีเลยค่ะ',
       created_at: new Date(Date.now() - 3600 * 1000 * 0.5).toISOString()
@@ -475,5 +643,108 @@ export function calculateEvaluationAnalytics(records: ParsedEvaluationRecord[]):
     highestDimension,
     lowestDimension,
     records
+  };
+}
+
+/**
+ * สร้างบัญชีรายชื่อนักศึกษาเพื่อบันทึกชั่วโมงกิจกรรม (Activity Transcript)
+ * พร้อมระบบตัดรหัสนักศึกษาซ้ำ (Deduplicate), ตรวจจับเครื่องที่ส่งซ้ำหลายรหัส และสรุปยอดแยกตามคณะ
+ */
+export function buildStudentTranscriptRoster(
+  records: ParsedEvaluationRecord[],
+  krathongs: { id: string; owner_name: string }[] = []
+): StudentTranscriptRoster {
+  const krathongOwnerMap = new Map<string, string>();
+  krathongs.forEach((k) => {
+    if (k.id && k.owner_name) {
+      krathongOwnerMap.set(k.id, k.owner_name);
+    }
+  });
+
+  const validStudentRows = records.filter((rec) => {
+    const cleanSid = (rec.student_id || '').trim();
+    return rec.user_type === 'student' && /^\d{8,13}$/.test(cleanSid);
+  });
+
+  // ตรวจจับ Device Token ที่ส่งมามากกว่า 1 รหัสนักศึกษา
+  const deviceToStudentIds = new Map<string, Set<string>>();
+  validStudentRows.forEach((rec) => {
+    const did = (rec.device_id || '').trim();
+    const sid = (rec.student_id || '').trim();
+    if (did) {
+      if (!deviceToStudentIds.has(did)) {
+        deviceToStudentIds.set(did, new Set());
+      }
+      deviceToStudentIds.get(did)!.add(sid);
+    }
+  });
+
+  // ตัดรหัสนักศึกษาซ้ำให้เหลือ 1 คนต่อ 1 รหัส (คงรายการแรกที่มีข้อมูลครบถ้วนที่สุด)
+  const dedupedMap = new Map<string, StudentTranscriptEntry>();
+  const chronological = [...validStudentRows].sort(
+    (a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
+  );
+
+  chronological.forEach((rec) => {
+    const sid = (rec.student_id || '').trim();
+    const did = (rec.device_id || '').trim();
+    const fallbackName = rec.krathong_id ? krathongOwnerMap.get(rec.krathong_id) || '' : '';
+    const resolvedName = (rec.student_name || '').trim() || fallbackName || '-';
+    const resolvedFaculty =
+      (rec.faculty || '').trim() || guessFacultyFromStudentId(sid) || 'ไม่ระบุคณะ';
+
+    const sharedOnSameDevice = did ? (deviceToStudentIds.get(did)?.size || 0) > 1 : false;
+
+    const existing = dedupedMap.get(sid);
+    if (!existing) {
+      dedupedMap.set(sid, {
+        student_id: sid,
+        student_name: resolvedName,
+        faculty: resolvedFaculty,
+        device_id: did,
+        deviceStatus: sharedOnSameDevice ? 'shared_device' : 'verified',
+        created_at: rec.created_at,
+        krathong_id: rec.krathong_id || null
+      });
+    } else {
+      // อัปเกรดชื่อหรือคณะหากข้อมูลเก่าว่างอยู่
+      if (existing.student_name === '-' && resolvedName !== '-') {
+        existing.student_name = resolvedName;
+      }
+      if (existing.faculty === 'ไม่ระบุคณะ' && resolvedFaculty !== 'ไม่ระบุคณะ') {
+        existing.faculty = resolvedFaculty;
+      }
+      if (sharedOnSameDevice) {
+        existing.deviceStatus = 'shared_device';
+      }
+    }
+  });
+
+  const uniqueStudents = Array.from(dedupedMap.values()).sort((a, b) => {
+    const facCmp = a.faculty.localeCompare(b.faculty, 'th');
+    if (facCmp !== 0) return facCmp;
+    return a.student_id.localeCompare(b.student_id);
+  });
+
+  const facultyCounts = new Map<string, number>();
+  uniqueStudents.forEach((s) => {
+    facultyCounts.set(s.faculty, (facultyCounts.get(s.faculty) || 0) + 1);
+  });
+
+  const totalUnique = uniqueStudents.length;
+  const facultyBreakdown: FacultyCountRow[] = Array.from(facultyCounts.entries())
+    .map(([faculty, count]) => ({
+      faculty,
+      count,
+      percentage: totalUnique > 0 ? Number(((count / totalUnique) * 100).toFixed(1)) : 0
+    }))
+    .sort((a, b) => b.count - a.count || a.faculty.localeCompare(b.faculty, 'th'));
+
+  return {
+    uniqueStudents,
+    totalSubmittedStudentRows: validStudentRows.length,
+    duplicateIdCount: Math.max(0, validStudentRows.length - totalUnique),
+    sharedDeviceCount: uniqueStudents.filter((s) => s.deviceStatus === 'shared_device').length,
+    facultyBreakdown
   };
 }

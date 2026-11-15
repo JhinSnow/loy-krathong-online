@@ -1,10 +1,12 @@
 // src/components/AdminDashboard.tsx
 import React, { useState, useEffect } from 'react';
 import type { StatsResponse, KrathongItem } from '../types';
+import { GraduationCap } from 'lucide-react';
 import {
   exportEvaluationAndProjectToExcel,
   exportEvaluationToCSV,
-  openOfficialA4ReportPrintView
+  openOfficialA4ReportPrintView,
+  exportStudentTranscriptByFacultyToExcel
 } from '../utils/exportHelpers';
 import {
   Users,
@@ -25,7 +27,9 @@ import {
   Award,
   BarChart3,
   Trash2,
-  Search
+  Search,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { supabase } from '../utils/supabase';
 import {
@@ -39,6 +43,7 @@ import {
   getLocalEvaluationRecords,
   getDemoEvaluationRecords,
   calculateEvaluationAnalytics,
+  buildStudentTranscriptRoster,
   getLocalKrathongRecords,
   updateLocalKrathongStatus,
   getLocalRequireApproval,
@@ -57,6 +62,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => Boolean(getAdminSession()));
   const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
+  const [showPassword, setShowPassword] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string>('');
   const [authLoading, setAuthLoading] = useState<boolean>(false);
 
@@ -70,6 +76,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
   const [requireApproval, setRequireApproval] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'pending' | 'rejected'>('all');
+  const [selectedFacultyFilter, setSelectedFacultyFilter] = useState<string>('all');
+  const [transcriptSearch, setTranscriptSearch] = useState<string>('');
 
   // ดึงข้อมูลสถิติ รายการกระทง และข้อมูลประเมิน 10 ข้อ (รวมข้อมูลจากทั้ง LocalStorage + Supabase + API)
   const loadData = async () => {
@@ -89,7 +97,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
         const fetchAllRows = async (table: 'krathongs' | 'evaluations') => {
           const allRows: any[] = [];
           const pageSize = 1000;
-          for (let page = 0; page < 10; page++) {
+          for (let page = 0; page < 25; page++) {
             const from = page * pageSize;
             const { data } = await supabase
               .from(table)
@@ -184,12 +192,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
 
       const combinedEvalRecords = [...localEvalRecords];
       dbEvalRecords.forEach((dbRec) => {
-        const isDuplicate = combinedEvalRecords.some(
-          (loc) =>
-            loc.id === dbRec.id ||
-            (loc.krathong_id && dbRec.krathong_id && loc.krathong_id === dbRec.krathong_id) ||
-            Math.abs(new Date(loc.created_at).getTime() - new Date(dbRec.created_at).getTime()) < 2000
-        );
+        const isDuplicate =
+          combinedEvalRecords.some(
+            (loc) =>
+              loc.id === dbRec.id ||
+              (Boolean(loc.krathong_id) && loc.krathong_id === dbRec.krathong_id)
+          ) ||
+          localEvalRecords.some(
+            (loc) =>
+              loc.user_type === 'student' &&
+              dbRec.user_type === 'student' &&
+              Boolean(loc.student_id) &&
+              loc.student_id === dbRec.student_id
+          );
         if (!isDuplicate) {
           combinedEvalRecords.push(dbRec);
         }
@@ -268,6 +283,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
       const result = await loginAdmin(username, password);
       if (result.success) {
         setPassword('');
+        setShowPassword(false);
         setIsAuthenticated(true);
       } else {
         setAuthError(result.error || 'เข้าสู่ระบบไม่สำเร็จ');
@@ -383,6 +399,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
     exportEvaluationAndProjectToExcel(evalAnalytics, exportRows);
   };
 
+  const transcriptRoster = buildStudentTranscriptRoster(evalAnalytics.records, krathongs);
+
+  const filteredTranscriptStudents = transcriptRoster.uniqueStudents.filter((student) => {
+    const matchesFaculty =
+      selectedFacultyFilter === 'all' || student.faculty === selectedFacultyFilter;
+    if (!matchesFaculty) return false;
+    const query = transcriptSearch.trim().toLowerCase();
+    if (!query) return true;
+    return (
+      student.student_id.toLowerCase().includes(query) ||
+      student.student_name.toLowerCase().includes(query) ||
+      student.faculty.toLowerCase().includes(query)
+    );
+  });
+
   const handleExportCSV = () => {
     exportEvaluationToCSV(evalAnalytics);
   };
@@ -390,6 +421,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
   const handleExportA4Report = () => {
     const totalKrathongs = stats?.userStats.reduce((acc, curr) => acc + curr.count, 0) || krathongs.length;
     openOfficialA4ReportPrintView(evalAnalytics, totalKrathongs);
+  };
+
+  const handleExportTranscriptExcel = () => {
+    exportStudentTranscriptByFacultyToExcel(evalAnalytics, krathongs);
   };
 
   // หน้าจอยืนยันตัวตนสำหรับผู้ดูแลระบบ (Admin Authentication Gate)
@@ -440,15 +475,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
               <label className="block text-xs font-medium text-amber-100/80 mb-1.5">
                 รหัสผ่าน (Password)
               </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                maxLength={100}
-                required
-                className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  maxLength={100}
+                  required
+                  className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl pl-3.5 pr-10 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-amber-200 transition cursor-pointer"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             {authError && (
@@ -520,6 +565,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
           >
             <FileSpreadsheet className="w-4 h-4" />
             <span>Export Excel (.xlsx 3 Sheets)</span>
+          </button>
+          <button
+            onClick={handleExportTranscriptExcel}
+            title="ดาวน์โหลดรายชื่อนักศึกษาสำหรับยื่น Activity Transcript แยก Sheet ตามคณะ พร้อมตัดรหัสซ้ำอัตโนมัติ"
+            className="flex items-center space-x-1.5 px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold transition shadow-md cursor-pointer"
+          >
+            <GraduationCap className="w-4 h-4" />
+            <span>Export Transcript แยกคณะ (.xlsx)</span>
           </button>
 
           <button
@@ -751,6 +804,177 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                 </tr>
               </tbody>
             </table>
+          </div>
+        </div>
+
+        {/* 2.5 Student Activity Transcript Roster by Faculty */}
+        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+          <div className="p-4 sm:p-5 border-b border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                <GraduationCap className="w-5 h-5 text-amber-400" />
+                <span>รายชื่อนักศึกษาสำหรับ Activity Transcript แยกตามคณะ (ตัดซ้ำอัตโนมัติ)</span>
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">
+                บังคับกรอกเฉพาะกลุ่มนักศึกษา • ยึดสิทธิ์ 1 รหัสต่อ 1 สิทธิ์ พร้อมตรวจจับอุปกรณ์ที่ส่งหลายรหัสเพื่อช่วยป้องกันการกรอกแทนเพื่อน
+              </p>
+            </div>
+            <button
+              onClick={handleExportTranscriptExcel}
+              className="flex items-center justify-center space-x-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold transition shadow-md cursor-pointer shrink-0"
+            >
+              <GraduationCap className="w-4 h-4" />
+              <span>ดาวน์โหลดรายชื่อแยกคณะ (.xlsx)</span>
+            </button>
+          </div>
+
+          <div className="p-4 sm:p-5 space-y-4">
+            {/* Summary Badges */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="bg-slate-950/60 border border-emerald-500/30 rounded-xl p-3.5">
+                <p className="text-xs text-slate-400">นักศึกษาไม่ซ้ำทั้งหมด (Unique IDs)</p>
+                <p className="text-2xl font-bold text-emerald-400 mt-1">
+                  {transcriptRoster.uniqueStudents.length.toLocaleString()}{' '}
+                  <span className="text-xs font-normal text-slate-400">คน</span>
+                </p>
+              </div>
+              <div className="bg-slate-950/60 border border-sky-500/30 rounded-xl p-3.5">
+                <p className="text-xs text-slate-400">ตัดรหัสนักศึกษาซ้ำออกอัตโนมัติ</p>
+                <p className="text-2xl font-bold text-sky-400 mt-1">
+                  {transcriptRoster.duplicateIdCount.toLocaleString()}{' '}
+                  <span className="text-xs font-normal text-slate-400">รายการ</span>
+                </p>
+              </div>
+              <div className="bg-slate-950/60 border border-amber-500/30 rounded-xl p-3.5">
+                <p className="text-xs text-slate-400">พบส่งมากกว่า 1 รหัสจากอุปกรณ์เดียวกัน</p>
+                <p className="text-2xl font-bold text-amber-400 mt-1">
+                  {transcriptRoster.sharedDeviceCount.toLocaleString()}{' '}
+                  <span className="text-xs font-normal text-slate-400">คน</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Faculty Breakdown Chips */}
+            {transcriptRoster.facultyBreakdown.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedFacultyFilter('all')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+                    selectedFacultyFilter === 'all'
+                      ? 'bg-amber-500/20 border-amber-400 text-amber-200'
+                      : 'bg-slate-950/60 border-slate-700 text-slate-300 hover:border-slate-500'
+                  }`}
+                >
+                  ทุกคณะ ({transcriptRoster.uniqueStudents.length})
+                </button>
+                {transcriptRoster.facultyBreakdown.map((item) => {
+                  const isActive = selectedFacultyFilter === item.faculty;
+                  return (
+                    <button
+                      key={item.faculty}
+                      type="button"
+                      onClick={() =>
+                        setSelectedFacultyFilter(isActive ? 'all' : item.faculty)
+                      }
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition cursor-pointer ${
+                        isActive
+                          ? 'bg-amber-500/20 border-amber-400 text-amber-200 font-semibold'
+                          : 'bg-slate-950/60 border-slate-700 text-slate-300 hover:border-slate-500'
+                      }`}
+                    >
+                      {item.faculty}: <span className="font-bold">{item.count}</span>{' '}
+                      <span className="text-slate-400">({item.percentage.toFixed(1)}%)</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Faculty Filter & Search Bar */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <select
+                value={selectedFacultyFilter}
+                onChange={(e) => setSelectedFacultyFilter(e.target.value)}
+                aria-label="กรองตามคณะ"
+                className="bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-amber-400"
+              >
+                <option value="all">
+                  แสดงทุกคณะ ({transcriptRoster.uniqueStudents.length} คน)
+                </option>
+                {transcriptRoster.facultyBreakdown.map((item) => (
+                  <option key={item.faculty} value={item.faculty}>
+                    {item.faculty} ({item.count} คน)
+                  </option>
+                ))}
+              </select>
+              <input
+                type="text"
+                value={transcriptSearch}
+                onChange={(e) => setTranscriptSearch(e.target.value)}
+                placeholder="ค้นหารหัสนักศึกษา, ชื่อ-นามสกุล หรือคณะ..."
+                className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400"
+              />
+            </div>
+
+            {/* Deduplicated Student Table */}
+            <div className="overflow-x-auto max-h-96 overflow-y-auto border border-slate-800 rounded-xl">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-slate-950 text-slate-400 text-xs sticky top-0 z-10">
+                  <tr>
+                    <th className="py-3 px-4 font-semibold">#</th>
+                    <th className="py-3 px-4 font-semibold">รหัสนักศึกษา</th>
+                    <th className="py-3 px-4 font-semibold">ชื่อ-นามสกุล</th>
+                    <th className="py-3 px-4 font-semibold">คณะ / วิทยาลัย</th>
+                    <th className="py-3 px-4 font-semibold">เวลาที่ส่ง</th>
+                    <th className="py-3 px-4 font-semibold">สถานะตรวจสอบ</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/80 text-xs sm:text-sm">
+                  {filteredTranscriptStudents.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-slate-500">
+                        ไม่พบรายชื่อนักศึกษาที่ตรงกับเงื่อนไขการค้นหา
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredTranscriptStudents.map((student, idx) => (
+                      <tr
+                        key={student.student_id}
+                        className="hover:bg-slate-800/40 transition-colors"
+                      >
+                        <td className="py-2.5 px-4 text-slate-500">{idx + 1}</td>
+                        <td className="py-2.5 px-4 font-mono font-semibold text-amber-300">
+                          {student.student_id}
+                        </td>
+                        <td className="py-2.5 px-4 text-slate-100">
+                          {student.student_name || '-'}
+                        </td>
+                        <td className="py-2.5 px-4 text-slate-300">
+                          {student.faculty || 'ไม่ระบุคณะ'}
+                        </td>
+                        <td className="py-2.5 px-4 text-slate-400 whitespace-nowrap">
+                          {student.created_at
+                            ? new Date(student.created_at).toLocaleString('th-TH')
+                            : '-'}
+                        </td>
+                        <td className="py-2.5 px-4 whitespace-nowrap">
+                          {student.deviceStatus === 'shared_device' ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                              ส่งซ้ำอุปกรณ์เดียวกัน
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                              ยืนยัน 1 เครื่อง 1 รหัส
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 

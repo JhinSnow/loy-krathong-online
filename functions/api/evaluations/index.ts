@@ -13,9 +13,9 @@ interface Env {
   ALLOWED_ORIGIN?: string;
 }
 
-// Rate limit ป้องกันการปั๊มผลประเมินความพึงพอใจ
+// Rate limit สั้นป้องกันการกดเบิ้ลจาก IP เดียวกันโดยไม่บล็อก WiFi มหาวิทยาลัย
 const evalRateLimitMap = new Map<string, number>();
-const EVAL_COOLDOWN_MS = 60 * 1000; // 1 นาทีต่อ 1 การประเมินต่อ IP
+const EVAL_COOLDOWN_MS = 3 * 1000; // 3 วินาทีต่อ 1 การประเมินต่อ IP (รองรับ Shared Campus NAT IP)
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
@@ -48,13 +48,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const cleanKrathongId = krathongId ? sanitizeText(String(krathongId), 64) : null;
 
     let cleanFeedback: string | null = null;
+    let extractedStudentId = '';
     if (feedback) {
-      const rawStr = String(feedback);
+      const rawStr = String(feedback).trim();
       if (rawStr.startsWith('__EVAL_V2__:')) {
         try {
           const parsed = JSON.parse(rawStr.slice('__EVAL_V2__:'.length));
-          const safeComment = sanitizeText(String(parsed.comment || ''), 200);
-          const safeStudentId = sanitizeText(String(parsed.student_id || ''), 20);
+          const safeComment = sanitizeText(String(parsed.comment || ''), 160);
+          const safeStudentId = sanitizeText(String(parsed.student_id || ''), 15);
+          extractedStudentId = safeStudentId;
           if (filterProfanity(safeComment) || filterProfanity(safeStudentId)) {
             return new Response(JSON.stringify({ error: 'กรุณาใช้ถ้อยคำที่สุภาพในข้อเสนอแนะ' }), {
               status: 400,
@@ -67,16 +69,62 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             comment: safeComment
           })}`;
         } catch {
-          cleanFeedback = sanitizeText(rawStr, 300);
+          cleanFeedback = sanitizeText(rawStr, 500);
+        }
+      } else if (rawStr.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(rawStr);
+          const safeSid = String(parsed.sid || parsed.student_id || '').replace(/\D/g, '').slice(0, 15);
+          const safeName = sanitizeText(String(parsed.name || parsed.student_name || ''), 60);
+          const safeFac = sanitizeText(String(parsed.fac || parsed.faculty || ''), 60);
+          const safeDid = String(parsed.did || parsed.device_id || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 16);
+          const safeComment = sanitizeText(String(parsed.c || parsed.comment || ''), 140);
+          extractedStudentId = safeSid;
+
+          if (filterProfanity(safeComment) || filterProfanity(safeName)) {
+            return new Response(JSON.stringify({ error: 'กรุณาใช้ถ้อยคำที่สุภาพในข้อเสนอแนะ' }), {
+              status: 400,
+              headers
+            });
+          }
+
+          const safeScores = Array.isArray(parsed.s) && parsed.s.length === 10
+            ? parsed.s.map((n: any) => Math.min(Math.max(Math.round(Number(n) || 5), 1), 5))
+            : Array(10).fill(numericRating);
+
+          const normalizedObj: Record<string, unknown> = { s: safeScores, sid: safeSid };
+          if (safeName) normalizedObj.name = safeName;
+          if (safeFac) normalizedObj.fac = safeFac;
+          if (safeDid) normalizedObj.did = safeDid;
+          normalizedObj.c = safeComment;
+          cleanFeedback = JSON.stringify(normalizedObj).slice(0, 500);
+        } catch {
+          cleanFeedback = sanitizeText(rawStr, 500);
         }
       } else {
-        cleanFeedback = sanitizeText(rawStr, 300);
+        cleanFeedback = sanitizeText(rawStr, 500);
         if (cleanFeedback && filterProfanity(cleanFeedback)) {
           return new Response(JSON.stringify({ error: 'กรุณาใช้ถ้อยคำที่สุภาพในข้อเสนอแนะ' }), {
             status: 400,
             headers
           });
         }
+      }
+    }
+
+    // ตรวจสอบรหัสนักศึกษาซ้ำใน D1 (เฉพาะนักศึกษาที่มีรหัสถูกต้อง)
+    if (validUserType === 'student' && /^\d{8,13}$/.test(extractedStudentId)) {
+      const existingStudent = await env.DB.prepare(
+        `SELECT id FROM evaluations WHERE user_type = 'student' AND feedback LIKE ? LIMIT 1`
+      ).bind(`%"sid":"${extractedStudentId}"%`).first();
+
+      if (existingStudent) {
+        return new Response(
+          JSON.stringify({
+            error: `รหัสนักศึกษา ${extractedStudentId} ได้ลงทะเบียนบันทึกชั่วโมงกิจกรรมไปแล้ว`
+          }),
+          { status: 409, headers }
+        );
       }
     }
 

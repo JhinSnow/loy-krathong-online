@@ -91,16 +91,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const clientIP = request.headers.get('cf-connecting-ip') || '127.0.0.1';
     const ipHash = await hashClientIP(clientIP, env);
 
-    // Rate Limiting (1 ครั้ง ใน 2 นาที ต่อ IP)
+    // Cooldown สั้น 3 วินาที ต่อ IP (ป้องกันการกดเบิ้ล โดยไม่บล็อกผู้ใช้อื่นบน Campus WiFi เดียวกัน)
     const recentCheck = await env.DB.prepare(
       `SELECT created_at FROM krathongs 
-       WHERE ip_hash = ? AND created_at > datetime('now', '-2 minutes') 
+       WHERE ip_hash = ? AND created_at > datetime('now', '-3 seconds') 
        LIMIT 1`
     ).bind(ipHash).first();
 
     if (recentCheck) {
       return new Response(
-        JSON.stringify({ error: 'คุณเพิ่งปล่อยกระทงไป กรุณารอ 2 นาทีเพื่อปล่อยใหม่อีกครั้ง' }),
+        JSON.stringify({ error: 'กรุณารอ 3 วินาทีก่อนปล่อยกระทงอีกครั้ง' }),
         { status: 429, headers }
       );
     }

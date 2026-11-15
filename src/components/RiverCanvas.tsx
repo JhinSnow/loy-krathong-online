@@ -329,7 +329,12 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
               isMine: data.id === myKrathongId
             };
             if (krathongsRef.current.length >= 12) {
-              pendingQueueRef.current.push(incomingItem);
+              if (incomingItem.isMine) {
+                pendingQueueRef.current.unshift(incomingItem);
+                if (pendingQueueRef.current.length > 60) pendingQueueRef.current.length = 60;
+              } else if (pendingQueueRef.current.length < 60) {
+                pendingQueueRef.current.push(incomingItem);
+              }
             } else {
               krathongsRef.current.push(incomingItem);
             }
@@ -373,7 +378,12 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
                 isMine: data.id === myKrathongId
               };
               if (krathongsRef.current.length >= 12) {
-                pendingQueueRef.current.push(approvedItem);
+                if (approvedItem.isMine) {
+                  pendingQueueRef.current.unshift(approvedItem);
+                  if (pendingQueueRef.current.length > 60) pendingQueueRef.current.length = 60;
+                } else if (pendingQueueRef.current.length < 60) {
+                  pendingQueueRef.current.push(approvedItem);
+                }
               } else {
                 krathongsRef.current.push(approvedItem);
               }
@@ -422,7 +432,12 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
             isMine: data.id === myKrathongId
           };
           if (krathongsRef.current.length >= 12) {
-            pendingQueueRef.current.push(newK);
+            if (newK.isMine) {
+              pendingQueueRef.current.unshift(newK);
+              if (pendingQueueRef.current.length > 60) pendingQueueRef.current.length = 60;
+            } else if (pendingQueueRef.current.length < 60) {
+              pendingQueueRef.current.push(newK);
+            }
           } else {
             krathongsRef.current.push(newK);
           }

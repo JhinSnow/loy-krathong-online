@@ -104,7 +104,12 @@ CREATE TRIGGER trg_enforce_krathong_security
 BEFORE INSERT ON public.krathongs
 FOR EACH ROW EXECUTE FUNCTION public.enforce_krathong_security();
 
--- 3. นโยบายตาราง evaluations:
+-- 3. นโยบายตาราง evaluations และ system_settings:
+CREATE POLICY "Public can read evaluations for dedup and admin"
+ON public.evaluations FOR SELECT
+TO anon, authenticated
+USING (true);
+
 CREATE POLICY "Public can insert valid evaluations"
 ON public.evaluations FOR INSERT
 TO anon, authenticated
@@ -112,4 +117,9 @@ WITH CHECK (
   rating BETWEEN 1 AND 5
   AND (feedback IS NULL OR char_length(feedback) <= 1000)
 );
+
+CREATE POLICY "Public can read system settings"
+ON public.system_settings FOR SELECT
+TO anon, authenticated
+USING (true);
 */

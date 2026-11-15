@@ -5,6 +5,7 @@ import autoTable from 'jspdf-autotable';
 import { sanitizeSpreadsheetCell } from './security';
 import {
   EVALUATION_QUESTIONS,
+  buildStudentTranscriptRoster,
   type EvaluationAnalyticsSummary
 } from './evaluationHelpers';
 import { generateRadarChartDataUrl } from '../components/EvaluationRadarChart';
@@ -46,7 +47,9 @@ export const exportEvaluationAndProjectToExcel = (
         rec.created_at ? new Date(rec.created_at).toLocaleString('th-TH') : '-'
       ),
       'ประเภทผู้เข้าร่วม': sanitizeSpreadsheetCell(USER_TYPE_THAI[rec.user_type] || rec.user_type),
-      'รหัสนักศึกษา': sanitizeSpreadsheetCell(rec.student_id || '-')
+      'รหัสนักศึกษา': sanitizeSpreadsheetCell(rec.student_id || '-'),
+      'ชื่อ-นามสกุล': sanitizeSpreadsheetCell(rec.student_name || '-'),
+      'คณะ/สังกัด': sanitizeSpreadsheetCell(rec.faculty || '-')
     };
 
     EVALUATION_QUESTIONS.forEach((q, qIdx) => {
@@ -141,6 +144,8 @@ export const exportEvaluationToCSV = (
     'Timestamp',
     'ประเภทผู้ตอบ',
     'รหัสนักศึกษา',
+    'ชื่อ-นามสกุล',
+    'คณะ/สังกัด',
     ...EVALUATION_QUESTIONS.map((q) => `ข้อ_${q.id}`),
     'ค่าเฉลี่ยรวม',
     'ข้อเสนอแนะ'
@@ -159,6 +164,8 @@ export const exportEvaluationToCSV = (
         rec.created_at,
         USER_TYPE_THAI[rec.user_type] || rec.user_type,
         rec.student_id || '-',
+        rec.student_name || '-',
+        rec.faculty || '-',
         ...rec.scores,
         rec.average_score.toFixed(2),
         rec.comment || ''
@@ -405,6 +412,167 @@ export const openOfficialA4ReportPrintView = (
   printWin.document.open();
   printWin.document.write(html);
   printWin.document.close();
+};
+
+const FORBIDDEN_SHEET_CHARS = new Set(['[', ']', ':', '*', '?', '/', '\\']);
+
+const buildUniqueSafeSheetName = (rawName: string, existingNames: string[]): string => {
+  const cleaned =
+    Array.from(rawName)
+      .map((ch) => (FORBIDDEN_SHEET_CHARS.has(ch) ? '_' : ch))
+      .join('')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/^'+|'+$/g, '') || 'ไม่ระบุคณะ';
+
+  const existingLower = new Set(existingNames.map((n) => n.toLowerCase()));
+  const base = cleaned.slice(0, 31);
+  if (!existingLower.has(base.toLowerCase())) {
+    return base;
+  }
+
+  for (let counter = 2; counter < 1000; counter++) {
+    const suffix = `_${counter}`;
+    const candidate = `${cleaned.slice(0, 31 - suffix.length)}${suffix}`;
+    if (!existingLower.has(candidate.toLowerCase())) {
+      return candidate;
+    }
+  }
+  return `faculty_${existingNames.length + 1}`.slice(0, 31);
+};
+
+/**
+ * ส่งออกรายชื่อนักศึกษาสำหรับยื่น Activity Transcript แยก Sheet ตามคณะ
+ * พร้อมตัดรหัสนักศึกษาซ้ำอัตโนมัติ และระบุสถานะอุปกรณ์ที่ใช้ซ้ำเพื่อให้ทีมงานตรวจสอบได้
+ */
+export const exportStudentTranscriptByFacultyToExcel = (
+  analytics: EvaluationAnalyticsSummary,
+  krathongs: { id: string; owner_name: string }[] = [],
+  filename = 'loy-krathong-student-transcript.xlsx'
+): void => {
+  const roster = buildStudentTranscriptRoster(analytics.records, krathongs);
+  const workbook = XLSX.utils.book_new();
+
+  // --- Sheet 1: สรุปจำนวนรายคณะ ---
+  const summaryRows: Record<string, any>[] =
+    roster.facultyBreakdown.length > 0
+      ? roster.facultyBreakdown.map((item, idx) => ({
+          'ลำดับ': idx + 1,
+          'คณะ / วิทยาลัย': sanitizeSpreadsheetCell(item.faculty),
+          'จำนวนนักศึกษาไม่ซ้ำ (คน)': item.count,
+          'สัดส่วน (%)': Number(item.percentage.toFixed(2))
+        }))
+      : [
+          {
+            'ลำดับ': '-',
+            'คณะ / วิทยาลัย': 'ยังไม่มีข้อมูลนักศึกษา',
+            'จำนวนนักศึกษาไม่ซ้ำ (คน)': 0,
+            'สัดส่วน (%)': 0
+          }
+        ];
+
+  summaryRows.push(
+    {},
+    {
+      'ลำดับ': 'สรุป',
+      'คณะ / วิทยาลัย': 'รวมนักศึกษาไม่ซ้ำทั้งหมด (Unique IDs)',
+      'จำนวนนักศึกษาไม่ซ้ำ (คน)': roster.uniqueStudents.length,
+      'สัดส่วน (%)': 100
+    },
+    {
+      'ลำดับ': 'ตรวจพบ',
+      'คณะ / วิทยาลัย': 'รายการส่งซ้ำรหัสนักศึกษาเดิม (ถูกตัดออกแล้ว)',
+      'จำนวนนักศึกษาไม่ซ้ำ (คน)': roster.duplicateIdCount,
+      'สัดส่วน (%)': ''
+    },
+    {
+      'ลำดับ': 'เฝ้าระวัง',
+      'คณะ / วิทยาลัย': 'รายการที่ส่งจากอุปกรณ์เดียวกันมากกว่า 1 รหัส',
+      'จำนวนนักศึกษาไม่ซ้ำ (คน)': roster.sharedDeviceCount,
+      'สัดส่วน (%)': ''
+    }
+  );
+
+  const summarySheet = XLSX.utils.json_to_sheet(summaryRows);
+  summarySheet['!cols'] = [{ wch: 10 }, { wch: 46 }, { wch: 24 }, { wch: 14 }];
+  XLSX.utils.book_append_sheet(workbook, summarySheet, '1_สรุปจำนวนรายคณะ');
+
+  const formatStudentRows = (entries: typeof roster.uniqueStudents) =>
+    entries.map((entry, idx) => ({
+      'ลำดับ': idx + 1,
+      'รหัสนักศึกษา': sanitizeSpreadsheetCell(entry.student_id),
+      'ชื่อ-นามสกุล': sanitizeSpreadsheetCell(entry.student_name || '-'),
+      'คณะ / วิทยาลัย': sanitizeSpreadsheetCell(entry.faculty || 'ไม่ระบุคณะ'),
+      'สถานะตรวจสอบอุปกรณ์':
+        entry.deviceStatus === 'shared_device'
+          ? 'พบใช้อุปกรณ์ซ้ำ (ตรวจสอบเพิ่มเติม)'
+          : 'ยืนยัน 1 เครื่อง 1 รหัส',
+      'รหัสอุปกรณ์ (Device Token)': sanitizeSpreadsheetCell(entry.device_id || '-'),
+      'วัน-เวลาที่ส่ง': sanitizeSpreadsheetCell(
+        entry.created_at ? new Date(entry.created_at).toLocaleString('th-TH') : '-'
+      ),
+      'รหัสกระทงอ้างอิง': sanitizeSpreadsheetCell(entry.krathong_id || '-')
+    }));
+
+  // --- Sheet 2: รายชื่อรวมทั้งหมด (ตัดซ้ำแล้ว) ---
+  const allStudentsRows =
+    roster.uniqueStudents.length > 0
+      ? formatStudentRows(roster.uniqueStudents)
+      : [
+          {
+            'ลำดับ': '-',
+            'รหัสนักศึกษา': 'ยังไม่มีรายชื่อนักศึกษา',
+            'ชื่อ-นามสกุล': '-',
+            'คณะ / วิทยาลัย': '-',
+            'สถานะตรวจสอบอุปกรณ์': '-',
+            'รหัสอุปกรณ์ (Device Token)': '-',
+            'วัน-เวลาที่ส่ง': '-',
+            'รหัสกระทงอ้างอิง': '-'
+          }
+        ];
+
+  const allStudentsSheet = XLSX.utils.json_to_sheet(allStudentsRows);
+  allStudentsSheet['!cols'] = [
+    { wch: 8 },
+    { wch: 16 },
+    { wch: 28 },
+    { wch: 36 },
+    { wch: 30 },
+    { wch: 24 },
+    { wch: 22 },
+    { wch: 38 }
+  ];
+  XLSX.utils.book_append_sheet(workbook, allStudentsSheet, '2_รายชื่อรวมทั้งหมด_ตัดซ้ำ');
+
+  // --- Sheet 3+: แยกตามคณะ / วิทยาลัย ---
+  const facultyGroups = new Map<string, typeof roster.uniqueStudents>();
+  for (const entry of roster.uniqueStudents) {
+    const key = entry.faculty || 'ไม่ระบุคณะ';
+    const group = facultyGroups.get(key);
+    if (group) {
+      group.push(entry);
+    } else {
+      facultyGroups.set(key, [entry]);
+    }
+  }
+
+  for (const [facultyName, entries] of facultyGroups.entries()) {
+    const sheetName = buildUniqueSafeSheetName(facultyName, workbook.SheetNames);
+    const facultySheet = XLSX.utils.json_to_sheet(formatStudentRows(entries));
+    facultySheet['!cols'] = [
+      { wch: 8 },
+      { wch: 16 },
+      { wch: 28 },
+      { wch: 36 },
+      { wch: 30 },
+      { wch: 24 },
+      { wch: 22 },
+      { wch: 38 }
+    ];
+    XLSX.utils.book_append_sheet(workbook, facultySheet, sheetName);
+  }
+
+  XLSX.writeFile(workbook, filename);
 };
 
 // คงฟังก์ชันชื่อเดิมไว้เพื่อความเข้ากันได้ย้อนหลัง
