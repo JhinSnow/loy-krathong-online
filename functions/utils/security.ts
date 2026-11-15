@@ -15,6 +15,8 @@ export const VALID_KRATHONG_MODELS = [
 export const VALID_FLOWER_DECORS = [
   'lotus_flower', 'marigold', 'orchid', 'jasmine',
   'rose', 'dok_kem', 'anchan', 'mixed_garland',
+  'pumpkin', 'noppamas_crown', 'elephant_gold', 'golden_swan',
+  'lotus_lamp', 'gold_pagoda', 'royal_barge', 'crystal_heart',
   'lotus', 'mixed-thai'
 ] as const;
 export const VALID_CANDLE_STYLES = [

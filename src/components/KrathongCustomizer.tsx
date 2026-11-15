@@ -36,7 +36,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
   const [baseType, setBaseType] = useState('banana_leaf');
   const [flowerType, setFlowerType] = useState('lotus_flower');
   const [candleColor, setCandleColor] = useState('yellow');
-  const [selectedAccessories, setSelectedAccessories] = useState<string[]>(['pumpkin']);
+  const [selectedAccessories, setSelectedAccessories] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -54,16 +54,30 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
     { id: 'peacock_royal', name: 'นกยูงทองคำ', icon: '🦚' },
   ];
 
-  // 2. ดอกไม้ประดับ 8 ชนิด
-  const flowers = [
-    { id: 'lotus_flower', name: 'ดอกบัวชมพู', color: '#f43f5e' },
-    { id: 'marigold', name: 'ดาวเรืองทอง', color: '#fbbf24' },
-    { id: 'orchid', name: 'กล้วยไม้ม่วง', color: '#c084fc' },
-    { id: 'jasmine', name: 'มะลิร้อยมาลัย', color: '#f8fafc' },
-    { id: 'rose', name: 'กุหลาบแดง', color: '#e11d48' },
-    { id: 'dok_kem', name: 'ดอกเข็มส้ม', color: '#fb923c' },
-    { id: 'anchan', name: 'อัญชันคราม', color: '#6366f1' },
-    { id: 'mixed_garland', name: 'มาลัย 5 สี', color: '#10b981' },
+  // 2. ดอกไม้ประดับ (8 ชนิด) และของตกแต่งใส่ตรงกลางกระทงแทนดอกไม้ (8 แบบ)
+  const flowers: {
+    id: string;
+    name: string;
+    color: string;
+    icon: string;
+    category: 'flower' | 'centerpiece';
+  }[] = [
+    { id: 'lotus_flower', name: 'ดอกบัวชมพู', color: '#f43f5e', icon: '🪷', category: 'flower' },
+    { id: 'marigold', name: 'ดาวเรืองทอง', color: '#fbbf24', icon: '🌼', category: 'flower' },
+    { id: 'orchid', name: 'กล้วยไม้ม่วง', color: '#c084fc', icon: '🌺', category: 'flower' },
+    { id: 'jasmine', name: 'มะลิร้อยมาลัย', color: '#f8fafc', icon: '🤍', category: 'flower' },
+    { id: 'rose', name: 'กุหลาบแดง', color: '#e11d48', icon: '🌹', category: 'flower' },
+    { id: 'dok_kem', name: 'ดอกเข็มส้ม', color: '#fb923c', icon: '🏵️', category: 'flower' },
+    { id: 'anchan', name: 'อัญชันคราม', color: '#6366f1', icon: '🪻', category: 'flower' },
+    { id: 'mixed_garland', name: 'มาลัย 5 สี', color: '#10b981', icon: '💐', category: 'flower' },
+    { id: 'pumpkin', name: 'ตึกฟักทอง ม.อ.', color: '#f59e0b', icon: '🏛️', category: 'centerpiece' },
+    { id: 'noppamas_crown', name: 'ชฎาทองนพมาศ', color: '#fbbf24', icon: '👑', category: 'centerpiece' },
+    { id: 'elephant_gold', name: 'ช้างเผือกมงคล', color: '#fef3c7', icon: '🐘', category: 'centerpiece' },
+    { id: 'golden_swan', name: 'หงส์ทองคู่บารมี', color: '#fde047', icon: '🦢', category: 'centerpiece' },
+    { id: 'lotus_lamp', name: 'โคมบัวแก้วทิพย์', color: '#f472b6', icon: '🪷', category: 'centerpiece' },
+    { id: 'gold_pagoda', name: 'เจดีย์ทองมงคล', color: '#eab308', icon: '🛕', category: 'centerpiece' },
+    { id: 'royal_barge', name: 'เรือสุพรรณหงส์', color: '#d97706', icon: '🛶', category: 'centerpiece' },
+    { id: 'crystal_heart', name: 'หัวใจเพชรคู่รัก', color: '#ec4899', icon: '💎', category: 'centerpiece' },
   ];
 
   // 3. แสงเทียนนำทาง 8 สี
@@ -78,14 +92,10 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
     { id: 'rainbow', name: 'เทียนคู่สายรุ้ง', hex: '#ec4899' },
   ];
 
-  // 4. ของตกแต่งเสริมพิเศษบนกระทง 12 แบบ
+  // 4. ของตกแต่งเสริมพิเศษปักรอบกระทง 8 แบบ
   const accessories = [
-    { id: 'pumpkin', name: 'ตึกฟักทอง ม.อ.', icon: '🏛️' },
-    { id: 'noppamas_crown', name: 'ชฎาทองนพมาศ', icon: '👑' },
-    { id: 'sky_lantern', name: 'โคมลอยล้านนา', icon: '🏮' },
-    { id: 'lotus_lamp', name: 'โคมบัวแก้ว', icon: '🪷' },
-    { id: 'elephant_gold', name: 'ช้างเผือกมงคล', icon: '🐘' },
     { id: 'sparkler', name: 'ไฟเย็นระยิบ', icon: '✨' },
+    { id: 'sky_lantern', name: 'โคมลอยล้านนา', icon: '🏮' },
     { id: 'heart_sign', name: 'หัวใจคู่รัก', icon: '💖' },
     { id: 'grad_cap', name: 'หมวกปริญญา A+', icon: '🎓' },
     { id: 'lucky_coin', name: 'เหรียญทองนำโชค', icon: '🪙' },
@@ -355,7 +365,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
               {bases.find(b => b.id === baseType)?.icon} {bases.find(b => b.id === baseType)?.name}
             </span>
             <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-900/90 border border-amber-500/30 text-amber-200">
-              🌸 {flowers.find(f => f.id === flowerType)?.name}
+              {flowers.find(f => f.id === flowerType)?.icon || '🌸'} {flowers.find(f => f.id === flowerType)?.name}
             </span>
             {selectedAccessories.length === 0 ? (
               <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-900/90 border border-amber-500/30 text-amber-200">
@@ -496,35 +506,68 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
               </div>
             </div>
 
-            {/* 4. ดอกไม้ประดับ (8 ชนิด) */}
-            <div>
-              <label className="block text-xs font-semibold text-amber-200 mb-1.5">
-                3. ดอกไม้ประดับ (8 ชนิด)
+            {/* 4. ดอกไม้ประดับ หรือ ของตกแต่งตรงกลางกระทง */}
+            <div className="space-y-2.5">
+              <label className="block text-xs font-semibold text-amber-200">
+                3. เลือกดอกไม้ หรือ ของตกแต่งกลางกระทง
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
-                {flowers.map((fl) => (
-                  <button
-                    key={fl.id}
-                    type="button"
-                    onClick={() => setFlowerType(fl.id)}
-                    className={`py-2 px-2 rounded-xl border text-[11px] font-medium transition flex items-center justify-center space-x-1.5 cursor-pointer ${
-                      flowerType === fl.id
-                        ? 'bg-amber-500/20 border-amber-400 text-amber-100 font-semibold shadow-sm'
-                        : 'bg-[#0b132b]/80 border-slate-700/80 text-slate-300 hover:border-amber-500/40'
-                    }`}
-                  >
-                    <span
-                      className="w-2.5 h-2.5 rounded-full shrink-0 border border-white/40"
-                      style={{
-                        background:
-                          fl.id === 'mixed_garland'
-                            ? 'conic-gradient(#fbbf24, #f43f5e, #c084fc, #38bdf8, #34d399)'
-                            : fl.color
-                      }}
-                    />
-                    <span className="truncate">{fl.name}</span>
-                  </button>
-                ))}
+
+              <div>
+                <p className="text-[11px] font-medium text-amber-200/80 mb-1.5">
+                  🌸 ดอกไม้ประดับกลางกระทง (8 ชนิด)
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
+                  {flowers
+                    .filter((fl) => fl.category === 'flower')
+                    .map((fl) => (
+                      <button
+                        key={fl.id}
+                        type="button"
+                        onClick={() => setFlowerType(fl.id)}
+                        className={`py-2 px-2 rounded-xl border text-[11px] font-medium transition flex items-center justify-center space-x-1.5 cursor-pointer ${
+                          flowerType === fl.id
+                            ? 'bg-amber-500/20 border-amber-400 text-amber-100 font-semibold shadow-sm'
+                            : 'bg-[#0b132b]/80 border-slate-700/80 text-slate-300 hover:border-amber-500/40'
+                        }`}
+                      >
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0 border border-white/40"
+                          style={{
+                            background:
+                              fl.id === 'mixed_garland'
+                                ? 'conic-gradient(#fbbf24, #f43f5e, #c084fc, #38bdf8, #34d399)'
+                                : fl.color
+                          }}
+                        />
+                        <span className="truncate">{fl.name}</span>
+                      </button>
+                    ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[11px] font-medium text-amber-300 mb-1.5">
+                  🏛️ ของตกแต่งใส่ตรงกลางกระทง แทนดอกไม้ (8 แบบ)
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
+                  {flowers
+                    .filter((fl) => fl.category === 'centerpiece')
+                    .map((fl) => (
+                      <button
+                        key={fl.id}
+                        type="button"
+                        onClick={() => setFlowerType(fl.id)}
+                        className={`py-2 px-2 rounded-xl border text-[11px] font-medium transition flex items-center justify-center space-x-1.5 cursor-pointer ${
+                          flowerType === fl.id
+                            ? 'bg-amber-500/20 border-amber-400 text-amber-100 font-semibold shadow-sm'
+                            : 'bg-[#0b132b]/80 border-slate-700/80 text-slate-300 hover:border-amber-500/40'
+                        }`}
+                      >
+                        <span className="text-sm shrink-0">{fl.icon}</span>
+                        <span className="truncate">{fl.name}</span>
+                      </button>
+                    ))}
+                </div>
               </div>
             </div>
 
@@ -564,7 +607,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-xs font-semibold text-amber-200">
-                  5. ของตกแต่งเสริมพิเศษ <span className="text-amber-300/90 font-normal">(เลือกได้หลายชิ้นพร้อมกัน ✨)</span>
+                  5. ของตกแต่งเสริมพิเศษ (ปักรอบกระทง) <span className="text-amber-300/90 font-normal">(เลือกได้หลายชิ้น ✨)</span>
                 </label>
                 {selectedAccessories.length > 0 && (
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-200 border border-amber-400/40">

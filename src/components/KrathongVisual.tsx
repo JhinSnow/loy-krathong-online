@@ -33,6 +33,16 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
     .map((s) => s.trim())
     .filter((s) => s && s !== 'none');
   const hasAcc = (id: string) => activeAccessories.includes(id);
+  const isCenterpieceModel = [
+    'pumpkin',
+    'noppamas_crown',
+    'elephant_gold',
+    'golden_swan',
+    'lotus_lamp',
+    'gold_pagoda',
+    'royal_barge',
+    'crystal_heart'
+  ].includes(flowerType);
 
   // 1. โทนสีฐานกระทง 8 สไตล์ (ไล่เฉด 3 มิติ: สว่าง, กลาง, เข้ม, ขอบทอง/ไฮไลต์)
   const basePaletteMap: Record<
@@ -414,8 +424,8 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
         )}
 
         {/* --- 2. แสงเทียนอุ่นพอดีตา (Subtle Candlelight Halo) --- */}
-        <circle cx="100" cy="44" r="20" fill={`url(#candleAura-${uid})`} />
-        <circle cx="100" cy="42" r="10" fill={`url(#candleAura-${uid})`} opacity="0.6" />
+        <circle cx="100" cy={isCenterpieceModel ? 32 : 44} r="20" fill={`url(#candleAura-${uid})`} />
+        <circle cx="100" cy={isCenterpieceModel ? 30 : 42} r="10" fill={`url(#candleAura-${uid})`} opacity="0.6" />
 
         {/* --- 3. กลีบกระทงชั้นหลัง (Back Layer Folded Petals) --- */}
         {baseType !== 'coconut' &&
@@ -432,10 +442,10 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
           )}
 
         {/* --- 5. ธูปหอม 3 ดอก & ควันธูปมงคล + เทียนขี้ผึ้งแกะสลัก --- */}
-        <g>
+        <g transform={isCenterpieceModel ? 'translate(0, -12)' : undefined}>
           {/* สายควันธูปบางๆ ลอยพลิ้ว */}
           <path
-            d="M 86 42 Q 80 28 88 18 Q 94 10 89 4"
+            d="M 86 42 Q 81 31 87 22 Q 92 16 89 12"
             fill="none"
             stroke="#e2e8f0"
             strokeWidth="1"
@@ -443,7 +453,7 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
             opacity="0.35"
           />
           <path
-            d="M 114 42 Q 120 28 112 18 Q 106 10 111 4"
+            d="M 114 42 Q 119 31 113 22 Q 108 16 111 12"
             fill="none"
             stroke="#e2e8f0"
             strokeWidth="1"
@@ -719,11 +729,181 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
           </g>
         )}
 
-        {/* --- 7. พุ่มดอกไม้ 3 มิติประดับเต็มหน้าตักกระทง (Lush 3D Flower Bouquet) --- */}
+        {/* --- 7. พุ่มดอกไม้ 3 มิติ หรือ ของตกแต่งตรงกลางกระทง (Centerpiece Model) --- */}
         <g>
-          {/* ใบไม้รองพุ่มดอกไม้ */}
-          <ellipse cx="100" cy="116" rx="56" ry="15" fill="#14532d" opacity="0.7" />
-          {flowerPositions.map((pos, idx) => renderBlossom(pos.x, pos.y, pos.s, idx))}
+          {/* ใบไม้รองรับตรงกลางหน้าตักกระทง */}
+          <ellipse cx="100" cy="116" rx="56" ry="15" fill="#14532d" opacity="0.72" />
+
+          {!isCenterpieceModel && flowerPositions.map((pos, idx) => renderBlossom(pos.x, pos.y, pos.s, idx))}
+
+          {/* 7.1 ตึกฟักทอง ม.อ. (3D Centerpiece PSU Pumpkin Building) */}
+          {flowerType === 'pumpkin' && (
+            <g>
+              {/* ฐานแท่นรองรับโค้ง 2 ชั้น */}
+              <rect x="52" y="108" width="96" height="8" rx="3" fill="#78350f" stroke="#fde047" strokeWidth="1.2" />
+              <rect x="60" y="102" width="80" height="7" rx="2" fill="#fef3c7" stroke="#d97706" strokeWidth="1.1" />
+              {/* โดมตึกฟักทองกลีบใหญ่ซ้าย-ขวา */}
+              <path d="M 55 102 C 55 76 74 64 100 64 C 126 64 145 76 145 102 Z" fill="#d97706" stroke="#78350f" strokeWidth="1.4" />
+              {/* กลีบฟักทอง 3 มิติซ้อนกัน 7 กลีบ */}
+              <path d="M 62 102 C 62 78 79 65 100 64 C 82 70 72 82 72 102 Z" fill="#f59e0b" />
+              <path d="M 138 102 C 138 78 121 65 100 64 C 118 70 128 82 128 102 Z" fill="#b45309" />
+              <path d="M 74 102 C 74 79 85 65 100 64 C 88 72 85 84 85 102 Z" fill="#fbbf24" />
+              <path d="M 126 102 C 126 79 115 65 100 64 C 112 72 115 84 115 102 Z" fill="#f59e0b" />
+              {/* กลีบกลางสีครีมทองสว่าง */}
+              <path d="M 88 102 C 88 78 93 65 100 64 C 107 65 112 78 112 102 Z" fill="#fef3c7" stroke="#b45309" strokeWidth="1" />
+              {/* เส้นสันกลีบและยอดจั่วกลาง */}
+              <line x1="100" y1="60" x2="100" y2="102" stroke="#92400e" strokeWidth="1.1" />
+              <path d="M 96 64 L 100 55 L 104 64 Z" fill="#fde047" stroke="#92400e" strokeWidth="0.9" />
+              {/* ซุ้มโค้งสีขาวฐานตึก 5 ช่อง */}
+              <path d="M 65 102 L 65 93 Q 68.5 88 72 93 L 72 102 Z" fill="#ffffff" stroke="#b45309" strokeWidth="0.8" />
+              <path d="M 79 102 L 79 92 Q 83 87 87 92 L 87 102 Z" fill="#ffffff" stroke="#b45309" strokeWidth="0.8" />
+              <path d="M 94.5 102 L 94.5 90 Q 100 84 105.5 90 L 105.5 102 Z" fill="#ffffff" stroke="#b45309" strokeWidth="0.9" />
+              <path d="M 113 102 L 113 92 Q 117 87 121 92 L 121 102 Z" fill="#ffffff" stroke="#b45309" strokeWidth="0.8" />
+              <path d="M 128 102 L 128 93 Q 131.5 88 135 93 L 135 102 Z" fill="#ffffff" stroke="#b45309" strokeWidth="0.8" />
+            </g>
+          )}
+
+          {/* 7.2 ชฎาทองนพมาศ (Centerpiece Crown on Pedestal) */}
+          {flowerType === 'noppamas_crown' && (
+            <g>
+              {/* พานทองสองชั้น */}
+              <path d="M 74 114 L 82 103 L 118 103 L 126 114 Z" fill="#b45309" stroke="#fde047" strokeWidth="1.2" />
+              <ellipse cx="100" cy="102" rx="28" ry="5" fill="#fbbf24" stroke="#92400e" strokeWidth="1.2" />
+              {/* จอนหูชฎาซ้าย-ขวา */}
+              <path d="M 79 94 Q 70 100 76 108" fill="none" stroke="#fde047" strokeWidth="2.8" strokeLinecap="round" />
+              <path d="M 121 94 Q 130 100 124 108" fill="none" stroke="#fde047" strokeWidth="2.8" strokeLinecap="round" />
+              {/* กรอบหน้าและฐานชฎา */}
+              <path d="M 79 101 C 79 91 88 86 100 86 C 112 86 121 91 121 101 Z" fill="#f59e0b" stroke="#78350f" strokeWidth="1.2" />
+              {/* ชั้นยอดทรงเครื่อง 3 ชั้น */}
+              <path d="M 85 87 L 89 75 L 111 75 L 115 87 Z" fill="#fbbf24" stroke="#92400e" strokeWidth="1.1" />
+              <path d="M 90 75 L 94 64 L 106 64 L 110 75 Z" fill="#fde047" stroke="#92400e" strokeWidth="1.1" />
+              {/* ยอดแหลมชฎา */}
+              <path d="M 95 64 L 100 48 L 105 64 Z" fill="#fef08a" stroke="#92400e" strokeWidth="1" />
+              <circle cx="100" cy="47" r="2.2" fill="#ffffff" stroke="#f59e0b" strokeWidth="0.8" />
+              {/* อัญมณีประดับ */}
+              <circle cx="100" cy="94" r="3" fill="#ef4444" stroke="#fef08a" strokeWidth="1" />
+              <circle cx="88" cy="95" r="2" fill="#10b981" stroke="#fef08a" strokeWidth="0.7" />
+              <circle cx="112" cy="95" r="2" fill="#10b981" stroke="#fef08a" strokeWidth="0.7" />
+            </g>
+          )}
+
+          {/* 7.3 ช้างเผือกมงคล (Centerpiece White Elephant) */}
+          {flowerType === 'elephant_gold' && (
+            <g>
+              {/* แท่นบัวทอง */}
+              <rect x="64" y="106" width="72" height="8" rx="3" fill="#92400e" stroke="#fde047" strokeWidth="1.2" />
+              {/* ขาหน้า-หลังและลำตัวช้างเผือก */}
+              <path d="M 74 106 L 74 86 Q 74 71 96 71 Q 116 71 120 84 L 120 106 L 111 106 L 111 94 L 84 94 L 84 106 Z" fill="#fffbeb" stroke="#92400e" strokeWidth="1.4" />
+              {/* ผ้าทิพย์คลุมหลังสีแดงขอบทอง */}
+              <path d="M 81 71 L 108 71 L 106 90 L 83 90 Z" fill="#dc2626" stroke="#fde047" strokeWidth="1.4" />
+              <line x1="83" y1="86" x2="106" y2="86" stroke="#fde047" strokeWidth="1.2" />
+              {/* เครื่องประดับหัวและหูช้าง */}
+              <path d="M 107 69 L 113 62 L 118 70 Z" fill="#fde047" stroke="#92400e" strokeWidth="0.9" />
+              <ellipse cx="109" cy="81" rx="6" ry="7.5" fill="#fef3c7" stroke="#92400e" strokeWidth="1" />
+              {/* งวงช้างชูรับโชค + งา */}
+              <path d="M 119 82 Q 134 83 133 70 Q 132 64 127 66" fill="none" stroke="#fffbeb" strokeWidth="4.8" strokeLinecap="round" />
+              <path d="M 119 82 Q 134 83 133 70 Q 132 64 127 66" fill="none" stroke="#b45309" strokeWidth="1.2" strokeLinecap="round" opacity="0.5" />
+              <path d="M 118 89 Q 127 91 130 86" fill="none" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" />
+              <circle cx="115" cy="79" r="1.6" fill="#0f172a" />
+            </g>
+          )}
+
+          {/* 7.4 หงส์ทองคู่บารมี (Centerpiece Twin Golden Swans) */}
+          {flowerType === 'golden_swan' && (
+            <g>
+              {/* แท่นรองหงส์คู่ */}
+              <ellipse cx="100" cy="110" rx="44" ry="7" fill="#92400e" stroke="#fde047" strokeWidth="1.2" />
+              {/* หงส์ทองซ้าย */}
+              <path d="M 64 107 C 56 96, 62 74, 77 68 C 84 65, 89 72, 84 78 C 76 78, 72 93, 86 107 Z" fill="#fbbf24" stroke="#78350f" strokeWidth="1.3" />
+              <path d="M 59 102 Q 70 86 84 102 Z" fill="#fde047" stroke="#92400e" strokeWidth="1" />
+              <polygon points="86,70 93,73 86,76" fill="#ea580c" />
+              <circle cx="81" cy="71" r="1.3" fill="#0f172a" />
+              {/* หงส์ทองขวา */}
+              <path d="M 136 107 C 144 96, 138 74, 123 68 C 116 65, 111 72, 116 78 C 124 78, 128 93, 114 107 Z" fill="#fbbf24" stroke="#78350f" strokeWidth="1.3" />
+              <path d="M 141 102 Q 130 86 116 102 Z" fill="#fde047" stroke="#92400e" strokeWidth="1" />
+              <polygon points="114,70 107,73 114,76" fill="#ea580c" />
+              <circle cx="119" cy="71" r="1.3" fill="#0f172a" />
+              {/* ดวงแก้วมณีกลาง */}
+              <circle cx="100" cy="92" r="8" fill="#fef08a" stroke="#d97706" strokeWidth="1.4" />
+              <circle cx="100" cy="92" r="4" fill="#ffffff" opacity="0.85" />
+            </g>
+          )}
+
+          {/* 7.5 โคมบัวแก้วทิพย์ (Centerpiece Illuminated Lotus Lamp) */}
+          {flowerType === 'lotus_lamp' && (
+            <g>
+              {/* ฐานใบบัวรองโคม */}
+              <ellipse cx="100" cy="110" rx="40" ry="7.5" fill="#0f766e" stroke="#5eead4" strokeWidth="1.2" />
+              {/* กลีบบัวแก้วชั้นนอกซ้าย-ขวา */}
+              <path d="M 74 107 C 54 96, 54 74, 72 68 C 74 82, 80 96, 86 107 Z" fill="#ec4899" stroke="#fbcfe8" strokeWidth="1.1" />
+              <path d="M 126 107 C 146 96, 146 74, 128 68 C 126 82, 120 96, 114 107 Z" fill="#ec4899" stroke="#fbcfe8" strokeWidth="1.1" />
+              {/* กลีบบัวชั้นกลาง */}
+              <path d="M 82 107 C 68 88, 72 68, 86 64 C 88 80, 92 94, 96 107 Z" fill="#f472b6" stroke="#fdf2f8" strokeWidth="1.1" />
+              <path d="M 118 107 C 132 88, 128 68, 114 64 C 112 80, 108 94, 104 107 Z" fill="#f472b6" stroke="#fdf2f8" strokeWidth="1.1" />
+              {/* กลีบเอกตรงกลางสว่าง */}
+              <path d="M 86 107 C 84 82, 92 60, 100 57 C 108 60, 116 82, 114 107 Z" fill="#fdf2f8" stroke="#f472b6" strokeWidth="1.3" />
+              {/* ดวงแก้วแสงทองกลางดอกบัว */}
+              <circle cx="100" cy="86" r="8" fill="#fef08a" stroke="#f59e0b" strokeWidth="1.2" />
+              <circle cx="100" cy="86" r="4" fill="#ffffff" />
+            </g>
+          )}
+
+          {/* 7.6 เจดีย์ทองมงคล (Centerpiece Golden Pagoda) */}
+          {flowerType === 'gold_pagoda' && (
+            <g>
+              {/* ฐานสิงห์ 2 ชั้น */}
+              <rect x="64" y="106" width="72" height="8" rx="2" fill="#92400e" stroke="#fde047" strokeWidth="1.1" />
+              <rect x="72" y="100" width="56" height="6.5" rx="1.5" fill="#d97706" stroke="#fef08a" strokeWidth="1" />
+              {/* องค์ระฆังคว่ำสีทอง */}
+              <path d="M 78 100 C 78 82 86 76 100 76 C 114 76 122 82 122 100 Z" fill="#fbbf24" stroke="#92400e" strokeWidth="1.2" />
+              {/* บัลลังก์และปล้องไฉน */}
+              <rect x="92" y="72" width="16" height="5" fill="#fde047" stroke="#92400e" strokeWidth="0.9" />
+              <path d="M 95 72 L 100 52 L 105 72 Z" fill="#fef08a" stroke="#92400e" strokeWidth="1" />
+              <circle cx="100" cy="51" r="2" fill="#ffffff" />
+              {/* ฉัตรทองขนาบซ้าย-ขวา */}
+              <line x1="68" y1="106" x2="68" y2="75" stroke="#fde047" strokeWidth="1.8" />
+              <path d="M 62 84 L 68 74 L 74 84 Z M 63 91 L 68 83 L 73 91 Z" fill="#f59e0b" stroke="#fef08a" strokeWidth="0.8" />
+              <line x1="132" y1="106" x2="132" y2="75" stroke="#fde047" strokeWidth="1.8" />
+              <path d="M 126 84 L 132 74 L 138 84 Z M 127 91 L 132 83 L 137 91 Z" fill="#f59e0b" stroke="#fef08a" strokeWidth="0.8" />
+            </g>
+          )}
+
+          {/* 7.7 เรือสุพรรณหงส์ (Centerpiece Royal Barge) */}
+          {flowerType === 'royal_barge' && (
+            <g>
+              {/* ตัวเรือโค้งทองคำ */}
+              <path d="M 52 88 Q 100 112 148 90 Q 134 114 100 114 Q 66 114 52 88 Z" fill="#d97706" stroke="#fde047" strokeWidth="1.3" />
+              <path d="M 64 98 Q 100 110 136 98" fill="none" stroke="#fef08a" strokeWidth="1.2" />
+              {/* หัวเรือสุพรรณหงส์ซ้าย */}
+              <path d="M 54 92 C 44 82, 46 66, 56 64 C 60 64, 62 69, 58 72 C 54 71, 53 81, 61 92 Z" fill="#fbbf24" stroke="#78350f" strokeWidth="1.1" />
+              <polygon points="58,66 64,68 58,70" fill="#ea580c" />
+              {/* ท้ายเรือขวา */}
+              <path d="M 146 92 C 154 84, 152 72, 145 72 C 147 78, 144 86, 139 92 Z" fill="#fbbf24" stroke="#78350f" strokeWidth="1" />
+              {/* บุษบกกลางลำเรือ */}
+              <rect x="86" y="84" width="28" height="16" rx="1.5" fill="#991b1b" stroke="#fde047" strokeWidth="1.1" />
+              <path d="M 83 84 L 100 72 L 117 84 Z" fill="#fbbf24" stroke="#92400e" strokeWidth="1" />
+              <path d="M 97 72 L 100 61 L 103 72 Z" fill="#fef08a" stroke="#92400e" strokeWidth="0.8" />
+            </g>
+          )}
+
+          {/* 7.8 หัวใจเพชรคู่รัก (Centerpiece Crystal Heart) */}
+          {flowerType === 'crystal_heart' && (
+            <g>
+              {/* หมอนทองรองรับ */}
+              <ellipse cx="100" cy="108" rx="34" ry="8" fill="#9d174d" stroke="#fde047" strokeWidth="1.4" />
+              {/* หัวใจคริสตัลใหญ่ตรงกลาง */}
+              <path
+                d="M 100 76 C 100 62, 74 56, 70 74 C 66 90, 100 107, 100 112 C 100 107, 134 90, 130 74 C 126 56, 100 62, 100 76 Z"
+                fill="#ec4899"
+                stroke="#fce7f3"
+                strokeWidth="1.8"
+              />
+              {/* เหลี่ยมเจียระไนเพชรด้านใน */}
+              <polygon points="100,77 83,70 76,80 100,104 124,80 117,70" fill="#f472b6" opacity="0.65" />
+              <polygon points="100,77 88,73 100,104 112,73" fill="#fbcfe8" opacity="0.7" />
+              <circle cx="84" cy="74" r="3" fill="#ffffff" opacity="0.85" />
+            </g>
+          )}
         </g>
 
         {/* --- 8. กลีบกระทงชั้นหน้า & ตัวฐานล่างแยกตามสไตล์ทั้ง 8 แบบ --- */}

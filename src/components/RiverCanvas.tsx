@@ -127,8 +127,8 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         name: "พี่โชคดี",
         wish: "ขอขมาพระแม่คงคา กิจการรุ่งเรือง สุขภาพแข็งแรง 🌕",
         base: "banana_gold",
-        flower: "marigold",
-        candle: "yellow|pumpkin"
+        flower: "pumpkin",
+        candle: "yellow"
       },
       {
         name: "ชมรมอนุรักษ์",
@@ -795,51 +795,272 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
           sCtx.fill();
         }
 
-        // พุ่มดอกไม้มงคล 7 ดอก
-        for (let flIdx = 0; flIdx < 7; flIdx++) {
-          const pal =
-            k.flower_type === 'mixed_garland'
-              ? GARLAND_PALETTE[flIdx % GARLAND_PALETTE.length]
-              : FLOWER_PALETTES[k.flower_type] || FLOWER_PALETTES.marigold;
-          const fx = kx - 24 + flIdx * 8;
-          const fy = cy + 2 + Math.sin(flIdx * 1.1) * 2.2;
-          drawMiniBlossom(sCtx, fx, fy, 4.8, pal.outer, pal.core);
-        }
+        const isCenterpiece = [
+          'pumpkin',
+          'noppamas_crown',
+          'elephant_gold',
+          'golden_swan',
+          'lotus_lamp',
+          'gold_pagoda',
+          'royal_barge',
+          'crystal_heart'
+        ].includes(k.flower_type);
 
-        // ธูปมงคล 3 ดอก
-        INCENSE_ANGLES.forEach((ang, idx) => {
-          const ix = kx + (idx - 1) * 3.5;
-          const iyTop = cy - 24;
-          sCtx.strokeStyle = '#a16207';
-          sCtx.lineWidth = 1.1;
-          sCtx.beginPath();
-          sCtx.moveTo(ix, cy);
-          sCtx.lineTo(ix + ang * 18, iyTop);
-          sCtx.stroke();
+        // ฟังก์ชันช่วยวาดธูปและเทียน (วาดก่อนโมเดลเมื่อเป็นของตกแต่งกลางกระทง)
+        const drawIncenseAndCandle = () => {
+          INCENSE_ANGLES.forEach((ang, idx) => {
+            const ix = kx + (idx - 1) * 3.5;
+            const iyTop = cy - 24;
+            sCtx.strokeStyle = '#a16207';
+            sCtx.lineWidth = 1.1;
+            sCtx.beginPath();
+            sCtx.moveTo(ix, cy);
+            sCtx.lineTo(ix + ang * 18, iyTop);
+            sCtx.stroke();
 
-          sCtx.fillStyle = '#ef4444';
+            sCtx.fillStyle = '#ef4444';
+            sCtx.beginPath();
+            sCtx.arc(ix + ang * 18, iyTop, 1.3, 0, Math.PI * 2);
+            sCtx.fill();
+          });
+
+          if (rawCandleColor === 'rainbow') {
+            sCtx.fillStyle = '#f472b6';
+            sCtx.fillRect(kx - 5.5, cy - 19, 4.2, 18);
+            sCtx.fillStyle = '#38bdf8';
+            sCtx.fillRect(kx + 1.5, cy - 18, 4.2, 17);
+          } else {
+            sCtx.fillStyle = flameColor;
+            sCtx.fillRect(kx - 2.5, cy - 20, 5.5, 19);
+            sCtx.strokeStyle = 'rgba(255,255,255,0.55)';
+            sCtx.lineWidth = 1;
+            sCtx.beginPath();
+            sCtx.moveTo(kx - 2.5, cy - 14);
+            sCtx.lineTo(kx + 3, cy - 11);
+            sCtx.moveTo(kx - 2.5, cy - 8);
+            sCtx.lineTo(kx + 3, cy - 5);
+            sCtx.stroke();
+          }
+        };
+
+        if (isCenterpiece) {
+          // วาดเทียน/ธูปด้านหลัง แล้วตามด้วยใบตองรองและโมเดลกลางกระทง
+          drawIncenseAndCandle();
+
+          sCtx.fillStyle = '#14532d';
           sCtx.beginPath();
-          sCtx.arc(ix + ang * 18, iyTop, 1.3, 0, Math.PI * 2);
+          sCtx.ellipse(kx, cy + 4, 24, 5.5, 0, 0, Math.PI * 2);
           sCtx.fill();
-        });
 
-        // ตัวเทียนขี้ผึ้ง
-        if (rawCandleColor === 'rainbow') {
-          sCtx.fillStyle = '#f472b6';
-          sCtx.fillRect(kx - 5.5, cy - 19, 4.2, 18);
-          sCtx.fillStyle = '#38bdf8';
-          sCtx.fillRect(kx + 1.5, cy - 18, 4.2, 17);
+          if (k.flower_type === 'pumpkin') {
+            // ตึกฟักทอง ม.อ. กลางกระทง
+            sCtx.fillStyle = '#78350f';
+            sCtx.fillRect(kx - 20, cy + 2, 40, 4);
+            sCtx.fillStyle = '#fef3c7';
+            sCtx.fillRect(kx - 17, cy, 34, 2.5);
+            sCtx.fillStyle = '#d97706';
+            sCtx.strokeStyle = '#78350f';
+            sCtx.lineWidth = 1;
+            sCtx.beginPath();
+            sCtx.moveTo(kx - 18, cy);
+            sCtx.bezierCurveTo(kx - 18, cy - 12, kx - 10, cy - 17, kx, cy - 17);
+            sCtx.bezierCurveTo(kx + 10, cy - 17, kx + 18, cy - 12, kx + 18, cy);
+            sCtx.closePath();
+            sCtx.fill();
+            sCtx.stroke();
+            // กลีบกลางสว่าง + ยอดจั่ว
+            sCtx.fillStyle = '#fef3c7';
+            sCtx.beginPath();
+            sCtx.moveTo(kx - 5, cy);
+            sCtx.quadraticCurveTo(kx, cy - 16.5, kx + 5, cy);
+            sCtx.closePath();
+            sCtx.fill();
+            sCtx.strokeStyle = '#92400e';
+            sCtx.lineWidth = 0.8;
+            sCtx.beginPath();
+            sCtx.moveTo(kx, cy - 19);
+            sCtx.lineTo(kx, cy);
+            sCtx.stroke();
+            // ซุ้มโค้งสีขาว 5 ช่อง
+            sCtx.fillStyle = '#ffffff';
+            for (const ax of [kx - 13, kx - 7.5, kx - 1.5, kx + 5, kx + 10.5]) {
+              sCtx.beginPath();
+              sCtx.roundRect(ax, cy - 5.5, 2.6, 5.2, [1.3, 1.3, 0, 0]);
+              sCtx.fill();
+            }
+          } else if (k.flower_type === 'noppamas_crown') {
+            // ชฎาทองนพมาศบนพาน
+            sCtx.fillStyle = '#b45309';
+            sCtx.strokeStyle = '#fde047';
+            sCtx.lineWidth = 1;
+            sCtx.beginPath();
+            sCtx.moveTo(kx - 13, cy + 5);
+            sCtx.lineTo(kx - 9, cy);
+            sCtx.lineTo(kx + 9, cy);
+            sCtx.lineTo(kx + 13, cy + 5);
+            sCtx.closePath();
+            sCtx.fill();
+            sCtx.stroke();
+            sCtx.fillStyle = '#fbbf24';
+            sCtx.strokeStyle = '#78350f';
+            sCtx.beginPath();
+            sCtx.moveTo(kx - 10, cy);
+            sCtx.lineTo(kx, cy - 18);
+            sCtx.lineTo(kx + 10, cy);
+            sCtx.closePath();
+            sCtx.fill();
+            sCtx.stroke();
+            sCtx.fillStyle = '#ef4444';
+            sCtx.beginPath();
+            sCtx.arc(kx, cy - 3.5, 2, 0, Math.PI * 2);
+            sCtx.fill();
+          } else if (k.flower_type === 'elephant_gold') {
+            // ช้างเผือกมงคลบนแท่นบัว
+            sCtx.fillStyle = '#92400e';
+            sCtx.fillRect(kx - 16, cy + 2, 32, 3.5);
+            sCtx.fillStyle = '#fffbeb';
+            sCtx.strokeStyle = '#92400e';
+            sCtx.lineWidth = 1;
+            sCtx.beginPath();
+            sCtx.roundRect(kx - 11, cy - 13, 21, 15, 4);
+            sCtx.fill();
+            sCtx.stroke();
+            sCtx.fillStyle = '#dc2626';
+            sCtx.fillRect(kx - 7, cy - 13, 12, 8);
+            sCtx.strokeStyle = '#fffbeb';
+            sCtx.lineWidth = 2.4;
+            sCtx.beginPath();
+            sCtx.moveTo(kx + 10, cy - 7);
+            sCtx.quadraticCurveTo(kx + 18, cy - 7, kx + 16, cy - 15);
+            sCtx.stroke();
+          } else if (k.flower_type === 'golden_swan') {
+            // หงส์ทองคู่บารมี
+            sCtx.fillStyle = '#92400e';
+            sCtx.beginPath();
+            sCtx.ellipse(kx, cy + 3.5, 18, 3.5, 0, 0, Math.PI * 2);
+            sCtx.fill();
+            sCtx.strokeStyle = '#fbbf24';
+            sCtx.lineWidth = 2.6;
+            sCtx.lineCap = 'round';
+            sCtx.beginPath();
+            sCtx.moveTo(kx - 15, cy + 2);
+            sCtx.bezierCurveTo(kx - 20, cy - 9, kx - 11, cy - 16, kx - 5, cy - 13);
+            sCtx.moveTo(kx + 15, cy + 2);
+            sCtx.bezierCurveTo(kx + 20, cy - 9, kx + 11, cy - 16, kx + 5, cy - 13);
+            sCtx.stroke();
+            sCtx.fillStyle = '#fef08a';
+            sCtx.beginPath();
+            sCtx.arc(kx, cy - 5, 4, 0, Math.PI * 2);
+            sCtx.fill();
+          } else if (k.flower_type === 'lotus_lamp') {
+            // โคมบัวแก้วทิพย์
+            sCtx.fillStyle = '#0f766e';
+            sCtx.beginPath();
+            sCtx.ellipse(kx, cy + 3.5, 18, 3.5, 0, 0, Math.PI * 2);
+            sCtx.fill();
+            sCtx.fillStyle = '#ec4899';
+            sCtx.strokeStyle = '#fbcfe8';
+            sCtx.lineWidth = 0.9;
+            for (const ang of [-0.45, 0, 0.45]) {
+              sCtx.save();
+              sCtx.translate(kx, cy + 2);
+              sCtx.rotate(ang);
+              sCtx.beginPath();
+              sCtx.moveTo(-6, 0);
+              sCtx.quadraticCurveTo(0, -18, 6, 0);
+              sCtx.closePath();
+              sCtx.fill();
+              sCtx.stroke();
+              sCtx.restore();
+            }
+            sCtx.fillStyle = '#fef08a';
+            sCtx.beginPath();
+            sCtx.arc(kx, cy - 6, 3.8, 0, Math.PI * 2);
+            sCtx.fill();
+          } else if (k.flower_type === 'gold_pagoda') {
+            // เจดีย์ทองมงคลพร้อมฉัตร
+            sCtx.fillStyle = '#92400e';
+            sCtx.fillRect(kx - 16, cy + 2, 32, 3.5);
+            sCtx.fillStyle = '#fbbf24';
+            sCtx.strokeStyle = '#92400e';
+            sCtx.lineWidth = 0.9;
+            sCtx.beginPath();
+            sCtx.moveTo(kx - 10, cy + 2);
+            sCtx.quadraticCurveTo(kx, cy - 10, kx + 10, cy + 2);
+            sCtx.closePath();
+            sCtx.fill();
+            sCtx.stroke();
+            sCtx.beginPath();
+            sCtx.moveTo(kx - 3, cy - 4);
+            sCtx.lineTo(kx, cy - 18);
+            sCtx.lineTo(kx + 3, cy - 4);
+            sCtx.closePath();
+            sCtx.fill();
+            sCtx.strokeStyle = '#fde047';
+            sCtx.lineWidth = 1.2;
+            sCtx.beginPath();
+            sCtx.moveTo(kx - 14, cy + 2);
+            sCtx.lineTo(kx - 14, cy - 11);
+            sCtx.moveTo(kx + 14, cy + 2);
+            sCtx.lineTo(kx + 14, cy - 11);
+            sCtx.stroke();
+          } else if (k.flower_type === 'royal_barge') {
+            // เรือสุพรรณหงส์
+            sCtx.fillStyle = '#d97706';
+            sCtx.strokeStyle = '#fde047';
+            sCtx.lineWidth = 1;
+            sCtx.beginPath();
+            sCtx.moveTo(kx - 22, cy - 3);
+            sCtx.quadraticCurveTo(kx, cy + 8, kx + 22, cy - 2);
+            sCtx.quadraticCurveTo(kx, cy + 10, kx - 22, cy - 3);
+            sCtx.fill();
+            sCtx.stroke();
+            sCtx.strokeStyle = '#fbbf24';
+            sCtx.lineWidth = 2.4;
+            sCtx.beginPath();
+            sCtx.moveTo(kx - 18, cy);
+            sCtx.quadraticCurveTo(kx - 24, cy - 12, kx - 18, cy - 16);
+            sCtx.stroke();
+            sCtx.fillStyle = '#991b1b';
+            sCtx.fillRect(kx - 6, cy - 6, 12, 8);
+            sCtx.fillStyle = '#fbbf24';
+            sCtx.beginPath();
+            sCtx.moveTo(kx - 8, cy - 6);
+            sCtx.lineTo(kx, cy - 15);
+            sCtx.lineTo(kx + 8, cy - 6);
+            sCtx.closePath();
+            sCtx.fill();
+          } else if (k.flower_type === 'crystal_heart') {
+            // หัวใจเพชรคู่รัก
+            sCtx.fillStyle = '#9d174d';
+            sCtx.beginPath();
+            sCtx.ellipse(kx, cy + 3, 15, 4, 0, 0, Math.PI * 2);
+            sCtx.fill();
+            sCtx.fillStyle = '#ec4899';
+            sCtx.strokeStyle = '#fce7f3';
+            sCtx.lineWidth = 1.2;
+            sCtx.beginPath();
+            sCtx.moveTo(kx, cy - 10);
+            sCtx.bezierCurveTo(kx, cy - 18, kx - 14, cy - 18, kx - 12, cy - 7);
+            sCtx.bezierCurveTo(kx - 10, cy, kx, cy + 4, kx, cy + 5);
+            sCtx.bezierCurveTo(kx, cy + 4, kx + 10, cy, kx + 12, cy - 7);
+            sCtx.bezierCurveTo(kx + 14, cy - 18, kx, cy - 18, kx, cy - 10);
+            sCtx.fill();
+            sCtx.stroke();
+          }
         } else {
-          sCtx.fillStyle = flameColor;
-          sCtx.fillRect(kx - 2.5, cy - 20, 5.5, 19);
-          sCtx.strokeStyle = 'rgba(255,255,255,0.55)';
-          sCtx.lineWidth = 1;
-          sCtx.beginPath();
-          sCtx.moveTo(kx - 2.5, cy - 14);
-          sCtx.lineTo(kx + 3, cy - 11);
-          sCtx.moveTo(kx - 2.5, cy - 8);
-          sCtx.lineTo(kx + 3, cy - 5);
-          sCtx.stroke();
+          // พุ่มดอกไม้มงคล 7 ดอก
+          for (let flIdx = 0; flIdx < 7; flIdx++) {
+            const pal =
+              k.flower_type === 'mixed_garland'
+                ? GARLAND_PALETTE[flIdx % GARLAND_PALETTE.length]
+                : FLOWER_PALETTES[k.flower_type] || FLOWER_PALETTES.marigold;
+            const fx = kx - 24 + flIdx * 8;
+            const fy = cy + 2 + Math.sin(flIdx * 1.1) * 2.2;
+            drawMiniBlossom(sCtx, fx, fy, 4.8, pal.outer, pal.core);
+          }
+
+          drawIncenseAndCandle();
         }
 
         // ของตกแต่งเสริม
