@@ -23,8 +23,8 @@ export const VALID_CANDLE_STYLES = [
   'yellow-classic', 'scented-pink', 'gold-glitter', 'twin-fortune', 'led-warm'
 ] as const;
 export const VALID_ACCESSORIES = [
-  'none', 'pumpkin', 'sparkler', 'heart_sign',
-  'grad_cap', 'lucky_coin', 'flag_thai', 'butterfly', 'noppamas_crown'
+  'none', 'pumpkin', 'noppamas_crown', 'sky_lantern', 'lotus_lamp', 'elephant_gold',
+  'sparkler', 'heart_sign', 'grad_cap', 'lucky_coin', 'flag_thai', 'butterfly'
 ] as const;
 
 export function isValidCandleField(val: string): boolean {
@@ -33,7 +33,7 @@ export function isValidCandleField(val: string): boolean {
   const candleOk = VALID_CANDLE_STYLES.includes(candle as any);
   if (!accPart) return candleOk;
   const accList = accPart.split(',').filter(Boolean);
-  const accOk = accList.length <= 8 && accList.every(a => VALID_ACCESSORIES.includes(a as any));
+  const accOk = accList.length <= 12 && accList.every(a => VALID_ACCESSORIES.includes(a as any));
   return candleOk && accOk;
 }
 
@@ -70,10 +70,12 @@ export async function hashString(input: string): Promise<string> {
 
 // Constant-time string comparison เพื่อป้องกัน Timing Attack
 export function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) {
-    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  const maxLen = Math.max(a.length, b.length);
+  let diff = a.length ^ b.length;
+  for (let i = 0; i < maxLen; i++) {
+    const ca = i < a.length ? a.charCodeAt(i) : 0;
+    const cb = i < b.length ? b.charCodeAt(i) : 0;
+    diff |= ca ^ cb;
   }
   return diff === 0;
 }
@@ -101,11 +103,21 @@ export async function hashClientIP(ip: string, env?: Record<string, any>): Promi
 }
 
 // PBKDF2 Password Hashing & Verification (รูปแบบ: pbkdf2$100000$<salt>$<hash>)
-export async function hashPasswordPBKDF2(password: string, saltHex?: string): Promise<string> {
+export async function hashPasswordPBKDF2(
+  password: string,
+  saltHex?: string,
+  iterations = 100000
+): Promise<string> {
   const encoder = new TextEncoder();
-  const saltBytes = saltHex
-    ? new Uint8Array(saltHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)))
-    : crypto.getRandomValues(new Uint8Array(16));
+  let saltBytes: Uint8Array;
+  if (saltHex) {
+    if (!/^[0-9a-f]+$/i.test(saltHex) || saltHex.length % 2 !== 0) {
+      throw new Error('Invalid salt format');
+    }
+    saltBytes = new Uint8Array(saltHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+  } else {
+    saltBytes = crypto.getRandomValues(new Uint8Array(16));
+  }
   const computedSaltHex = Array.from(saltBytes).map(b => b.toString(16).padStart(2, '0')).join('');
 
   const keyMaterial = await crypto.subtle.importKey(
@@ -120,7 +132,7 @@ export async function hashPasswordPBKDF2(password: string, saltHex?: string): Pr
     {
       name: 'PBKDF2',
       salt: saltBytes,
-      iterations: 100000,
+      iterations,
       hash: 'SHA-256'
     },
     keyMaterial,
@@ -131,7 +143,7 @@ export async function hashPasswordPBKDF2(password: string, saltHex?: string): Pr
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
 
-  return `pbkdf2$100000$${computedSaltHex}$${hashHex}`;
+  return `pbkdf2$${iterations}$${computedSaltHex}$${hashHex}`;
 }
 
 export async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
@@ -140,9 +152,17 @@ export async function verifyPassword(password: string, storedHash: string): Prom
   if (storedHash.startsWith('pbkdf2$')) {
     const parts = storedHash.split('$');
     if (parts.length !== 4) return false;
+    const iterations = Number(parts[1]);
     const saltHex = parts[2];
-    const expected = await hashPasswordPBKDF2(password, saltHex);
-    return timingSafeEqual(expected, storedHash);
+    if (!Number.isInteger(iterations) || iterations < 10000 || iterations > 100000) {
+      return false;
+    }
+    try {
+      const expected = await hashPasswordPBKDF2(password, saltHex, iterations);
+      return timingSafeEqual(expected, storedHash);
+    } catch {
+      return false;
+    }
   }
 
   // Fallback สำหรับ SHA-256 hash ในฐานข้อมูลเดิม (ใช้ timingSafeEqual)
@@ -152,7 +172,7 @@ export async function verifyPassword(password: string, storedHash: string): Prom
 
 // สร้าง Signed Session Token สำหรับ Admin (HMAC-SHA256)
 export async function createAdminSessionToken(username: string, env?: Record<string, any>): Promise<string> {
-  const secret = env?.SESSION_SECRET || 'loy-krathong-admin-hmac-secret-key-2026';
+  const secret = env?.SESSION_SECRET || 'lk2026-hmac-v2-f94a8c31e0d7b529c48a173e62f09b4d';
   const payloadObj = {
     sub: username,
     role: 'admin',
@@ -174,7 +194,7 @@ export async function verifyAdminSessionToken(token: string, env?: Record<string
   const [payloadBase64, signature] = token.split('.');
   if (!payloadBase64 || !signature) return { valid: false };
 
-  const secret = env?.SESSION_SECRET || 'loy-krathong-admin-hmac-secret-key-2026';
+  const secret = env?.SESSION_SECRET || 'lk2026-hmac-v2-f94a8c31e0d7b529c48a173e62f09b4d';
   const expectedSig = await hmacSign(payloadBase64, secret);
 
   if (!timingSafeEqual(signature, expectedSig)) {
@@ -182,7 +202,10 @@ export async function verifyAdminSessionToken(token: string, env?: Record<string
   }
 
   try {
-    const base64 = payloadBase64.replace(/-/g, '+').replace(/_/g, '/');
+    const base64 = payloadBase64
+      .replace(/-/g, '+')
+      .replace(/_/g, '/')
+      .padEnd(Math.ceil(payloadBase64.length / 4) * 4, '=');
     const payload = JSON.parse(atob(base64));
     if (!payload.exp || Date.now() > payload.exp || payload.role !== 'admin') {
       return { valid: false };

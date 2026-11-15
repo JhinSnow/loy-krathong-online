@@ -150,12 +150,12 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-[#050a16]/90 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
-      <div className="bg-gradient-to-b from-[#1c2541]/98 to-[#0b132b] border border-amber-400/40 rounded-3xl p-4 sm:p-6 max-w-2xl w-full relative shadow-[0_15px_50px_rgba(0,0,0,0.85),0_0_25px_rgba(245,158,11,0.25)] my-auto max-h-[94vh] flex flex-col">
+    <div className="fixed inset-0 bg-[#050a16]/90 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
+      <div className="bg-gradient-to-b from-[#17213a] to-[#0b132b] border border-amber-400/30 rounded-3xl p-4 sm:p-6 max-w-2xl w-full relative shadow-2xl my-auto max-h-[94vh] flex flex-col">
         {/* Header */}
-        <div className="text-center pb-3 border-b border-amber-500/25 shrink-0">
+        <div className="text-center pb-3 border-b border-amber-500/20 shrink-0">
           <div className="flex flex-wrap items-center justify-center gap-2 mb-1.5">
-            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-amber-400/15 border border-amber-400/40 text-amber-300 text-xs font-semibold">
+            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-amber-400/15 border border-amber-400/30 text-amber-200 text-xs font-semibold">
               <Sparkles className="w-3.5 h-3.5" />
               <span>ปล่อยกระทงลงสู่สายน้ำสำเร็จแล้ว!</span>
             </div>
@@ -163,14 +163,14 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
               <button
                 type="button"
                 onClick={() => setShowShareModal(true)}
-                className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-amber-400/25 hover:bg-amber-400/40 border border-amber-300 text-amber-100 text-xs font-bold shadow-[0_0_12px_rgba(245,158,11,0.3)] transition cursor-pointer"
+                className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-amber-500/20 hover:bg-amber-500/35 border border-amber-400/50 text-amber-100 text-xs font-bold shadow-sm transition cursor-pointer"
               >
                 <ImageIcon className="w-3.5 h-3.5 text-amber-300" />
                 <span>📸 ดาวน์โหลดการ์ดที่ระลึก (E-Card)</span>
               </button>
             )}
           </div>
-          <h3 className="text-lg sm:text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-amber-300 to-yellow-200">
+          <h3 className="text-lg sm:text-xl font-bold text-amber-100">
             แบบประเมินความพึงพอใจโครงการเทศกาลลอยกระทง
           </h3>
           <p className="text-[11px] sm:text-xs text-amber-100/75 mt-0.5">
@@ -205,7 +205,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                       onClick={() => setSelectedUserType(t.id)}
                       className={`py-2 px-2 rounded-xl text-[11px] font-semibold border transition cursor-pointer ${
                         selectedUserType === t.id
-                          ? 'bg-amber-400/25 border-amber-400 text-amber-200 shadow-[0_0_10px_rgba(245,158,11,0.25)]'
+                          ? 'bg-amber-500/20 border-amber-400 text-amber-100 shadow-sm'
                           : 'bg-slate-900/90 border-slate-700 text-slate-300 hover:border-amber-500/40'
                       }`}
                     >
@@ -291,7 +291,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                             title={`${scoreNum} - ${RATING_LABELS[scoreNum]}`}
                             className={`w-8 h-8 sm:w-9 sm:h-8 rounded-lg text-xs font-bold border transition flex items-center justify-center cursor-pointer ${
                               isSelected
-                                ? 'bg-gradient-to-b from-amber-300 to-amber-500 text-stone-950 border-yellow-200 shadow-[0_0_10px_rgba(251,191,36,0.5)] scale-105'
+                                ? 'bg-amber-400 text-stone-950 border-amber-300 shadow-sm scale-105'
                                 : 'bg-slate-950 text-slate-400 border-slate-700 hover:border-amber-400/50 hover:text-amber-200'
                             }`}
                           >
@@ -336,7 +336,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
           <button
             onClick={handleSubmit}
             disabled={submitting}
-            className="w-full flex items-center justify-center space-x-2 py-3 bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 hover:from-amber-300 hover:via-yellow-400 hover:to-amber-500 text-stone-950 font-extrabold rounded-xl shadow-[0_4px_20px_rgba(245,158,11,0.45)] border border-yellow-200/60 transition cursor-pointer text-xs sm:text-sm"
+            className="w-full flex items-center justify-center space-x-2 py-3 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-xl shadow-md border border-amber-300/60 transition cursor-pointer text-xs sm:text-sm"
           >
             <CheckCircle2 className="w-4 h-4 text-stone-950" />
             <span>{submitting ? 'กำลังบันทึกผลประเมิน & ปล่อยกระทง...' : 'ส่งแบบประเมิน 10 ข้อ & ลอยกระทงสู่สายน้ำ'}</span>

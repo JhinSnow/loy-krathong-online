@@ -41,7 +41,7 @@ export function drawRadarChartOnCanvas(
   // 2. Header Title
   ctx.textAlign = 'center';
   ctx.fillStyle = isLight ? '#0f172a' : '#fef3c7';
-  ctx.font = 'bold 28px "Sarabun", sans-serif';
+  ctx.font = 'bold 28px "IBM Plex Sans Thai Looped", sans-serif';
   ctx.fillText(
     'กราฟเรดาร์แสดงระดับความพึงพอใจของผู้เข้าร่วมโครงการเทศกาลลอยกระทง (10 ด้าน)',
     width / 2,
@@ -49,7 +49,7 @@ export function drawRadarChartOnCanvas(
   );
 
   ctx.fillStyle = isLight ? '#475569' : '#94a3b8';
-  ctx.font = '600 19px "Sarabun", sans-serif';
+  ctx.font = '600 19px "IBM Plex Sans Thai Looped", sans-serif';
   ctx.fillText(
     `จำนวนผู้ตอบแบบประเมินทั้งหมด (N) = ${totalN.toLocaleString()} คน   |   ค่าเฉลี่ยรวมทุกด้าน (x̄) = ${overallMean.toFixed(2)} / 5.00 คะแนน`,
     width / 2,
@@ -95,7 +95,7 @@ export function drawRadarChartOnCanvas(
 
     // ตัวเลขกำกับสเกล 1 - 5 บนแกนตั้ง
     ctx.fillStyle = isLight ? '#64748b' : '#94a3b8';
-    ctx.font = 'bold 14px "Sarabun", sans-serif';
+    ctx.font = 'bold 14px "IBM Plex Sans Thai Looped", sans-serif';
     ctx.textAlign = 'right';
     ctx.fillText(`${level}.0`, centerX - 8, centerY - r + 5);
   }
@@ -132,11 +132,11 @@ export function drawRadarChartOnCanvas(
     }
 
     ctx.fillStyle = isLight ? '#0f172a' : '#f8fafc';
-    ctx.font = 'bold 17px "Sarabun", sans-serif';
+    ctx.font = 'bold 17px "IBM Plex Sans Thai Looped", sans-serif';
     ctx.fillText(labelText, lx, ly - 4);
 
     ctx.fillStyle = isLight ? '#b45309' : '#fbbf24';
-    ctx.font = 'bold 16px "Sarabun", sans-serif';
+    ctx.font = 'bold 16px "IBM Plex Sans Thai Looped", sans-serif';
     ctx.fillText(scoreText, lx, ly + 18);
     ctx.restore();
   }
@@ -185,7 +185,7 @@ export function drawRadarChartOnCanvas(
   // 6. Footer Legend
   ctx.textAlign = 'center';
   ctx.fillStyle = isLight ? '#64748b' : '#94a3b8';
-  ctx.font = '14px "Sarabun", sans-serif';
+  ctx.font = '14px "IBM Plex Sans Thai Looped", sans-serif';
   ctx.fillText(
     'เกณฑ์ระดับคะแนน: 4.51-5.00 = มากที่สุด | 3.51-4.50 = มาก | 2.51-3.50 = ปานกลาง | 1.51-2.50 = น้อย | 1.00-1.50 = น้อยที่สุด',
     width / 2,

@@ -9,7 +9,7 @@ export const ThaiArchitectureSkyline: React.FC = () => {
         className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[520px] sm:w-[680px] md:w-[820px] h-48 pointer-events-none"
         style={{
           background:
-            'radial-gradient(ellipse at 50% 85%, rgba(245, 158, 11, 0.36) 0%, rgba(250, 204, 21, 0.16) 42%, transparent 74%)'
+            'radial-gradient(ellipse at 50% 85%, rgba(245, 158, 11, 0.1) 0%, rgba(250, 204, 21, 0.04) 42%, transparent 74%)'
         }}
       />
 
@@ -18,7 +18,7 @@ export const ThaiArchitectureSkyline: React.FC = () => {
         className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-36 pointer-events-none"
         style={{
           background:
-            'linear-gradient(to top, rgba(245, 158, 11, 0.18) 0%, rgba(234, 179, 8, 0.08) 45%, transparent 100%)'
+            'linear-gradient(to top, rgba(245, 158, 11, 0.06) 0%, rgba(234, 179, 8, 0.02) 45%, transparent 100%)'
         }}
       />
 
@@ -64,8 +64,8 @@ export const ThaiArchitectureSkyline: React.FC = () => {
 
           {/* Golden Aura Radial Gradient for Stupa Tip */}
           <radialGradient id="spireAura" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#fef08a" stopOpacity="0.9" />
-            <stop offset="40%" stopColor="#f59e0b" stopOpacity="0.4" />
+            <stop offset="0%" stopColor="#fef08a" stopOpacity="0.45" />
+            <stop offset="40%" stopColor="#f59e0b" stopOpacity="0.15" />
             <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
           </radialGradient>
 
@@ -324,7 +324,7 @@ export const ThaiArchitectureSkyline: React.FC = () => {
         {/* ----------------- 3. ตึกฟักทอง คณะวิทยาศาสตร์ ม.อ. (ลายเส้นสีขาวบริสุทธิ์ Pure White ด้านหน้า) ----------------- */}
         <g id="realPumpkinBuildingPSU">
           {/* Spotlight แสงนวลส่องหลังตัวตึกฟักทอง */}
-          <ellipse cx="800" cy="245" rx="280" ry="68" fill="url(#spireAura)" opacity="0.38" />
+          <ellipse cx="800" cy="245" rx="280" ry="68" fill="url(#spireAura)" opacity="0.12" />
 
           {/* Silhouette บังฉากหลังเฉพาะช่วงตัวอาคารตึกฟักทอง เพื่อไม่ให้เส้นเจดีย์ด้านหลังทะลุเข้ามาซ้อนในลายเส้นตึก */}
           <path
@@ -426,7 +426,7 @@ export const ThaiArchitectureSkyline: React.FC = () => {
         className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-[380px] sm:w-[520px] h-20 pointer-events-none"
         style={{
           background:
-            'radial-gradient(ellipse at 50% 15%, rgba(251, 191, 36, 0.28) 0%, rgba(234, 179, 8, 0.1) 48%, transparent 74%)'
+            'radial-gradient(ellipse at 50% 15%, rgba(251, 191, 36, 0.08) 0%, rgba(234, 179, 8, 0.03) 48%, transparent 74%)'
         }}
       />
     </div>

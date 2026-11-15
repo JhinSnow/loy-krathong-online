@@ -78,16 +78,20 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
     { id: 'rainbow', name: 'เทียนคู่สายรุ้ง', hex: '#ec4899' },
   ];
 
-  // 4. ของตกแต่งเสริมพิเศษบนกระทง 8 แบบ
+  // 4. ของตกแต่งเสริมพิเศษบนกระทง 12 แบบ
   const accessories = [
-    { id: 'none', name: 'ธูปเทียนปกติ', icon: '🕯️' },
-    { id: 'pumpkin', name: 'ป้ายตึกฟักทอง', icon: '🏛️' },
+    { id: 'pumpkin', name: 'ตึกฟักทอง ม.อ.', icon: '🏛️' },
+    { id: 'noppamas_crown', name: 'ชฎาทองนพมาศ', icon: '👑' },
+    { id: 'sky_lantern', name: 'โคมลอยล้านนา', icon: '🏮' },
+    { id: 'lotus_lamp', name: 'โคมบัวแก้ว', icon: '🪷' },
+    { id: 'elephant_gold', name: 'ช้างเผือกมงคล', icon: '🐘' },
     { id: 'sparkler', name: 'ไฟเย็นระยิบ', icon: '✨' },
     { id: 'heart_sign', name: 'หัวใจคู่รัก', icon: '💖' },
     { id: 'grad_cap', name: 'หมวกปริญญา A+', icon: '🎓' },
     { id: 'lucky_coin', name: 'เหรียญทองนำโชค', icon: '🪙' },
     { id: 'flag_thai', name: 'ธงราวงานวัด', icon: '🎏' },
     { id: 'butterfly', name: 'ผีเสื้อแสงจันทร์', icon: '🦋' },
+    { id: 'none', name: 'ธูปเทียนปกติ', icon: '🕯️' },
   ];
 
   // คำอธิษฐานยอดฮิตกดเลือกได้ทันที
@@ -303,14 +307,14 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
           <span>ดูหน้าสายน้ำ</span>
         </button>
 
-        <h2 className="text-sm sm:text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-amber-300 to-yellow-200">
+        <h2 className="text-sm sm:text-lg font-bold text-amber-100">
           รังสรรค์กระทงออนไลน์ (กว่า 4,000 รูปแบบ) 🪷
         </h2>
 
         <button
           type="button"
           onClick={() => setShowShareModal(true)}
-          className="flex items-center space-x-1.5 px-3 py-1.5 bg-[#1c2541]/80 hover:bg-[#1c2541] text-amber-300 rounded-xl text-xs font-semibold border border-amber-400/50 shadow-[0_0_12px_rgba(245,158,11,0.2)] transition cursor-pointer"
+          className="flex items-center space-x-1.5 px-3 py-1.5 bg-[#162038] hover:bg-[#1c2845] text-amber-200 rounded-xl text-xs font-semibold border border-amber-400/40 shadow-sm transition cursor-pointer"
         >
           <ImageIcon className="w-3.5 h-3.5 text-amber-300" />
           <span>การ์ดรูปภาพ</span>
@@ -320,9 +324,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
       {/* Main Builder Container */}
       <div className="max-w-5xl mx-auto w-full grid grid-cols-1 md:grid-cols-12 gap-5 sm:gap-6 items-start py-4 pb-12">
         {/* Left Side: Real-time Live Preview */}
-        <div className="md:col-span-5 md:sticky md:top-4 flex flex-col items-center justify-center p-4 sm:p-6 bg-gradient-to-b from-[#1c2541]/90 via-[#0b132b]/95 to-[#0b132b] rounded-3xl border border-amber-400/40 shadow-[0_10px_30px_rgba(0,0,0,0.6),0_0_20px_rgba(245,158,11,0.2)] relative overflow-hidden backdrop-blur-md">
-          {/* Ambient Glow */}
-          <div className="absolute top-0 w-36 h-36 bg-amber-400/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="md:col-span-5 md:sticky md:top-4 flex flex-col items-center justify-center p-4 sm:p-6 bg-[#121b33] rounded-3xl border border-amber-400/30 shadow-xl relative overflow-hidden">
 
           <div className="w-full flex items-center justify-between mb-1">
             <span className="text-[11px] text-amber-300 font-medium tracking-wide uppercase">
@@ -375,7 +377,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
           </div>
 
           {/* Speech Bubble Preview */}
-          <div className="w-full bg-[#fffbeb] rounded-2xl p-3 sm:p-4 border-2 border-amber-400 text-center mt-1 shadow-[0_4px_16px_rgba(245,158,11,0.3)]">
+          <div className="w-full bg-[#fffbeb] rounded-2xl p-3 sm:p-4 border-2 border-amber-400 text-center mt-1 shadow-md">
             <p className="font-bold text-amber-900 text-xs sm:text-sm">
               {ownerName || 'ชื่อของคุณจะปรากฏที่นี่'}
             </p>
@@ -386,7 +388,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
         </div>
 
         {/* Right Side: Form Controls */}
-        <div className="md:col-span-7 bg-[#1c2541]/75 backdrop-blur-md p-4 sm:p-6 rounded-3xl border border-amber-500/35 shadow-[0_8px_30px_rgba(0,0,0,0.5),0_0_15px_rgba(245,158,11,0.15)]">
+        <div className="md:col-span-7 bg-[#121b33] p-4 sm:p-6 rounded-3xl border border-amber-500/25 shadow-xl">
           <form onSubmit={handleFloatSubmit} className="space-y-4">
             {errorMsg && (
               <div className="p-2.5 bg-red-500/20 border border-red-500/40 rounded-xl text-red-200 text-xs text-center">
@@ -411,7 +413,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
                     onClick={() => setUserType(type.id as UserType)}
                     className={`py-2 px-1 text-[11px] sm:text-xs font-medium rounded-xl border transition text-center truncate cursor-pointer ${
                       userType === type.id
-                        ? 'bg-amber-400/25 border-amber-400 text-amber-200 font-bold shadow-[0_0_10px_rgba(245,158,11,0.3)]'
+                        ? 'bg-amber-500/20 border-amber-400 text-amber-100 font-bold shadow-sm'
                         : 'bg-[#0b132b]/80 border-slate-700/80 text-slate-300 hover:border-amber-500/40'
                     }`}
                   >
@@ -483,7 +485,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
                     onClick={() => setBaseType(b.id)}
                     className={`p-2 rounded-xl border text-left transition flex flex-col items-center text-center cursor-pointer ${
                       baseType === b.id
-                        ? 'bg-amber-400/25 border-amber-400 text-amber-200 shadow-[0_0_12px_rgba(245,158,11,0.25)] font-bold'
+                        ? 'bg-amber-500/20 border-amber-400 text-amber-100 shadow-sm font-bold'
                         : 'bg-[#0b132b]/80 border-slate-700/80 text-slate-300 hover:border-amber-500/40'
                     }`}
                   >
@@ -507,7 +509,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
                     onClick={() => setFlowerType(fl.id)}
                     className={`py-2 px-2 rounded-xl border text-[11px] font-medium transition flex items-center justify-center space-x-1.5 cursor-pointer ${
                       flowerType === fl.id
-                        ? 'bg-amber-400/25 border-amber-400 text-amber-200 font-semibold shadow-[0_0_10px_rgba(245,158,11,0.25)]'
+                        ? 'bg-amber-500/20 border-amber-400 text-amber-100 font-semibold shadow-sm'
                         : 'bg-[#0b132b]/80 border-slate-700/80 text-slate-300 hover:border-amber-500/40'
                     }`}
                   >
@@ -539,7 +541,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
                     onClick={() => setCandleColor(cd.id)}
                     className={`py-2 px-2 rounded-xl border text-[11px] font-medium transition flex items-center justify-center space-x-1.5 cursor-pointer ${
                       candleColor === cd.id
-                        ? 'bg-amber-400/25 border-amber-400 text-amber-200 font-semibold shadow-[0_0_10px_rgba(245,158,11,0.25)]'
+                        ? 'bg-amber-500/20 border-amber-400 text-amber-100 font-semibold shadow-sm'
                         : 'bg-[#0b132b]/80 border-slate-700/80 text-slate-300 hover:border-amber-500/40'
                     }`}
                   >
@@ -583,7 +585,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
                       onClick={() => handleToggleAccessory(acc.id)}
                       className={`py-2 px-2 rounded-xl border text-[11px] font-medium transition flex items-center justify-center space-x-1.5 cursor-pointer ${
                         isSelected
-                          ? 'bg-amber-400/25 border-amber-400 text-amber-200 font-semibold shadow-[0_0_10px_rgba(245,158,11,0.25)]'
+                          ? 'bg-amber-500/20 border-amber-400 text-amber-100 font-semibold shadow-sm'
                           : 'bg-[#0b132b]/80 border-slate-700/80 text-slate-300 hover:border-amber-500/40'
                       }`}
                     >
@@ -600,7 +602,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex items-center justify-center space-x-2 py-3.5 bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 hover:from-amber-300 hover:via-yellow-400 hover:to-amber-500 text-stone-900 font-extrabold rounded-2xl shadow-[0_4px_25px_rgba(245,158,11,0.45)] border border-yellow-200/60 transition active:scale-98 text-sm sm:text-base cursor-pointer"
+                className="w-full flex items-center justify-center space-x-2 py-3.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-2xl shadow-md border border-amber-300/60 transition active:scale-98 text-sm sm:text-base cursor-pointer"
               >
                 <Sparkles className="w-4 h-4 text-stone-900" />
                 <span>{loading ? 'กำลังส่งข้อมูล...' : 'ปล่อยกระทงลงน้ำ 🌊'}</span>

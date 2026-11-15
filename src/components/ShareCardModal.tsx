@@ -73,7 +73,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
           className="bg-gradient-to-b from-[#0a1128] via-[#001e3d] to-[#000814] p-6 rounded-2xl border border-amber-500/40 text-center shadow-inner relative overflow-hidden"
         >
           {/* Moon Silhouette */}
-          <div className="absolute top-3 right-4 w-10 h-10 rounded-full bg-yellow-200/90 shadow-[0_0_20px_#fde047]" />
+          <div className="absolute top-3 right-4 w-10 h-10 rounded-full bg-yellow-200/90 shadow-sm" />
 
           <p className="text-[10px] tracking-widest text-amber-300 uppercase font-semibold">
             Online Loy Krathong Festival

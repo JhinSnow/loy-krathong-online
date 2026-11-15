@@ -90,12 +90,12 @@ export const DecorativeScreenBorders: React.FC = () => {
               
               {/* ตัวโคมกระดาษทรงแปดเหลี่ยม (Lanna Lantern Body) */}
               <div className="relative w-full aspect-[1/1.25] flex items-center justify-center">
-                {/* แสงเรืองวงกว้างรอบโคม (Radial Gradient ไร้ blur filter) */}
+                {/* แสงเรืองรอบโคมแบบนุ่มนวล */}
                 <div
                   className="absolute -inset-2 rounded-full pointer-events-none"
                   style={{
                     background:
-                      'radial-gradient(circle, rgba(251, 191, 36, 0.36) 0%, rgba(245, 158, 11, 0.14) 48%, transparent 72%)'
+                      'radial-gradient(circle, rgba(251, 191, 36, 0.14) 0%, rgba(245, 158, 11, 0.05) 48%, transparent 72%)'
                   }}
                 />
                 

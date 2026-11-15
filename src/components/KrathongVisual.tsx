@@ -318,13 +318,12 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
 
   return (
     <div className={`relative ${sizeClasses} flex items-center justify-center select-none`}>
-      <svg viewBox="0 0 200 200" className="w-full h-full drop-shadow-[0_12px_22px_rgba(0,0,0,0.65)]">
+      <svg viewBox="0 0 200 200" className="w-full h-full drop-shadow-[0_8px_14px_rgba(0,0,0,0.45)]">
         <defs>
-          {/* แสงเทียนเรืองรอง (Candle Aura) */}
+          {/* แสงเทียนเรืองรองแบบพอดีเปลวไฟ */}
           <radialGradient id={`candleAura-${uid}`} cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#fffbeb" stopOpacity="0.95" />
-            <stop offset="30%" stopColor={cp.flameInner} stopOpacity="0.65" />
-            <stop offset="65%" stopColor={cp.glow} stopOpacity="0.25" />
+            <stop offset="0%" stopColor="#fffbeb" stopOpacity="0.45" />
+            <stop offset="40%" stopColor={cp.flameInner} stopOpacity="0.22" />
             <stop offset="100%" stopColor={cp.glow} stopOpacity="0" />
           </radialGradient>
 
@@ -370,7 +369,7 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
         </defs>
 
         {/* --- 0. เงาสะท้อนน้ำและระลอกคลื่นใต้กระทง (Water Ripples & Golden Reflection) --- */}
-        <ellipse cx="100" cy="172" rx="82" ry="12" fill={cp.glow} opacity="0.18" />
+        <ellipse cx="100" cy="172" rx="76" ry="10" fill={cp.glow} opacity="0.10" />
         <ellipse
           cx="100"
           cy="168"
@@ -414,9 +413,9 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
           </g>
         )}
 
-        {/* --- 2. แสงออร่าเทียนด้านหลัง (Warm Candlelight Halo) --- */}
-        <circle cx="100" cy="44" r="46" fill={`url(#candleAura-${uid})`} className="animate-pulse" />
-        <circle cx="100" cy="42" r="24" fill={`url(#candleAura-${uid})`} opacity="0.85" />
+        {/* --- 2. แสงเทียนอุ่นพอดีตา (Subtle Candlelight Halo) --- */}
+        <circle cx="100" cy="44" r="20" fill={`url(#candleAura-${uid})`} />
+        <circle cx="100" cy="42" r="10" fill={`url(#candleAura-${uid})`} opacity="0.6" />
 
         {/* --- 3. กลีบกระทงชั้นหลัง (Back Layer Folded Petals) --- */}
         {baseType !== 'coconut' &&
@@ -463,9 +462,9 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
           <line x1="110" y1="75" x2="114" y2="44" stroke="#d97706" strokeWidth="2.6" strokeLinecap="round" />
 
           {/* ปลายธูปติดไฟแดงเรืองแสง */}
-          <circle cx="86" cy="44" r="2.2" fill="#ef4444" stroke="#fef08a" strokeWidth="0.8" className="animate-ping" />
-          <circle cx="100" cy="40" r="2.2" fill="#ef4444" stroke="#fef08a" strokeWidth="0.8" className="animate-ping" />
-          <circle cx="114" cy="44" r="2.2" fill="#ef4444" stroke="#fef08a" strokeWidth="0.8" className="animate-ping" />
+          <circle cx="86" cy="44" r="2" fill="#ef4444" stroke="#fef08a" strokeWidth="0.8" />
+          <circle cx="100" cy="40" r="2" fill="#ef4444" stroke="#fef08a" strokeWidth="0.8" />
+          <circle cx="114" cy="44" r="2" fill="#ef4444" stroke="#fef08a" strokeWidth="0.8" />
 
           {/* เทียนเล่มหลัก หรือ เทียนคู่สายรุ้ง */}
           {activeCandle === 'rainbow' ? (
@@ -566,16 +565,91 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
           </g>
         )}
 
-        {/* 6.3 ป้ายตึกฟักทองทองคำ (ขวากลาง) */}
+        {/* 6.3 โมเดลจำลองตึกฟักทอง ม.อ. (3D Miniature Pumpkin Building) */}
         {hasAcc('pumpkin') && (
-          <g transform="translate(114, 50)">
-            <line x1="8" y1="50" x2="14" y2="20" stroke="#fbbf24" strokeWidth="2.2" />
-            <circle cx="14" cy="14" r="13" fill="#0f172a" stroke="#fbbf24" strokeWidth="2" />
-            {/* โดมตึกฟักทองลายเส้นสีขาวทอง */}
-            <path d="M 4 18 Q 14 4 24 18 Z" fill="#f59e0b" stroke="#ffffff" strokeWidth="1.2" />
-            <path d="M 8 18 Q 14 6 20 18" fill="none" stroke="#fef08a" strokeWidth="1.1" />
-            <line x1="14" y1="4" x2="14" y2="18" stroke="#ffffff" strokeWidth="1.1" />
-            <rect x="6" y="18" width="16" height="3" rx="1" fill="#fde047" />
+          <g transform="translate(114, 42)">
+            {/* ก้านเสียบปักบนกระทง */}
+            <line x1="7" y1="58" x2="18" y2="39" stroke="#d97706" strokeWidth="2" strokeLinecap="round" />
+            {/* ฐานแท่นรองรับอาคาร */}
+            <rect x="3" y="34" width="30" height="4" rx="1.5" fill="#92400e" stroke="#fde047" strokeWidth="0.8" />
+            <rect x="6" y="31" width="24" height="3.5" rx="1" fill="#fef3c7" stroke="#d97706" strokeWidth="0.7" />
+            {/* หลังคาโดมกลีบฟักทองโค้งมน (ซ้าย-กลาง-ขวา) */}
+            <path d="M 4 31 C 4 17 11 10 18 10 C 25 10 32 17 32 31 Z" fill="#f59e0b" stroke="#78350f" strokeWidth="1" />
+            {/* กลีบฟักทองซ้อนมิติซ้าย-ขวา */}
+            <path d="M 8.5 31 C 8.5 18 13 11 18 10 C 14.5 14 13 22 13 31 Z" fill="#fbbf24" opacity="0.85" />
+            <path d="M 27.5 31 C 27.5 18 23 11 18 10 C 21.5 14 23 22 23 31 Z" fill="#d97706" opacity="0.75" />
+            {/* กลีบกลางสว่าง + เส้นสันกลีบตึกฟักทอง */}
+            <path d="M 13.5 31 C 13.5 19 15.5 11.5 18 10 C 20.5 11.5 22.5 19 22.5 31 Z" fill="#fef3c7" stroke="#b45309" strokeWidth="0.7" />
+            <line x1="18" y1="8" x2="18" y2="31" stroke="#b45309" strokeWidth="0.8" />
+            {/* ยอดจั่วกลาง */}
+            <path d="M 16.5 10 L 18 5.5 L 19.5 10 Z" fill="#fde047" stroke="#b45309" strokeWidth="0.6" />
+            {/* ช่องซุ้มโค้งสีขาวฐานตึก (ซุ้มโค้งเอกลักษณ์ ม.อ.) */}
+            <path d="M 8 31 L 8 27 Q 10 24.5 12 27 L 12 31 Z" fill="#ffffff" stroke="#b45309" strokeWidth="0.5" />
+            <path d="M 15.5 31 L 15.5 26.5 Q 18 23.5 20.5 26.5 L 20.5 31 Z" fill="#ffffff" stroke="#b45309" strokeWidth="0.5" />
+            <path d="M 24 31 L 24 27 Q 26 24.5 28 27 L 28 31 Z" fill="#ffffff" stroke="#b45309" strokeWidth="0.5" />
+          </g>
+        )}
+
+        {/* 6.3b ชฎาทองนพมาศ (ซ้ายบน) */}
+        {hasAcc('noppamas_crown') && (
+          <g transform="translate(46, 38)">
+            <line x1="18" y1="60" x2="14" y2="32" stroke="#d97706" strokeWidth="1.8" strokeLinecap="round" />
+            {/* ยอดชฎาเรียวแหลม */}
+            <path d="M 14 2 L 16.5 16 L 11.5 16 Z" fill="#fde047" stroke="#92400e" strokeWidth="0.7" />
+            <circle cx="14" cy="1.8" r="1.3" fill="#ffffff" />
+            {/* ชั้นยอดทรงเครื่อง */}
+            <path d="M 9 23 L 11.5 15 L 16.5 15 L 19 23 Z" fill="#f59e0b" stroke="#78350f" strokeWidth="0.8" />
+            {/* กระบังหน้า + จอนหู */}
+            <path d="M 6 29 C 6 24 10 22 14 22 C 18 22 22 24 22 29 L 20 32 L 8 32 Z" fill="#fbbf24" stroke="#92400e" strokeWidth="0.8" />
+            <path d="M 6 28 Q 3 31 5 35" fill="none" stroke="#fde047" strokeWidth="1.4" strokeLinecap="round" />
+            <path d="M 22 28 Q 25 31 23 35" fill="none" stroke="#fde047" strokeWidth="1.4" strokeLinecap="round" />
+            <circle cx="14" cy="26.5" r="1.6" fill="#fef08a" stroke="#b45309" strokeWidth="0.5" />
+          </g>
+        )}
+
+        {/* 6.3c โคมลอยล้านนา (ลอยเหนือมุมซ้ายบน) */}
+        {hasAcc('sky_lantern') && (
+          <g transform="translate(20, 8)">
+            {/* โคมกระดาษทรงกระบอกอุ่น */}
+            <path d="M 7 6 Q 15 2 23 6 L 26 18 Q 24 28 19 30 L 11 30 Q 6 28 4 18 Z" fill="#fb923c" stroke="#9a3412" strokeWidth="0.9" />
+            <path d="M 10 6.5 Q 15 4 20 6.5 L 21.5 18 Q 19.5 27 15 29 Q 10.5 27 8.5 18 Z" fill="#fef08a" opacity="0.75" />
+            {/* ลายเส้นขอบและโครงไม้ไผ่ */}
+            <ellipse cx="15" cy="30" rx="4.2" ry="1.3" fill="#7c2d12" stroke="#fde047" strokeWidth="0.6" />
+            {/* เปลวไฟด้านล่างโคม */}
+            <circle cx="15" cy="28.5" r="2.2" fill="#f59e0b" />
+            <circle cx="15" cy="28.5" r="1" fill="#ffffff" />
+          </g>
+        )}
+
+        {/* 6.3d โคมบัวแก้ว (ประดับริมซ้ายล่าง) */}
+        {hasAcc('lotus_lamp') && (
+          <g transform="translate(30, 72)">
+            {/* ฐานบัว */}
+            <ellipse cx="16" cy="26" rx="11" ry="3.2" fill="#0f766e" stroke="#5eead4" strokeWidth="0.8" />
+            {/* กลีบบัวแก้วซ้อน */}
+            <path d="M 6 25 Q 4 14 12 12 Q 11 20 13 25 Z" fill="#f472b6" opacity="0.9" stroke="#fbcfe8" strokeWidth="0.6" />
+            <path d="M 26 25 Q 28 14 20 12 Q 21 20 19 25 Z" fill="#f472b6" opacity="0.9" stroke="#fbcfe8" strokeWidth="0.6" />
+            <path d="M 10 26 Q 11 9 16 7 Q 21 9 22 26 Z" fill="#fdf2f8" stroke="#f472b6" strokeWidth="0.8" />
+            {/* ดวงไฟกลางดอกบัว */}
+            <circle cx="16" cy="17" r="2.4" fill="#fde047" />
+          </g>
+        )}
+
+        {/* 6.3e ช้างเผือกมงคล (ประดับมุมขวาล่าง) */}
+        {hasAcc('elephant_gold') && (
+          <g transform="translate(132, 72)">
+            {/* ฐานตั้งช้าง */}
+            <rect x="4" y="25" width="22" height="3.5" rx="1.2" fill="#92400e" stroke="#fde047" strokeWidth="0.7" />
+            {/* ลำตัวช้างทรงเครื่องสีครีมงาช้าง */}
+            <path d="M 8 25 L 8 15 Q 8 10 15 10 Q 22 10 23 16 L 23 25 L 19 25 L 19 20 L 13 20 L 13 25 Z" fill="#fef3c7" stroke="#92400e" strokeWidth="0.8" />
+            {/* ผ้าคลุมหลังสีทองแดง */}
+            <path d="M 11 10 L 19 10 L 18 17 L 12 17 Z" fill="#dc2626" stroke="#fde047" strokeWidth="0.7" />
+            {/* หู + งวงช้างชูรับโชค */}
+            <ellipse cx="19" cy="14" rx="2.8" ry="3.5" fill="#fde68a" stroke="#92400e" strokeWidth="0.6" />
+            <path d="M 22.5 14 Q 28 15 27.5 10 Q 27 8.5 25.8 9" fill="none" stroke="#fef3c7" strokeWidth="2.2" strokeLinecap="round" />
+            {/* งาและตา */}
+            <path d="M 22 17 L 25 18" stroke="#ffffff" strokeWidth="1" strokeLinecap="round" />
+            <circle cx="21" cy="13.2" r="0.8" fill="#1e293b" />
           </g>
         )}
 

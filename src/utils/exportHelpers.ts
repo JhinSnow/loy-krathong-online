@@ -213,12 +213,12 @@ export const openOfficialA4ReportPrintView = (
 <head>
   <meta charset="UTF-8" />
   <title>รายงานสรุปผลความพึงพอใจโครงการเทศกาลลอยกระทง (A4 Report)</title>
-  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai+Looped:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     @page { size: A4 portrait; margin: 12mm 14mm; }
     * { box-sizing: border-box; }
     body {
-      font-family: 'Sarabun', sans-serif;
+      font-family: 'IBM Plex Sans Thai Looped', sans-serif;
       color: #0f172a;
       background: #f1f5f9;
       margin: 0;
@@ -243,7 +243,7 @@ export const openOfficialA4ReportPrintView = (
       border: none;
       padding: 8px 16px;
       border-radius: 8px;
-      font-family: 'Sarabun', sans-serif;
+      font-family: 'IBM Plex Sans Thai Looped', sans-serif;
       font-weight: 700;
       font-size: 13px;
       cursor: pointer;
