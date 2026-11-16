@@ -409,7 +409,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
     if (!query) return true;
     return (
       student.student_id.toLowerCase().includes(query) ||
-      student.student_name.toLowerCase().includes(query) ||
       student.faculty.toLowerCase().includes(query)
     );
   });
@@ -816,7 +815,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                 <span>รายชื่อนักศึกษาสำหรับ Activity Transcript แยกตามคณะ (ตัดซ้ำอัตโนมัติ)</span>
               </h2>
               <p className="text-xs text-slate-400 mt-1">
-                บังคับกรอกเฉพาะกลุ่มนักศึกษา • ยึดสิทธิ์ 1 รหัสต่อ 1 สิทธิ์ พร้อมตรวจจับอุปกรณ์ที่ส่งหลายรหัสเพื่อช่วยป้องกันการกรอกแทนเพื่อน
+                เก็บเฉพาะรหัสนักศึกษาสำหรับกลุ่มนักศึกษา • จำแนกคณะอัตโนมัติจากรหัสและตัดรหัสซ้ำอัตโนมัติ พร้อมตรวจจับอุปกรณ์ที่ส่งหลายรหัส
               </p>
             </div>
             <button
@@ -912,7 +911,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                 type="text"
                 value={transcriptSearch}
                 onChange={(e) => setTranscriptSearch(e.target.value)}
-                placeholder="ค้นหารหัสนักศึกษา, ชื่อ-นามสกุล หรือคณะ..."
+                placeholder="ค้นหารหัสนักศึกษา หรือคณะ..."
                 className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400"
               />
             </div>
@@ -924,8 +923,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                   <tr>
                     <th className="py-3 px-4 font-semibold">#</th>
                     <th className="py-3 px-4 font-semibold">รหัสนักศึกษา</th>
-                    <th className="py-3 px-4 font-semibold">ชื่อ-นามสกุล</th>
-                    <th className="py-3 px-4 font-semibold">คณะ / วิทยาลัย</th>
+                    <th className="py-3 px-4 font-semibold">คณะ / วิทยาลัย (จำแนกจากรหัส)</th>
                     <th className="py-3 px-4 font-semibold">เวลาที่ส่ง</th>
                     <th className="py-3 px-4 font-semibold">สถานะตรวจสอบ</th>
                   </tr>
@@ -933,7 +931,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                 <tbody className="divide-y divide-slate-800/80 text-xs sm:text-sm">
                   {filteredTranscriptStudents.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-500">
+                      <td colSpan={5} className="py-8 text-center text-slate-500">
                         ไม่พบรายชื่อนักศึกษาที่ตรงกับเงื่อนไขการค้นหา
                       </td>
                     </tr>
@@ -946,9 +944,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                         <td className="py-2.5 px-4 text-slate-500">{idx + 1}</td>
                         <td className="py-2.5 px-4 font-mono font-semibold text-amber-300">
                           {student.student_id}
-                        </td>
-                        <td className="py-2.5 px-4 text-slate-100">
-                          {student.student_name || '-'}
                         </td>
                         <td className="py-2.5 px-4 text-slate-300">
                           {student.faculty || 'ไม่ระบุคณะ'}

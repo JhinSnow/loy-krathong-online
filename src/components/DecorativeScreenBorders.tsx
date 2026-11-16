@@ -3,10 +3,10 @@ import React from 'react';
 
 export const DecorativeScreenBorders: React.FC = () => {
   return (
-    <div className="fixed inset-0 pointer-events-none select-none overflow-hidden z-25 will-change-transform transform-gpu">
+    <div className="absolute inset-0 pointer-events-none select-none overflow-hidden z-10 will-change-transform transform-gpu">
       {/* ---------------- 1. ลายประดับมุมบนซ้ายและมุมบนขวา (Thai Golden Corner Accents) ---------------- */}
       {/* มุมบนซ้าย (Top-Left Thai Kranok Pattern) */}
-      <div className="absolute top-0 left-0 w-36 h-36 sm:w-48 sm:h-48 opacity-45">
+      <div className="absolute top-0 left-0 w-20 h-20 opacity-30 sm:w-48 sm:h-48 sm:opacity-45">
         <svg viewBox="0 0 160 160" className="w-full h-full">
           <defs>
             <linearGradient id="cornerGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -28,7 +28,7 @@ export const DecorativeScreenBorders: React.FC = () => {
       </div>
 
       {/* มุมบนขวา (Top-Right Thai Kranok Pattern - Flip X) */}
-      <div className="absolute top-0 right-0 w-36 h-36 sm:w-48 sm:h-48 opacity-45 transform scale-x-[-1]">
+      <div className="absolute top-0 right-0 w-20 h-20 opacity-30 sm:w-48 sm:h-48 sm:opacity-45 transform scale-x-[-1]">
         <svg viewBox="0 0 160 160" className="w-full h-full">
           <path d="M 0 0 L 150 0 C 110 30 90 60 75 100 C 60 120 40 140 0 150 Z" fill="url(#cornerGoldGrad)" opacity="0.3" />
           <path d="M 0 15 Q 45 20 60 40 Q 80 70 85 110 Q 75 80 50 55 Q 30 35 0 28" fill="url(#cornerGoldGrad)" />
@@ -38,8 +38,8 @@ export const DecorativeScreenBorders: React.FC = () => {
         </svg>
       </div>
 
-      {/* ---------------- 2. สายพาดโคมแขวนด้านบน (Hanging Lantern Garland - ปรับหลบกึ่งกลางและกล่อง QR code) ---------------- */}
-      <div className="absolute top-0 inset-x-0 h-28 sm:h-36 overflow-visible pointer-events-none">
+      {/* ---------------- 2. สายพาดโคมแขวนด้านบน (Hanging Lantern Garland - ซ่อนบนมือถือขนาดเล็กไม่ให้บังหัวข้อ) ---------------- */}
+      <div className="hidden sm:block absolute top-0 inset-x-0 h-28 sm:h-36 overflow-visible pointer-events-none">
         {/* สายเชือกโค้งสลัว (Garland Wire) 2 ฝั่ง ซ้ายและขวา โดยเปิดเว้นช่องตรงกลางและมุมบนซ้าย */}
         <svg viewBox="0 0 1200 100" preserveAspectRatio="none" className="w-full h-20 overflow-visible opacity-80">
           <defs>
@@ -126,7 +126,7 @@ export const DecorativeScreenBorders: React.FC = () => {
 
       {/* ---------------- 3. ฉากหน้าริมตลิ่งด้านล่าง (Foreground Riverbank Silhouettes) ---------------- */}
       {/* ฝั่งล่างซ้าย: กอดอกบัวหลวง & ใบบัวริมตลิ่ง (Bottom-Left Lotus Foreground) */}
-      <div className="absolute bottom-0 left-0 w-44 sm:w-64 md:w-80 h-36 sm:h-52 z-15 opacity-80">
+      <div className="absolute bottom-0 left-0 w-24 h-20 opacity-45 sm:w-64 sm:h-52 md:w-80 sm:opacity-80 z-15">
         <svg viewBox="0 0 280 180" className="w-full h-full">
           <defs>
             <linearGradient id="foreLeftGrad" x1="0%" y1="100%" x2="50%" y2="0%">
@@ -160,7 +160,7 @@ export const DecorativeScreenBorders: React.FC = () => {
       </div>
 
       {/* ฝั่งล่างขวา: กอใบตองและก้านบัวริมน้ำ (Bottom-Right Banana Leaves / Foliage Foreground) */}
-      <div className="absolute bottom-0 right-0 w-44 sm:w-64 md:w-80 h-36 sm:h-52 z-15 opacity-80 transform scale-x-[-1]">
+      <div className="absolute bottom-0 right-0 w-24 h-20 opacity-45 sm:w-64 sm:h-52 md:w-80 sm:opacity-80 z-15 transform scale-x-[-1]">
         <svg viewBox="0 0 280 180" className="w-full h-full">
           {/* ตลิ่งริมฝั่งขวา */}
           <path d="M 0 180 L 210 180 Q 140 150 70 140 Q 25 130 0 110 Z" fill="#050a16" />

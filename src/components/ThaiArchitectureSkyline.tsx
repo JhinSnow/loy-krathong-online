@@ -3,7 +3,7 @@ import React from 'react';
 
 export const ThaiArchitectureSkyline: React.FC = () => {
   return (
-    <div className="absolute inset-x-0 bottom-[60vh] sm:bottom-[62vh] h-52 sm:h-64 md:h-80 pointer-events-none select-none z-10 overflow-hidden will-change-transform transform-gpu">
+    <div className="absolute inset-x-0 bottom-[62%] h-44 sm:h-64 md:h-80 pointer-events-none select-none z-10 overflow-hidden will-change-transform transform-gpu">
       {/* Golden Backlight Ambient Spotlight behind Centerpiece Pumpkin Building (Zero-blur Radial Gradient) */}
       <div
         className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[520px] sm:w-[680px] md:w-[820px] h-48 pointer-events-none"

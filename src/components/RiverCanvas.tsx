@@ -33,6 +33,18 @@ interface RiverCanvasProps {
   onNavigateAdmin: () => void;
 }
 
+function getRiverKrathongY(winW: number, winH: number, slot?: number): number {
+  const isMobile = winW < 640;
+  if (typeof slot === 'number') {
+    return isMobile
+      ? winH * 0.48 + ((Math.abs(slot) % 3) * 0.08 + Math.random() * 0.08) * winH
+      : winH * 0.52 + ((Math.abs(slot) % 3) * 0.12 + Math.random() * 0.08) * winH;
+  }
+  return isMobile
+    ? winH * 0.48 + Math.random() * (winH * 0.26)
+    : winH * 0.5 + Math.random() * (winH * 0.36);
+}
+
 export const RiverCanvas: React.FC<RiverCanvasProps> = ({
   myKrathongId,
   justFloated = false,
@@ -141,6 +153,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
 
     const slot = typeof slotIndex === 'number' ? slotIndex : botSlotRef.current++;
     const pick = sampleBots[Math.abs(slot) % sampleBots.length];
+    const winW = typeof window !== 'undefined' ? window.innerWidth : 1200;
     const winH = typeof window !== 'undefined' ? window.innerHeight : 800;
 
     return {
@@ -152,7 +165,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       flower_type: pick.flower,
       candle_color: pick.candle,
       x: -55,
-      y: winH * 0.52 + ((Math.abs(slot) % 3) * 0.12 + Math.random() * 0.08) * winH,
+      y: getRiverKrathongY(winW, winH, slot),
       speed: 1.55 + (Math.abs(slot) % 3) * 0.18,
       opacity: 1,
       age: 0,
@@ -237,7 +250,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
             wish_message: sanitizeInputText(item.wish_message, 150),
             // หากเพิ่งปล่อยกระทง ให้ลอยออกมาจากริมตลิ่งฝั่งซ้ายอย่างนุ่มนวล
             x: isMyItem ? (justFloatedRef.current ? -20 : 85) : 110 + index * 165 + Math.random() * 40,
-            y: isMyItem ? winH * 0.62 : winH * 0.5 + Math.random() * (winH * 0.36),
+            y: isMyItem ? winH * (winW < 640 ? 0.6 : 0.62) : getRiverKrathongY(winW, winH),
             speed: (isMyItem ? 1.45 : 1.45 + Math.random() * 0.65) * speedScale,
             opacity: 1,
             age: 0,
@@ -315,13 +328,14 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
               krathongsRef.current.some((k) => k.id === data.id) ||
               pendingQueueRef.current.some((k) => k.id === data.id);
             if (exists) return;
+            const winW = window.innerWidth;
             const winH = window.innerHeight;
             const incomingItem: KrathongItem = {
               ...data,
               owner_name: sanitizeInputText(data.owner_name, 40),
               wish_message: sanitizeInputText(data.wish_message, 150),
               x: -55,
-              y: winH * 0.5 + Math.random() * (winH * 0.36),
+              y: getRiverKrathongY(winW, winH),
               speed: 1.5 + Math.random() * 0.7,
               opacity: 1,
               age: 0,
@@ -364,13 +378,14 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
               krathongsRef.current.some((k) => k.id === data.id) ||
               pendingQueueRef.current.some((k) => k.id === data.id);
             if (!exists) {
+              const winW = window.innerWidth;
               const winH = window.innerHeight;
               const approvedItem: KrathongItem = {
                 ...data,
                 owner_name: sanitizeInputText(data.owner_name, 40),
                 wish_message: sanitizeInputText(data.wish_message, 150),
                 x: -55,
-                y: winH * 0.5 + Math.random() * (winH * 0.36),
+                y: getRiverKrathongY(winW, winH),
                 speed: 1.5 + Math.random() * 0.7,
                 opacity: 1,
                 age: 0,
@@ -420,11 +435,12 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
             krathongsRef.current.some((k) => k.id === data.id) ||
             pendingQueueRef.current.some((k) => k.id === data.id);
           if (exists) return;
+          const winW = window.innerWidth;
           const winH = window.innerHeight;
           const newK: KrathongItem = {
             ...data,
             x: -55,
-            y: winH * 0.5 + Math.random() * (winH * 0.36),
+            y: getRiverKrathongY(winW, winH),
             speed: 1.5 + Math.random() * 0.7,
             opacity: 1,
             age: 0,
@@ -1704,7 +1720,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
   };
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-slate-950 select-none">
+    <div className="fixed inset-0 w-full h-dvh overflow-hidden overscroll-none bg-slate-950 select-none">
       {/* 1. Canvas พื้นหลัง: วาดท้องฟ้า พระจันทร์ และผิวน้ำแม่น้ำ */}
       <canvas
         ref={canvasRef}
@@ -1718,9 +1734,9 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       {/* 3. Foreground & Edge Borders: โคมแขวนล้านนา ลายกนกมุมจอ และกอดอกบัวริมตลิ่ง */}
       <DecorativeScreenBorders />
 
-      {/* Floating QR Code & Stage Mode Watermark (Frosted Glassmorphism with Collapsible Toggle) */}
+      {/* Floating QR Code & Stage Mode Watermark (ซ่อนบนมือถือแสดงเฉพาะจอโปรเจกเตอร์/แท็บเล็ต >= md) */}
       {showControls && (
-        <div className="absolute top-5 left-5 z-30 transition-all duration-300 ease-in-out">
+        <div className="hidden md:block absolute top-5 left-5 z-30 transition-all duration-300 ease-in-out">
           {isQrExpanded ? (
             <div className="relative flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-3.5 p-3 sm:p-3.5 bg-[#0b132b]/95 rounded-2xl border border-amber-500/35 text-amber-50 shadow-xl transition-all">
               {/* QR Code Container with High-Contrast Cream Background (Static Local Asset) */}
@@ -1794,9 +1810,9 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
 
       {/* Header Central Brand (สมมาตรสมบูรณ์แบบ พร้อมตัวนับสถิติรักษ์โลก Zero-Waste แบบเรียลไทม์) */}
       {showControls && (
-        <header className="fixed top-5 inset-x-0 flex flex-col items-center justify-center text-center pointer-events-none z-30 px-4">
+        <header className="absolute top-3 sm:top-5 inset-x-0 flex flex-col items-center justify-center text-center pointer-events-none z-30 px-3 sm:px-4">
           <div className="flex flex-col items-center justify-center">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-amber-100 drop-shadow-[0_2px_6px_rgba(0,0,0,0.75)] tracking-wide whitespace-nowrap">
+            <h1 className="text-xl sm:text-3xl md:text-4xl font-extrabold text-amber-100 drop-shadow-[0_2px_6px_rgba(0,0,0,0.75)] tracking-wide whitespace-nowrap">
               เทศกาลลอยกระทงออนไลน์
             </h1>
             <p className="text-xs sm:text-sm text-amber-200/90 tracking-[0.25em] uppercase mt-1.5 font-semibold drop-shadow whitespace-nowrap pl-[0.25em]">
@@ -1838,10 +1854,10 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       )}
 
       {/* Bottom Floating Control Bar */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center space-x-2 sm:space-x-3 bg-[#0b132b]/95 px-4 sm:px-5 py-3 rounded-full border border-amber-500/35 shadow-xl z-20 max-w-[96vw]">
+      <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 flex items-center space-x-1.5 sm:space-x-3 bg-[#0b132b]/95 px-3 sm:px-5 py-2.5 sm:py-3 rounded-full border border-amber-500/35 shadow-xl z-30 max-w-[95vw]">
         <button
           onClick={onNavigateCustomize}
-          className="flex items-center space-x-2 px-4 sm:px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-full shadow-md border border-amber-300/60 transition active:scale-95 whitespace-nowrap cursor-pointer text-xs sm:text-sm"
+          className="flex items-center space-x-1.5 sm:space-x-2 px-3.5 sm:px-5 py-2 sm:py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-full shadow-md border border-amber-300/60 transition active:scale-95 whitespace-nowrap cursor-pointer text-xs sm:text-sm"
         >
           <Sparkles className="w-4 h-4 text-stone-950 shrink-0" />
           <span>สร้างกระทงของคุณ</span>
@@ -1850,7 +1866,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         {myKrathongId && (
           <button
             onClick={handleFindMyKrathong}
-            className="flex items-center space-x-1.5 px-3.5 py-2.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-400/50 rounded-full text-xs sm:text-sm font-semibold shadow-sm transition whitespace-nowrap cursor-pointer"
+            className="flex items-center space-x-1.5 px-3 sm:px-3.5 py-2 sm:py-2.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-400/50 rounded-full text-xs sm:text-sm font-semibold shadow-sm transition whitespace-nowrap cursor-pointer"
           >
             <Eye className="w-4 h-4 text-amber-300 shrink-0" />
             <span className="hidden sm:inline">ดูกระทงของฉัน</span>
@@ -1860,7 +1876,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         <button
           onClick={handleToggleAudio}
           title={isAudioPlaying ? 'ปิดเสียงดนตรีบรรเลงและสายน้ำ' : 'เปิดเสียงดนตรีไทยบรรเลงและสายน้ำ'}
-          className={`flex items-center space-x-1.5 px-3 py-2.5 rounded-full border text-xs font-semibold transition cursor-pointer whitespace-nowrap ${
+          className={`flex items-center space-x-1.5 px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-full border text-xs font-semibold transition cursor-pointer whitespace-nowrap ${
             isAudioPlaying
               ? 'bg-amber-500/20 border-amber-400 text-amber-100 shadow-sm'
               : 'bg-slate-900/80 hover:bg-amber-950/40 text-amber-200/80 border-amber-500/30 hover:border-amber-400'
@@ -1877,7 +1893,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         <button
           onClick={toggleFullscreen}
           title="เปิด/ปิด โหมดเต็มจอสำหรับขึ้นจอใหญ่"
-          className="p-2.5 bg-slate-900/80 hover:bg-amber-950/40 text-amber-200 rounded-full border border-amber-500/30 hover:border-amber-400 transition cursor-pointer shrink-0"
+          className="hidden sm:inline-flex p-2.5 bg-slate-900/80 hover:bg-amber-950/40 text-amber-200 rounded-full border border-amber-500/30 hover:border-amber-400 transition cursor-pointer shrink-0"
         >
           {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
         </button>
@@ -1885,7 +1901,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         <button
           onClick={() => setShowControls(!showControls)}
           title="ซ่อนแถบควบคุมสำหรับฉายโปรเจกเตอร์"
-          className="px-3 py-2 bg-slate-900/80 hover:bg-amber-950/40 text-amber-200/80 text-xs rounded-full border border-amber-500/30 hover:border-amber-400 whitespace-nowrap cursor-pointer"
+          className="hidden sm:inline-flex px-3 py-2 bg-slate-900/80 hover:bg-amber-950/40 text-amber-200/80 text-xs rounded-full border border-amber-500/30 hover:border-amber-400 whitespace-nowrap cursor-pointer"
         >
           {showControls ? 'ซ่อน UI' : 'แสดง UI'}
         </button>
@@ -1893,7 +1909,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         <button
           onClick={onNavigateAdmin}
           title="เข้าสู่แผงควบคุมผู้ดูแล"
-          className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-amber-300 rounded-full border border-slate-700 transition cursor-pointer shrink-0"
+          className="p-2 sm:p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-amber-300 rounded-full border border-slate-700 transition cursor-pointer shrink-0"
         >
           <ShieldAlert className="w-4 h-4" />
         </button>

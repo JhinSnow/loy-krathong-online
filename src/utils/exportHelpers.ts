@@ -48,8 +48,7 @@ export const exportEvaluationAndProjectToExcel = (
       ),
       'ประเภทผู้เข้าร่วม': sanitizeSpreadsheetCell(USER_TYPE_THAI[rec.user_type] || rec.user_type),
       'รหัสนักศึกษา': sanitizeSpreadsheetCell(rec.student_id || '-'),
-      'ชื่อ-นามสกุล': sanitizeSpreadsheetCell(rec.student_name || '-'),
-      'คณะ/สังกัด': sanitizeSpreadsheetCell(rec.faculty || '-')
+      'คณะ / วิทยาลัย (จำแนกจากรหัส)': sanitizeSpreadsheetCell(rec.faculty || '-')
     };
 
     EVALUATION_QUESTIONS.forEach((q, qIdx) => {
@@ -144,8 +143,7 @@ export const exportEvaluationToCSV = (
     'Timestamp',
     'ประเภทผู้ตอบ',
     'รหัสนักศึกษา',
-    'ชื่อ-นามสกุล',
-    'คณะ/สังกัด',
+    'คณะ / วิทยาลัย (จำแนกจากรหัส)',
     ...EVALUATION_QUESTIONS.map((q) => `ข้อ_${q.id}`),
     'ค่าเฉลี่ยรวม',
     'ข้อเสนอแนะ'
@@ -164,7 +162,6 @@ export const exportEvaluationToCSV = (
         rec.created_at,
         USER_TYPE_THAI[rec.user_type] || rec.user_type,
         rec.student_id || '-',
-        rec.student_name || '-',
         rec.faculty || '-',
         ...rec.scores,
         rec.average_score.toFixed(2),
@@ -501,8 +498,7 @@ export const exportStudentTranscriptByFacultyToExcel = (
     entries.map((entry, idx) => ({
       'ลำดับ': idx + 1,
       'รหัสนักศึกษา': sanitizeSpreadsheetCell(entry.student_id),
-      'ชื่อ-นามสกุล': sanitizeSpreadsheetCell(entry.student_name || '-'),
-      'คณะ / วิทยาลัย': sanitizeSpreadsheetCell(entry.faculty || 'ไม่ระบุคณะ'),
+      'คณะ / วิทยาลัย (จำแนกจากรหัส)': sanitizeSpreadsheetCell(entry.faculty || 'ไม่ระบุคณะ'),
       'สถานะตรวจสอบอุปกรณ์':
         entry.deviceStatus === 'shared_device'
           ? 'พบใช้อุปกรณ์ซ้ำ (ตรวจสอบเพิ่มเติม)'
@@ -514,6 +510,16 @@ export const exportStudentTranscriptByFacultyToExcel = (
       'รหัสกระทงอ้างอิง': sanitizeSpreadsheetCell(entry.krathong_id || '-')
     }));
 
+  const studentSheetCols = [
+    { wch: 8 },
+    { wch: 16 },
+    { wch: 36 },
+    { wch: 30 },
+    { wch: 24 },
+    { wch: 22 },
+    { wch: 38 }
+  ];
+
   // --- Sheet 2: รายชื่อรวมทั้งหมด (ตัดซ้ำแล้ว) ---
   const allStudentsRows =
     roster.uniqueStudents.length > 0
@@ -522,8 +528,7 @@ export const exportStudentTranscriptByFacultyToExcel = (
           {
             'ลำดับ': '-',
             'รหัสนักศึกษา': 'ยังไม่มีรายชื่อนักศึกษา',
-            'ชื่อ-นามสกุล': '-',
-            'คณะ / วิทยาลัย': '-',
+            'คณะ / วิทยาลัย (จำแนกจากรหัส)': '-',
             'สถานะตรวจสอบอุปกรณ์': '-',
             'รหัสอุปกรณ์ (Device Token)': '-',
             'วัน-เวลาที่ส่ง': '-',
@@ -532,16 +537,7 @@ export const exportStudentTranscriptByFacultyToExcel = (
         ];
 
   const allStudentsSheet = XLSX.utils.json_to_sheet(allStudentsRows);
-  allStudentsSheet['!cols'] = [
-    { wch: 8 },
-    { wch: 16 },
-    { wch: 28 },
-    { wch: 36 },
-    { wch: 30 },
-    { wch: 24 },
-    { wch: 22 },
-    { wch: 38 }
-  ];
+  allStudentsSheet['!cols'] = studentSheetCols;
   XLSX.utils.book_append_sheet(workbook, allStudentsSheet, '2_รายชื่อรวมทั้งหมด_ตัดซ้ำ');
 
   // --- Sheet 3+: แยกตามคณะ / วิทยาลัย ---
@@ -559,16 +555,7 @@ export const exportStudentTranscriptByFacultyToExcel = (
   for (const [facultyName, entries] of facultyGroups.entries()) {
     const sheetName = buildUniqueSafeSheetName(facultyName, workbook.SheetNames);
     const facultySheet = XLSX.utils.json_to_sheet(formatStudentRows(entries));
-    facultySheet['!cols'] = [
-      { wch: 8 },
-      { wch: 16 },
-      { wch: 28 },
-      { wch: 36 },
-      { wch: 30 },
-      { wch: 24 },
-      { wch: 22 },
-      { wch: 38 }
-    ];
+    facultySheet['!cols'] = studentSheetCols;
     XLSX.utils.book_append_sheet(workbook, facultySheet, sheetName);
   }
 

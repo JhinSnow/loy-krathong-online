@@ -514,7 +514,6 @@ export function getDemoEvaluationRecords(): ParsedEvaluationRecord[] {
       id: 'demo-1',
       user_type: 'student',
       student_id: '6610110245',
-      student_name: 'ธนากร ใจดี (ตัวอย่าง)',
       faculty: 'คณะวิศวกรรมศาสตร์',
       device_id: 'demo-dev-01',
       scores: [5, 5, 5, 5, 4, 5, 5, 5, 5, 5],
@@ -525,7 +524,6 @@ export function getDemoEvaluationRecords(): ParsedEvaluationRecord[] {
       id: 'demo-2',
       user_type: 'student',
       student_id: '6510210118',
-      student_name: 'กัญญาณี สุขสันต์ (ตัวอย่าง)',
       faculty: 'คณะวิทยาศาสตร์',
       device_id: 'demo-dev-02',
       scores: [5, 5, 4, 5, 4, 5, 5, 4, 4, 5],
@@ -552,7 +550,6 @@ export function getDemoEvaluationRecords(): ParsedEvaluationRecord[] {
       id: 'demo-5',
       user_type: 'student',
       student_id: '6710510089',
-      student_name: 'นภัสสร รักเรียน (ตัวอย่าง)',
       faculty: 'คณะวิทยาการจัดการ',
       device_id: 'demo-dev-03',
       scores: [5, 4, 5, 5, 4, 5, 5, 5, 4, 5],
@@ -652,15 +649,9 @@ export function calculateEvaluationAnalytics(records: ParsedEvaluationRecord[]):
  */
 export function buildStudentTranscriptRoster(
   records: ParsedEvaluationRecord[],
-  krathongs: { id: string; owner_name: string }[] = []
+  _krathongs: { id: string; owner_name: string }[] = []
 ): StudentTranscriptRoster {
-  const krathongOwnerMap = new Map<string, string>();
-  krathongs.forEach((k) => {
-    if (k.id && k.owner_name) {
-      krathongOwnerMap.set(k.id, k.owner_name);
-    }
-  });
-
+  void _krathongs;
   const validStudentRows = records.filter((rec) => {
     const cleanSid = (rec.student_id || '').trim();
     return rec.user_type === 'student' && /^\d{8,13}$/.test(cleanSid);
@@ -679,7 +670,7 @@ export function buildStudentTranscriptRoster(
     }
   });
 
-  // ตัดรหัสนักศึกษาซ้ำให้เหลือ 1 คนต่อ 1 รหัส (คงรายการแรกที่มีข้อมูลครบถ้วนที่สุด)
+  // ตัดรหัสนักศึกษาซ้ำให้เหลือ 1 คนต่อ 1 รหัส (เก็บเฉพาะรหัสนักศึกษาและจำแนกคณะจากรหัส)
   const dedupedMap = new Map<string, StudentTranscriptEntry>();
   const chronological = [...validStudentRows].sort(
     (a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
@@ -688,8 +679,6 @@ export function buildStudentTranscriptRoster(
   chronological.forEach((rec) => {
     const sid = (rec.student_id || '').trim();
     const did = (rec.device_id || '').trim();
-    const fallbackName = rec.krathong_id ? krathongOwnerMap.get(rec.krathong_id) || '' : '';
-    const resolvedName = (rec.student_name || '').trim() || fallbackName || '-';
     const resolvedFaculty =
       (rec.faculty || '').trim() || guessFacultyFromStudentId(sid) || 'ไม่ระบุคณะ';
 
@@ -699,7 +688,7 @@ export function buildStudentTranscriptRoster(
     if (!existing) {
       dedupedMap.set(sid, {
         student_id: sid,
-        student_name: resolvedName,
+        student_name: '',
         faculty: resolvedFaculty,
         device_id: did,
         deviceStatus: sharedOnSameDevice ? 'shared_device' : 'verified',
@@ -707,10 +696,6 @@ export function buildStudentTranscriptRoster(
         krathong_id: rec.krathong_id || null
       });
     } else {
-      // อัปเกรดชื่อหรือคณะหากข้อมูลเก่าว่างอยู่
-      if (existing.student_name === '-' && resolvedName !== '-') {
-        existing.student_name = resolvedName;
-      }
       if (existing.faculty === 'ไม่ระบุคณะ' && resolvedFaculty !== 'ไม่ระบุคณะ') {
         existing.faculty = resolvedFaculty;
       }

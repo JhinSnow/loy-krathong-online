@@ -12,7 +12,6 @@ import {
 import {
   EVALUATION_QUESTIONS,
   RATING_LABELS,
-  PSU_FACULTIES,
   guessFacultyFromStudentId,
   getOrCreateDeviceToken,
   getBoundStudentId,
@@ -46,12 +45,6 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
 
   const [selectedUserType, setSelectedUserType] = useState<string>(initialUserType || 'student');
   const [studentId, setStudentId] = useState<string>(() => getBoundStudentId() || '');
-  const [studentName, setStudentName] = useState<string>(() => myKrathongRecord?.owner_name || '');
-  const [faculty, setFaculty] = useState<string>(() => {
-    const bound = getBoundStudentId();
-    return bound ? guessFacultyFromStudentId(bound) : '';
-  });
-  const [facultyManuallySelected, setFacultyManuallySelected] = useState<boolean>(false);
   const [scores, setScores] = useState<number[]>(() => Array(10).fill(5));
   const [feedback, setFeedback] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
@@ -64,12 +57,6 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
     const digitsOnly = rawValue.replace(/\D/g, '').slice(0, 13);
     setStudentId(digitsOnly);
     setErrorMsg('');
-    if (!facultyManuallySelected) {
-      const guessed = guessFacultyFromStudentId(digitsOnly);
-      if (guessed) {
-        setFaculty(guessed);
-      }
-    }
   };
 
   const handleScoreChange = (questionIndex: number, scoreValue: number) => {
@@ -95,12 +82,10 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
 
     const cleanComment = sanitizeInputText(feedback, 140);
     const cleanStudentId = isStudent ? studentId.replace(/\D/g, '').trim() : '';
-    const cleanStudentName = isStudent ? sanitizeInputText(studentName, 60) : '';
-    const cleanFaculty = isStudent ? sanitizeInputText(faculty, 60) : '';
+    const derivedFaculty = isStudent ? guessFacultyFromStudentId(cleanStudentId) || 'คณะ/หน่วยงานอื่นๆ' : '';
 
     if (
       (cleanComment && containsProfanity(cleanComment)) ||
-      (cleanStudentName && containsProfanity(cleanStudentName)) ||
       (cleanStudentId && containsProfanity(cleanStudentId))
     ) {
       setErrorMsg('กรุณาใช้ถ้อยคำที่สุภาพในแบบประเมิน');
@@ -110,14 +95,6 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
     if (isStudent) {
       if (!/^\d{8,13}$/.test(cleanStudentId)) {
         setErrorMsg('กรุณากรอกรหัสนักศึกษาให้ถูกต้อง (ตัวเลข 8–13 หลัก เช่น 6610110245)');
-        return;
-      }
-      if (!cleanStudentName || cleanStudentName.length < 2) {
-        setErrorMsg('กรุณากรอกชื่อ-นามสกุลจริงสำหรับบันทึกชั่วโมงกิจกรรม (Transcript)');
-        return;
-      }
-      if (!cleanFaculty) {
-        setErrorMsg('กรุณาเลือกคณะ / วิทยาลัย เพื่อจัดกลุ่มรายชื่อส่งมหาวิทยาลัย');
         return;
       }
 
@@ -168,8 +145,8 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
         scores,
         cleanStudentId,
         cleanComment,
-        cleanStudentName,
-        cleanFaculty,
+        '',
+        derivedFaculty,
         deviceId
       );
 
@@ -230,8 +207,8 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
         krathong_id: krathongId,
         user_type: safeUserType,
         student_id: cleanStudentId,
-        student_name: cleanStudentName,
-        faculty: cleanFaculty,
+        student_name: '',
+        faculty: derivedFaculty,
         device_id: deviceId,
         scores,
         average_score: avgNumber,
@@ -330,12 +307,12 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
               </div>
             </div>
 
-            {/* ช่องกรอกบังคับเฉพาะกลุ่มนักศึกษาเพื่อบันทึก Transcript */}
+            {/* ช่องกรอกบังคับเฉพาะกลุ่มนักศึกษาเพื่อบันทึก Transcript (เก็บเฉพาะรหัสนักศึกษา) */}
             {selectedUserType === 'student' && (
-              <div className="pt-2 border-t border-amber-500/20 space-y-2.5">
+              <div className="pt-2 border-t border-amber-500/20 space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-1">
                   <p className="text-[11px] font-semibold text-amber-300">
-                    🎓 ข้อมูลนักศึกษาสำหรับบันทึกชั่วโมงกิจกรรม (Activity Transcript)
+                    🎓 กรอกรหัสนักศึกษาสำหรับบันทึกชั่วโมงกิจกรรม (Activity Transcript)
                   </p>
                   {boundStudentIdOnDevice && (
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-200">
@@ -344,67 +321,24 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
-                  <div className="sm:col-span-4">
-                    <label className="block text-[11px] font-medium text-amber-100/85 mb-1">
-                      รหัสนักศึกษา <span className="text-rose-400">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={studentId}
-                      onChange={(e) => handleStudentIdChange(e.target.value)}
-                      placeholder="เช่น 6610110245"
-                      maxLength={13}
-                      required
-                      className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-amber-50 placeholder-slate-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="sm:col-span-4">
-                    <label className="block text-[11px] font-medium text-amber-100/85 mb-1">
-                      ชื่อ-นามสกุลจริง <span className="text-rose-400">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={studentName}
-                      onChange={(e) => {
-                        setStudentName(e.target.value);
-                        setErrorMsg('');
-                      }}
-                      placeholder="เช่น ธนากร ใจดี"
-                      maxLength={60}
-                      required
-                      className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-amber-50 placeholder-slate-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="sm:col-span-4">
-                    <label className="block text-[11px] font-medium text-amber-100/85 mb-1">
-                      คณะ / วิทยาลัย <span className="text-rose-400">*</span>
-                    </label>
-                    <select
-                      value={faculty}
-                      onChange={(e) => {
-                        setFaculty(e.target.value);
-                        setFacultyManuallySelected(true);
-                        setErrorMsg('');
-                      }}
-                      required
-                      className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-2.5 py-2 text-xs text-amber-50 focus:outline-none"
-                    >
-                      <option value="">-- เลือกคณะ --</option>
-                      {PSU_FACULTIES.map((fac) => (
-                        <option key={fac} value={fac}>
-                          {fac}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-amber-100/85 mb-1">
+                    รหัสนักศึกษา <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={studentId}
+                    onChange={(e) => handleStudentIdChange(e.target.value)}
+                    placeholder="กรอกรหัสนักศึกษา 8–13 หลัก เช่น 6610110245"
+                    maxLength={13}
+                    required
+                    className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-base sm:text-sm text-amber-50 placeholder-slate-500 focus:outline-none"
+                  />
                 </div>
 
                 <p className="text-[10px] text-amber-100/65">
-                  * ระบบสงวนสิทธิ์ 1 อุปกรณ์ ต่อ 1 รหัสนักศึกษา และตัดรายชื่อซ้ำอัตโนมัติก่อนส่งข้อมูลให้คณะ/มหาวิทยาลัย
+                  * ระบบจำแนกคณะและตัดรหัสซ้ำอัตโนมัติ พร้อมสงวนสิทธิ์ 1 อุปกรณ์ ต่อ 1 รหัสนักศึกษา
                 </p>
               </div>
             )}
