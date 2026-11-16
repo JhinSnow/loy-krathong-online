@@ -323,14 +323,22 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
           รังสรรค์กระทงออนไลน์ 🪷
         </h2>
 
-        <button
-          type="button"
-          onClick={() => setShowShareModal(true)}
-          className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 bg-[#162038] hover:bg-[#1c2845] text-amber-200 rounded-xl text-xs font-semibold border border-amber-400/40 shadow-sm transition cursor-pointer shrink-0"
-        >
-          <ImageIcon className="w-3.5 h-3.5 text-amber-300" />
-          <span>การ์ดรูปภาพ</span>
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowShareModal(true)}
+            className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 bg-[#162038] hover:bg-[#1c2845] text-amber-200 rounded-xl text-xs font-semibold border border-amber-400/40 shadow-sm transition cursor-pointer"
+          >
+            <ImageIcon className="w-3.5 h-3.5 text-amber-300" />
+            <span className="hidden sm:inline">การ์ดรูปภาพ</span>
+            <span className="sm:hidden">การ์ด</span>
+          </button>
+          <img
+            src="/logo-final-notext-white.png"
+            alt="SAM SCI 69 Logo"
+            className="h-7 sm:h-9 w-auto object-contain opacity-95 select-none pointer-events-none"
+          />
+        </div>
       </div>
 
       {/* Main Builder Container */}
