@@ -1,6 +1,13 @@
 // src/utils/soundEffects.ts
-// ระบบสังเคราะห์เสียงดนตรีไทยบรรเลงเพลงลอยกระทง (Khim / Music Box) และเสียงสายน้ำไหลด้วย Web Audio API
-// ทำงานได้ 100% บนเบราว์เซอร์โดยไม่ต้องพึ่งไฟล์ MP3 ภายนอก ไม่ติดลิขสิทธิ์ และรองรับระบบ LAN / Offline
+// ระบบเสียงประกอบเว็บ: เล่นเพลงลอยกระทงเวอร์ชันเปียโน (/loy-krathong-piano.mp3) คู่กับเสียงสายน้ำไหล
+// พร้อมระบบสังเคราะห์เสียงเปียโนคอร์ดประสานด้วย Web Audio API เป็นตัวสำรองเมื่อใช้งานออฟไลน์
+
+interface PianoStep {
+  freq: number;
+  dur: number;
+  delay: number;
+  chord?: number[];
+}
 
 class SoundManager {
   private ctx: AudioContext | null = null;
@@ -8,61 +15,65 @@ class SoundManager {
   private melodyTimer: number | null = null;
   private waterGainNode: GainNode | null = null;
   private waterSourceNode: AudioBufferSourceNode | null = null;
+  private bgmAudio: HTMLAudioElement | null = null;
+  private mp3Failed: boolean = false;
   private noteIndex: number = 0;
 
-  // โน้ตทำนองเพลงลอยกระทง (คีย์ C Pentatonic: C D E G A) จังหวะนุ่มนวลสไตล์ขิม/กล่องดนตรี
-  private readonly loyKrathongMelody: { freq: number; dur: number; delay: number }[] = [
+  // โน้ตทำนองเพลงลอยกระทงพร้อมคอร์ดประสานมือซ้าย (ใช้สำรองเมื่อโหลด MP3 ไม่ได้)
+  private readonly loyKrathongMelody: PianoStep[] = [
     // วรรค 1: วันเพ็ญเดือนสิบสอง น้ำนองเต็มตลิ่ง
-    { freq: 392.00, dur: 0.45, delay: 420 }, // G4 (วัน)
-    { freq: 392.00, dur: 0.45, delay: 420 }, // G4 (เพ็ญ)
-    { freq: 440.00, dur: 0.55, delay: 480 }, // A4 (เดือน)
-    { freq: 392.00, dur: 0.45, delay: 420 }, // G4 (สิบ)
-    { freq: 329.63, dur: 0.90, delay: 850 }, // E4 (สอง)
-    { freq: 261.63, dur: 0.45, delay: 420 }, // C4 (น้ำ)
-    { freq: 293.66, dur: 0.45, delay: 420 }, // D4 (นอง)
-    { freq: 329.63, dur: 0.50, delay: 450 }, // E4 (เต็ม)
-    { freq: 392.00, dur: 0.45, delay: 420 }, // G4 (ตะ)
-    { freq: 329.63, dur: 0.95, delay: 950 }, // E4 (ลิ่ง)
+    { freq: 392.00, dur: 0.55, delay: 440, chord: [130.81, 196.00, 261.63] }, // C major
+    { freq: 392.00, dur: 0.50, delay: 440 },
+    { freq: 440.00, dur: 0.65, delay: 500 },
+    { freq: 392.00, dur: 0.50, delay: 440 },
+    { freq: 329.63, dur: 1.05, delay: 860, chord: [164.81, 196.00, 261.63] },
+    { freq: 261.63, dur: 0.50, delay: 440, chord: [174.61, 220.00] }, // F
+    { freq: 293.66, dur: 0.50, delay: 440 },
+    { freq: 329.63, dur: 0.55, delay: 460 },
+    { freq: 392.00, dur: 0.50, delay: 440, chord: [130.81, 196.00] },
+    { freq: 329.63, dur: 1.15, delay: 960 },
 
     // วรรค 2: เราทั้งหลายชายหญิง สนุกกันจริงวันลอยกระทง
-    { freq: 293.66, dur: 0.45, delay: 420 }, // D4 (เรา)
-    { freq: 329.63, dur: 0.45, delay: 420 }, // E4 (ทั้ง)
-    { freq: 392.00, dur: 0.55, delay: 480 }, // G4 (หลาย)
-    { freq: 329.63, dur: 0.45, delay: 420 }, // E4 (ชาย)
-    { freq: 261.63, dur: 0.85, delay: 800 }, // C4 (หญิง)
-    { freq: 293.66, dur: 0.40, delay: 380 }, // D4 (สะ)
-    { freq: 329.63, dur: 0.45, delay: 420 }, // E4 (นุก)
-    { freq: 392.00, dur: 0.45, delay: 420 }, // G4 (กัน)
-    { freq: 440.00, dur: 0.55, delay: 500 }, // A4 (จริง)
-    { freq: 392.00, dur: 0.40, delay: 380 }, // G4 (วัน)
-    { freq: 329.63, dur: 0.45, delay: 420 }, // E4 (ลอย)
-    { freq: 293.66, dur: 0.45, delay: 420 }, // D4 (กระ)
-    { freq: 261.63, dur: 1.10, delay: 1100 }, // C4 (ทง)
+    { freq: 293.66, dur: 0.50, delay: 440, chord: [196.00, 246.94] }, // G
+    { freq: 329.63, dur: 0.50, delay: 440 },
+    { freq: 392.00, dur: 0.60, delay: 500 },
+    { freq: 329.63, dur: 0.50, delay: 440 },
+    { freq: 261.63, dur: 1.00, delay: 820, chord: [130.81, 164.81, 196.00] }, // C
+    { freq: 293.66, dur: 0.45, delay: 400 },
+    { freq: 329.63, dur: 0.50, delay: 440 },
+    { freq: 392.00, dur: 0.50, delay: 440, chord: [110.00, 164.81, 220.00] }, // Am
+    { freq: 440.00, dur: 0.65, delay: 520 },
+    { freq: 392.00, dur: 0.45, delay: 400, chord: [196.00, 246.94] }, // G
+    { freq: 329.63, dur: 0.50, delay: 440 },
+    { freq: 293.66, dur: 0.50, delay: 440 },
+    { freq: 261.63, dur: 1.35, delay: 1120, chord: [130.81, 164.81, 196.00] }, // C
 
     // วรรค 3: ลอย ลอยกระทง ลอย ลอยกระทง
-    { freq: 392.00, dur: 0.65, delay: 620 }, // G4 (ลอย)
-    { freq: 329.63, dur: 0.40, delay: 380 }, // E4 (ลอย)
-    { freq: 392.00, dur: 0.40, delay: 380 }, // G4 (กระ)
-    { freq: 440.00, dur: 0.85, delay: 820 }, // A4 (ทง)
-    { freq: 392.00, dur: 0.65, delay: 620 }, // G4 (ลอย)
-    { freq: 329.63, dur: 0.40, delay: 380 }, // E4 (ลอย)
-    { freq: 392.00, dur: 0.40, delay: 380 }, // G4 (กระ)
-    { freq: 440.00, dur: 0.95, delay: 920 }, // A4 (ทง)
+    { freq: 392.00, dur: 0.75, delay: 640, chord: [130.81, 196.00, 261.63] },
+    { freq: 329.63, dur: 0.45, delay: 400 },
+    { freq: 392.00, dur: 0.45, delay: 400 },
+    { freq: 440.00, dur: 0.95, delay: 840, chord: [174.61, 220.00, 261.63] }, // F
+    { freq: 392.00, dur: 0.75, delay: 640, chord: [130.81, 196.00] },
+    { freq: 329.63, dur: 0.45, delay: 400 },
+    { freq: 392.00, dur: 0.45, delay: 400 },
+    { freq: 440.00, dur: 1.05, delay: 940, chord: [174.61, 220.00] },
 
     // วรรค 4: บุญจะส่งให้เราสุขใจ
-    { freq: 523.25, dur: 0.50, delay: 460 }, // C5 (บุญ)
-    { freq: 440.00, dur: 0.40, delay: 380 }, // A4 (จะ)
-    { freq: 392.00, dur: 0.50, delay: 460 }, // G4 (ส่ง)
-    { freq: 329.63, dur: 0.45, delay: 420 }, // E4 (ให้)
-    { freq: 392.00, dur: 0.50, delay: 460 }, // G4 (เรา)
-    { freq: 293.66, dur: 0.50, delay: 460 }, // D4 (สุข)
-    { freq: 261.63, dur: 1.30, delay: 1400 }  // C4 (ใจ)
+    { freq: 523.25, dur: 0.60, delay: 480, chord: [130.81, 196.00, 261.63] },
+    { freq: 440.00, dur: 0.45, delay: 400 },
+    { freq: 392.00, dur: 0.55, delay: 480 },
+    { freq: 329.63, dur: 0.50, delay: 440, chord: [110.00, 164.81] },
+    { freq: 392.00, dur: 0.55, delay: 480, chord: [196.00, 246.94] },
+    { freq: 293.66, dur: 0.55, delay: 480 },
+    { freq: 261.63, dur: 1.50, delay: 1420, chord: [130.81, 164.81, 196.00, 261.63] }
   ];
 
   private ensureContext(): AudioContext | null {
     if (typeof window === 'undefined') return null;
     if (!this.ctx) {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (AudioCtx) {
         this.ctx = new AudioCtx();
       }
@@ -71,6 +82,24 @@ class SoundManager {
       this.ctx.resume().catch(() => {});
     }
     return this.ctx;
+  }
+
+  private ensureBgmAudio(): HTMLAudioElement | null {
+    if (typeof window === 'undefined' || typeof Audio === 'undefined') return null;
+    if (!this.bgmAudio) {
+      const audio = new Audio('/loy-krathong-piano.mp3');
+      audio.loop = true;
+      audio.volume = 0.6;
+      audio.preload = 'none';
+      audio.addEventListener('error', () => {
+        if (!this.isMuted && !this.mp3Failed) {
+          this.mp3Failed = true;
+          this.scheduleNextMelodyNote();
+        }
+      });
+      this.bgmAudio = audio;
+    }
+    return this.bgmAudio;
   }
 
   public isAudioEnabled(): boolean {
@@ -87,16 +116,35 @@ class SoundManager {
   }
 
   public startAmbientAudio(): void {
-    const ctx = this.ensureContext();
-    if (!ctx) return;
-
     this.isMuted = false;
-    this.startWaterStream(ctx);
-    this.scheduleNextMelodyNote();
+    const ctx = this.ensureContext();
+    if (ctx) {
+      this.startWaterStream(ctx);
+    }
+
+    const audio = this.ensureBgmAudio();
+    if (audio && !this.mp3Failed) {
+      audio.play().catch(() => {
+        if (!this.isMuted) {
+          this.mp3Failed = true;
+          this.scheduleNextMelodyNote();
+        }
+      });
+      return;
+    }
+
+    if (ctx) {
+      this.scheduleNextMelodyNote();
+    }
   }
 
   public stopAmbientAudio(): void {
     this.isMuted = true;
+    if (this.bgmAudio) {
+      try {
+        this.bgmAudio.pause();
+      } catch {}
+    }
     if (this.melodyTimer !== null) {
       window.clearTimeout(this.melodyTimer);
       this.melodyTimer = null;
@@ -141,7 +189,7 @@ class SoundManager {
       filter.Q.value = 0.7;
 
       const gain = ctx.createGain();
-      gain.gain.value = 0.035;
+      gain.gain.value = 0.028;
 
       noise.connect(filter);
       filter.connect(gain);
@@ -153,50 +201,76 @@ class SoundManager {
     } catch {}
   }
 
-  // เล่นโน้ตดนตรีไทย (เสียงขิม/ระฆังแก้ว)
-  private playKhimNote(freq: number, duration: number, volume = 0.075): void {
+  // สังเคราะห์เสียงเปียโนอะคูสติกแบบนุ่มนวล (ตัวสำรองเมื่อใช้งานออฟไลน์)
+  private playPianoNote(freq: number, duration: number, volume = 0.08): void {
     const ctx = this.ensureContext();
     if (!ctx || this.isMuted) return;
 
     try {
       const now = ctx.currentTime;
 
-      // Fundamental Tone
-      const osc1 = ctx.createOscillator();
-      osc1.type = 'sine';
-      osc1.frequency.setValueAtTime(freq, now);
+      const oscFundamental = ctx.createOscillator();
+      oscFundamental.type = 'triangle';
+      oscFundamental.frequency.setValueAtTime(freq, now);
 
-      // Harmonic Overtone (เพิ่มประกายเสียงขิม/กล่องดนตรี)
-      const osc2 = ctx.createOscillator();
-      osc2.type = 'triangle';
-      osc2.frequency.setValueAtTime(freq * 2, now);
+      const oscWarmth = ctx.createOscillator();
+      oscWarmth.type = 'sine';
+      oscWarmth.frequency.setValueAtTime(freq * 2, now);
 
-      const gain1 = ctx.createGain();
-      gain1.gain.setValueAtTime(0.001, now);
-      gain1.gain.linearRampToValueAtTime(volume, now + 0.025);
-      gain1.gain.exponentialRampToValueAtTime(0.0008, now + duration * 1.4);
+      const oscPresence = ctx.createOscillator();
+      oscPresence.type = 'sine';
+      oscPresence.frequency.setValueAtTime(freq * 3, now);
 
-      const gain2 = ctx.createGain();
-      gain2.gain.setValueAtTime(0.001, now);
-      gain2.gain.linearRampToValueAtTime(volume * 0.25, now + 0.015);
-      gain2.gain.exponentialRampToValueAtTime(0.0005, now + duration * 0.65);
+      const lpFilter = ctx.createBiquadFilter();
+      lpFilter.type = 'lowpass';
+      lpFilter.frequency.setValueAtTime(Math.min(4800, freq * 6), now);
+      lpFilter.frequency.exponentialRampToValueAtTime(Math.max(420, freq * 1.8), now + duration * 1.1);
 
-      osc1.connect(gain1);
-      osc2.connect(gain2);
-      gain1.connect(ctx.destination);
-      gain2.connect(ctx.destination);
+      const gainFund = ctx.createGain();
+      gainFund.gain.setValueAtTime(0.0008, now);
+      gainFund.gain.linearRampToValueAtTime(volume, now + 0.012);
+      gainFund.gain.exponentialRampToValueAtTime(volume * 0.35, now + duration * 0.45);
+      gainFund.gain.exponentialRampToValueAtTime(0.0005, now + duration * 1.5);
 
-      osc1.start(now);
-      osc2.start(now);
-      osc1.stop(now + duration * 1.45);
-      osc2.stop(now + duration * 0.7);
+      const gainHarm = ctx.createGain();
+      gainHarm.gain.setValueAtTime(0.0005, now);
+      gainHarm.gain.linearRampToValueAtTime(volume * 0.28, now + 0.01);
+      gainHarm.gain.exponentialRampToValueAtTime(0.0004, now + duration * 0.7);
+
+      const gainThird = ctx.createGain();
+      gainThird.gain.setValueAtTime(0.0003, now);
+      gainThird.gain.linearRampToValueAtTime(volume * 0.1, now + 0.008);
+      gainThird.gain.exponentialRampToValueAtTime(0.0003, now + duration * 0.35);
+
+      oscFundamental.connect(gainFund);
+      oscWarmth.connect(gainHarm);
+      oscPresence.connect(gainThird);
+      gainFund.connect(lpFilter);
+      gainHarm.connect(lpFilter);
+      gainThird.connect(lpFilter);
+      lpFilter.connect(ctx.destination);
+
+      oscFundamental.start(now);
+      oscWarmth.start(now);
+      oscPresence.start(now);
+      oscFundamental.stop(now + duration * 1.55);
+      oscWarmth.stop(now + duration * 0.75);
+      oscPresence.stop(now + duration * 0.4);
     } catch {}
   }
 
   private scheduleNextMelodyNote(): void {
     if (this.isMuted) return;
+    if (this.melodyTimer !== null) {
+      window.clearTimeout(this.melodyTimer);
+    }
     const current = this.loyKrathongMelody[this.noteIndex];
-    this.playKhimNote(current.freq, current.dur, 0.065);
+    this.playPianoNote(current.freq, current.dur, 0.08);
+    if (current.chord) {
+      current.chord.forEach((chordFreq, idx) => {
+        this.playPianoNote(chordFreq, current.dur * 1.5, 0.032 - idx * 0.004);
+      });
+    }
 
     this.noteIndex = (this.noteIndex + 1) % this.loyKrathongMelody.length;
     this.melodyTimer = window.setTimeout(() => {

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import type { UserType } from '../types';
 import { KrathongVisual } from './KrathongVisual';
 import { ShareCardModal } from './ShareCardModal';
-import { Sparkles, Eye, Image as ImageIcon, Dices } from 'lucide-react';
+import { Sparkles, Eye, Image as ImageIcon, Dices, Volume2, VolumeX } from 'lucide-react';
 import { supabase } from '../utils/supabase';
 import {
   containsProfanity,
@@ -42,6 +42,11 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [showShareModal, setShowShareModal] = useState(false);
+  const [isAudioPlaying, setIsAudioPlaying] = useState<boolean>(() => soundManager.isAudioEnabled());
+
+  const handleToggleAudio = () => {
+    setIsAudioPlaying(soundManager.toggleAudio());
+  };
 
   // 1. ฐานกระทง 8 รูปแบบ
   const bases = [
@@ -323,7 +328,25 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
           รังสรรค์กระทงออนไลน์ 🪷
         </h2>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={handleToggleAudio}
+            title={isAudioPlaying ? 'ปิดเสียงเพลงเปียโน' : 'เปิดเสียงเพลงลอยกระทง (เปียโน)'}
+            aria-label={isAudioPlaying ? 'ปิดเสียงเพลงเปียโน' : 'เปิดเสียงเพลงลอยกระทง (เปียโน)'}
+            className={`flex items-center space-x-1 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-semibold border shadow-sm transition cursor-pointer ${
+              isAudioPlaying
+                ? 'bg-amber-500/20 border-amber-400 text-amber-100'
+                : 'bg-[#162038] hover:bg-[#1c2845] border-amber-400/35 text-amber-200/85'
+            }`}
+          >
+            {isAudioPlaying ? (
+              <Volume2 className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+            ) : (
+              <VolumeX className="w-3.5 h-3.5 text-amber-200/80 shrink-0" />
+            )}
+            <span className="hidden md:inline">{isAudioPlaying ? 'เปียโน: เปิด' : 'เพลงเปียโน'}</span>
+          </button>
           <button
             type="button"
             onClick={() => setShowShareModal(true)}
