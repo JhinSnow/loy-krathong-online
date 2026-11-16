@@ -871,7 +871,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
             // ตึกฟักทอง ม.อ. กลางกระทง
             sCtx.fillStyle = '#78350f';
             sCtx.fillRect(kx - 20, cy + 2, 40, 4);
-            sCtx.fillStyle = '#fef3c7';
+            sCtx.fillStyle = '#fde68a';
             sCtx.fillRect(kx - 17, cy, 34, 2.5);
             sCtx.fillStyle = '#d97706';
             sCtx.strokeStyle = '#78350f';
@@ -884,7 +884,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
             sCtx.fill();
             sCtx.stroke();
             // กลีบกลางสว่าง + ยอดจั่ว
-            sCtx.fillStyle = '#fef3c7';
+            sCtx.fillStyle = '#fde68a';
             sCtx.beginPath();
             sCtx.moveTo(kx - 5, cy);
             sCtx.quadraticCurveTo(kx, cy - 16.5, kx + 5, cy);
@@ -896,12 +896,15 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
             sCtx.moveTo(kx, cy - 19);
             sCtx.lineTo(kx, cy);
             sCtx.stroke();
-            // ซุ้มโค้งสีขาว 5 ช่อง
-            sCtx.fillStyle = '#ffffff';
+            // ซุ้มโค้งฐานตึก 5 ช่องโทนเดียวกับพื้นหลัง
+            sCtx.fillStyle = '#0b132b';
+            sCtx.strokeStyle = '#fde047';
+            sCtx.lineWidth = 0.6;
             for (const ax of [kx - 13, kx - 7.5, kx - 1.5, kx + 5, kx + 10.5]) {
               sCtx.beginPath();
               sCtx.roundRect(ax, cy - 5.5, 2.6, 5.2, [1.3, 1.3, 0, 0]);
               sCtx.fill();
+              sCtx.stroke();
             }
           } else if (k.flower_type === 'noppamas_crown') {
             // ชฎาทองนพมาศบนพาน
@@ -1121,8 +1124,8 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
           sCtx.closePath();
           sCtx.fill();
           sCtx.stroke();
-          // กลีบกลางสีครีมทอง + เส้นสันกลีบ + ยอดจั่ว
-          sCtx.fillStyle = '#fef3c7';
+          // กลีบกลางสีทองสว่าง + เส้นสันกลีบ + ยอดจั่ว
+          sCtx.fillStyle = '#fde68a';
           sCtx.beginPath();
           sCtx.moveTo(kx + 11, cy - 8);
           sCtx.quadraticCurveTo(kx + 14, cy - 22.5, kx + 17, cy - 8);
@@ -1134,12 +1137,15 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
           sCtx.moveTo(kx + 14, cy - 25.5);
           sCtx.lineTo(kx + 14, cy - 8);
           sCtx.stroke();
-          // ซุ้มโค้งสีขาวฐานตึก 3 ช่อง
-          sCtx.fillStyle = '#ffffff';
+          // ซุ้มโค้งฐานตึก 3 ช่องโทนเดียวกับพื้นหลัง
+          sCtx.fillStyle = '#0b132b';
+          sCtx.strokeStyle = '#fde047';
+          sCtx.lineWidth = 0.5;
           for (const ax of [kx + 8.5, kx + 12.9, kx + 17.3]) {
             sCtx.beginPath();
             sCtx.roundRect(ax, cy - 12.5, 2.2, 4.2, [1.1, 1.1, 0, 0]);
             sCtx.fill();
+            sCtx.stroke();
           }
         }
         if (hasAcc('heart_sign')) {

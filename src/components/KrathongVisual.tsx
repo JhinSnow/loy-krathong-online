@@ -582,21 +582,21 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
             <line x1="7" y1="58" x2="18" y2="39" stroke="#d97706" strokeWidth="2" strokeLinecap="round" />
             {/* ฐานแท่นรองรับอาคาร */}
             <rect x="3" y="34" width="30" height="4" rx="1.5" fill="#92400e" stroke="#fde047" strokeWidth="0.8" />
-            <rect x="6" y="31" width="24" height="3.5" rx="1" fill="#fef3c7" stroke="#d97706" strokeWidth="0.7" />
+            <rect x="6" y="31" width="24" height="3.5" rx="1" fill="#fde68a" stroke="#d97706" strokeWidth="0.7" />
             {/* หลังคาโดมกลีบฟักทองโค้งมน (ซ้าย-กลาง-ขวา) */}
             <path d="M 4 31 C 4 17 11 10 18 10 C 25 10 32 17 32 31 Z" fill="#f59e0b" stroke="#78350f" strokeWidth="1" />
             {/* กลีบฟักทองซ้อนมิติซ้าย-ขวา */}
             <path d="M 8.5 31 C 8.5 18 13 11 18 10 C 14.5 14 13 22 13 31 Z" fill="#fbbf24" opacity="0.85" />
             <path d="M 27.5 31 C 27.5 18 23 11 18 10 C 21.5 14 23 22 23 31 Z" fill="#d97706" opacity="0.75" />
             {/* กลีบกลางสว่าง + เส้นสันกลีบตึกฟักทอง */}
-            <path d="M 13.5 31 C 13.5 19 15.5 11.5 18 10 C 20.5 11.5 22.5 19 22.5 31 Z" fill="#fef3c7" stroke="#b45309" strokeWidth="0.7" />
+            <path d="M 13.5 31 C 13.5 19 15.5 11.5 18 10 C 20.5 11.5 22.5 19 22.5 31 Z" fill="#fde68a" stroke="#b45309" strokeWidth="0.7" />
             <line x1="18" y1="8" x2="18" y2="31" stroke="#b45309" strokeWidth="0.8" />
             {/* ยอดจั่วกลาง */}
             <path d="M 16.5 10 L 18 5.5 L 19.5 10 Z" fill="#fde047" stroke="#b45309" strokeWidth="0.6" />
-            {/* ช่องซุ้มโค้งสีขาวฐานตึก (ซุ้มโค้งเอกลักษณ์ ม.อ.) */}
-            <path d="M 8 31 L 8 27 Q 10 24.5 12 27 L 12 31 Z" fill="#ffffff" stroke="#b45309" strokeWidth="0.5" />
-            <path d="M 15.5 31 L 15.5 26.5 Q 18 23.5 20.5 26.5 L 20.5 31 Z" fill="#ffffff" stroke="#b45309" strokeWidth="0.5" />
-            <path d="M 24 31 L 24 27 Q 26 24.5 28 27 L 28 31 Z" fill="#ffffff" stroke="#b45309" strokeWidth="0.5" />
+            {/* ช่องซุ้มโค้งฐานตึกโทนเดียวกับสถาปัตยกรรมพื้นหลัง */}
+            <path d="M 8 31 L 8 27 Q 10 24.5 12 27 L 12 31 Z" fill="#0b132b" stroke="#fde047" strokeWidth="0.55" />
+            <path d="M 15.5 31 L 15.5 26.5 Q 18 23.5 20.5 26.5 L 20.5 31 Z" fill="#0b132b" stroke="#fde047" strokeWidth="0.55" />
+            <path d="M 24 31 L 24 27 Q 26 24.5 28 27 L 28 31 Z" fill="#0b132b" stroke="#fde047" strokeWidth="0.55" />
           </g>
         )}
 
@@ -741,7 +741,7 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
             <g>
               {/* ฐานแท่นรองรับโค้ง 2 ชั้น */}
               <rect x="52" y="108" width="96" height="8" rx="3" fill="#78350f" stroke="#fde047" strokeWidth="1.2" />
-              <rect x="60" y="102" width="80" height="7" rx="2" fill="#fef3c7" stroke="#d97706" strokeWidth="1.1" />
+              <rect x="60" y="102" width="80" height="7" rx="2" fill="#fde68a" stroke="#d97706" strokeWidth="1.1" />
               {/* โดมตึกฟักทองกลีบใหญ่ซ้าย-ขวา */}
               <path d="M 55 102 C 55 76 74 64 100 64 C 126 64 145 76 145 102 Z" fill="#d97706" stroke="#78350f" strokeWidth="1.4" />
               {/* กลีบฟักทอง 3 มิติซ้อนกัน 7 กลีบ */}
@@ -749,17 +749,17 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
               <path d="M 138 102 C 138 78 121 65 100 64 C 118 70 128 82 128 102 Z" fill="#b45309" />
               <path d="M 74 102 C 74 79 85 65 100 64 C 88 72 85 84 85 102 Z" fill="#fbbf24" />
               <path d="M 126 102 C 126 79 115 65 100 64 C 112 72 115 84 115 102 Z" fill="#f59e0b" />
-              {/* กลีบกลางสีครีมทองสว่าง */}
-              <path d="M 88 102 C 88 78 93 65 100 64 C 107 65 112 78 112 102 Z" fill="#fef3c7" stroke="#b45309" strokeWidth="1" />
+              {/* กลีบกลางสีทองสว่าง */}
+              <path d="M 88 102 C 88 78 93 65 100 64 C 107 65 112 78 112 102 Z" fill="#fde68a" stroke="#b45309" strokeWidth="1" />
               {/* เส้นสันกลีบและยอดจั่วกลาง */}
               <line x1="100" y1="60" x2="100" y2="102" stroke="#92400e" strokeWidth="1.1" />
               <path d="M 96 64 L 100 55 L 104 64 Z" fill="#fde047" stroke="#92400e" strokeWidth="0.9" />
-              {/* ซุ้มโค้งสีขาวฐานตึก 5 ช่อง */}
-              <path d="M 65 102 L 65 93 Q 68.5 88 72 93 L 72 102 Z" fill="#ffffff" stroke="#b45309" strokeWidth="0.8" />
-              <path d="M 79 102 L 79 92 Q 83 87 87 92 L 87 102 Z" fill="#ffffff" stroke="#b45309" strokeWidth="0.8" />
-              <path d="M 94.5 102 L 94.5 90 Q 100 84 105.5 90 L 105.5 102 Z" fill="#ffffff" stroke="#b45309" strokeWidth="0.9" />
-              <path d="M 113 102 L 113 92 Q 117 87 121 92 L 121 102 Z" fill="#ffffff" stroke="#b45309" strokeWidth="0.8" />
-              <path d="M 128 102 L 128 93 Q 131.5 88 135 93 L 135 102 Z" fill="#ffffff" stroke="#b45309" strokeWidth="0.8" />
+              {/* ซุ้มโค้งฐานตึก 5 ช่องโทนเดียวกับสถาปัตยกรรมพื้นหลัง */}
+              <path d="M 65 102 L 65 93 Q 68.5 88 72 93 L 72 102 Z" fill="#0b132b" stroke="#fde047" strokeWidth="0.85" />
+              <path d="M 79 102 L 79 92 Q 83 87 87 92 L 87 102 Z" fill="#0b132b" stroke="#fde047" strokeWidth="0.85" />
+              <path d="M 94.5 102 L 94.5 90 Q 100 84 105.5 90 L 105.5 102 Z" fill="#0b132b" stroke="#fde047" strokeWidth="0.95" />
+              <path d="M 113 102 L 113 92 Q 117 87 121 92 L 121 102 Z" fill="#0b132b" stroke="#fde047" strokeWidth="0.85" />
+              <path d="M 128 102 L 128 93 Q 131.5 88 135 93 L 135 102 Z" fill="#0b132b" stroke="#fde047" strokeWidth="0.85" />
             </g>
           )}
 
