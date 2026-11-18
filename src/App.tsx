@@ -4,9 +4,10 @@ import { RiverCanvas } from './components/RiverCanvas';
 import { KrathongCustomizer } from './components/KrathongCustomizer';
 import { EvaluationModal } from './components/EvaluationModal';
 import { AdminDashboard } from './components/AdminDashboard';
+import { WishesGallery } from './components/WishesGallery';
 import type { UserType } from './types';
 
-type AppView = 'river' | 'customize' | 'admin';
+type AppView = 'river' | 'customize' | 'wishes' | 'admin';
 type ForcedMode = 'stage' | 'attendee' | 'auto';
 
 function resolveInitialRouting(): { initialView: AppView; forcedMode: ForcedMode } {
@@ -18,6 +19,9 @@ function resolveInitialRouting(): { initialView: AppView; forcedMode: ForcedMode
 
   if (mode === 'create' || mode === 'customize') {
     return { initialView: 'customize', forcedMode: 'attendee' };
+  }
+  if (mode === 'wishes' || mode === 'wish') {
+    return { initialView: 'wishes', forcedMode: 'attendee' };
   }
   if (mode === 'river' || mode === 'mobile' || mode === 'attendee') {
     return { initialView: 'river', forcedMode: 'attendee' };
@@ -87,6 +91,11 @@ export const App: React.FC = () => {
     navigateToRiver(true);
   };
 
+  const navigateToWishes = () => {
+    setJustFloated(false);
+    setCurrentView('wishes');
+  };
+
   return (
     <main className="w-screen min-h-screen bg-slate-950 font-sans">
       {currentView === 'river' && (
@@ -98,6 +107,7 @@ export const App: React.FC = () => {
             setJustFloated(false);
             setCurrentView('customize');
           }}
+          onNavigateWishes={navigateToWishes}
           onNavigateAdmin={() => {
             setJustFloated(false);
             setCurrentView('admin');
@@ -108,7 +118,19 @@ export const App: React.FC = () => {
       {currentView === 'customize' && (
         <KrathongCustomizer
           onBackToRiver={() => navigateToRiver(false)}
+          onNavigateWishes={navigateToWishes}
           onSuccessFloating={handleSuccessFloating}
+        />
+      )}
+
+      {currentView === 'wishes' && (
+        <WishesGallery
+          myKrathongId={myKrathongId}
+          onNavigateRiver={() => navigateToRiver(false)}
+          onNavigateCustomize={() => {
+            setJustFloated(false);
+            setCurrentView('customize');
+          }}
         />
       )}
 

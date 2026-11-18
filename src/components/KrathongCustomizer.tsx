@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import type { UserType } from '../types';
 import { KrathongVisual } from './KrathongVisual';
 import { ShareCardModal } from './ShareCardModal';
-import { Sparkles, Eye, Image as ImageIcon, Dices, Volume2, VolumeX } from 'lucide-react';
+import { Sparkles, Eye, Image as ImageIcon, Dices, Volume2, VolumeX, MessageSquareHeart } from 'lucide-react';
 import { supabase } from '../utils/supabase';
 import {
   containsProfanity,
@@ -23,11 +23,13 @@ import { soundManager } from '../utils/soundEffects';
 
 interface KrathongCustomizerProps {
   onBackToRiver: () => void;
+  onNavigateWishes: () => void;
   onSuccessFloating: (krathongId: string, userType: UserType) => void;
 }
 
 export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
   onBackToRiver,
+  onNavigateWishes,
   onSuccessFloating
 }) => {
   const [userType, setUserType] = useState<UserType>('student');
@@ -315,16 +317,29 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
     <div className="min-h-screen bg-[#0b132b] text-[#fffbeb] flex flex-col py-2.5 sm:py-3 px-3 sm:px-6 lg:px-8 overflow-x-clip">
       {/* Top Bar */}
       <div className="max-w-5xl mx-auto w-full flex items-center justify-between gap-2 pb-2.5 sm:pb-3 border-b border-amber-500/25 shrink-0">
-        <button
-          onClick={onBackToRiver}
-          className="flex items-center space-x-1.5 text-amber-200/80 hover:text-amber-100 transition text-xs sm:text-sm py-1.5 px-2.5 sm:px-3 rounded-lg bg-[#1c2541]/70 border border-amber-500/30 hover:border-amber-400 cursor-pointer shrink-0"
-        >
-          <Eye className="w-4 h-4" />
-          <span className="hidden xs:inline sm:inline">ดูหน้าสายน้ำ</span>
-          <span className="xs:hidden sm:hidden">สายน้ำ</span>
-        </button>
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={onBackToRiver}
+            className="flex items-center space-x-1.5 text-amber-200/80 hover:text-amber-100 transition text-xs sm:text-sm py-1.5 px-2.5 sm:px-3 rounded-lg bg-[#1c2541]/70 border border-amber-500/30 hover:border-amber-400 cursor-pointer shrink-0"
+          >
+            <Eye className="w-4 h-4" />
+            <span className="hidden sm:inline">ดูหน้าสายน้ำ</span>
+            <span className="sm:hidden">สายน้ำ</span>
+          </button>
 
-        <h2 className="text-xs sm:text-lg font-bold text-amber-100 text-center truncate">
+          <button
+            type="button"
+            onClick={onNavigateWishes}
+            className="flex items-center space-x-1.5 text-amber-200 hover:text-amber-100 transition text-xs sm:text-sm py-1.5 px-2.5 sm:px-3 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/40 cursor-pointer shrink-0 font-semibold"
+          >
+            <MessageSquareHeart className="w-4 h-4 text-amber-300" />
+            <span className="hidden sm:inline">รวมคำอวยพร</span>
+            <span className="sm:hidden">คำอวยพร</span>
+          </button>
+        </div>
+
+        <h2 className="hidden md:block text-base lg:text-lg font-bold text-amber-100 text-center truncate">
           รังสรรค์กระทงออนไลน์ 🪷
         </h2>
 

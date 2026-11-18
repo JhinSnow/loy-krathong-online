@@ -14,7 +14,8 @@ import {
   VolumeX,
   Image as ImageIcon,
   Leaf,
-  Download
+  Download,
+  MessageSquareHeart
 } from 'lucide-react';
 import { supabase } from '../utils/supabase';
 import { containsProfanity, sanitizeInputText } from '../utils/security';
@@ -30,6 +31,7 @@ interface RiverCanvasProps {
   justFloated?: boolean;
   enableRealtime?: boolean;
   onNavigateCustomize: () => void;
+  onNavigateWishes: () => void;
   onNavigateAdmin: () => void;
 }
 
@@ -50,6 +52,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
   justFloated = false,
   enableRealtime = true,
   onNavigateCustomize,
+  onNavigateWishes,
   onNavigateAdmin
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -1870,6 +1873,16 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         >
           <Sparkles className="w-4 h-4 text-stone-950 shrink-0" />
           <span>สร้างกระทงของคุณ</span>
+        </button>
+
+        <button
+          onClick={onNavigateWishes}
+          title="อ่านคำอวยพรของทุกคน"
+          className="flex items-center space-x-1.5 px-3 sm:px-3.5 py-2 sm:py-2.5 bg-[#162038] hover:bg-[#1c2845] text-amber-200 border border-amber-400/45 rounded-full text-xs sm:text-sm font-semibold shadow-sm transition whitespace-nowrap cursor-pointer"
+        >
+          <MessageSquareHeart className="w-4 h-4 text-amber-300 shrink-0" />
+          <span className="hidden sm:inline">รวมคำอวยพร</span>
+          <span className="sm:hidden">คำอวยพร</span>
         </button>
 
         {myKrathongId && (
