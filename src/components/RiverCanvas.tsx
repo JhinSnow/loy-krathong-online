@@ -713,7 +713,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
 
     const syncSkyCanvasSize = () => {
       if (!skyCanvas || !skyCtx) return;
-      const skyH = Math.max(120, Math.ceil(h * 0.39));
+      const skyH = Math.max(120, Math.ceil(h * 0.385));
       skyCanvas.width = w;
       skyCanvas.height = skyH;
 
@@ -721,7 +721,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       cachedSkyGrad.addColorStop(0.0, '#120b06');
       cachedSkyGrad.addColorStop(0.48, '#24160b');
       cachedSkyGrad.addColorStop(0.82, '#362312');
-      cachedSkyGrad.addColorStop(1.0, '#0c6c82');
+      cachedSkyGrad.addColorStop(1.0, '#1b120a');
 
       cachedMoonX = w * 0.82;
       cachedMoonY = skyH * 0.34;
@@ -783,8 +783,8 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       camera = new THREE.PerspectiveCamera(42, w / h, 0.2, 120);
 
       water = createRealisticRiverWater({
-        width: 90,
-        depth: 44,
+        width: 140,
+        depth: 120,
         reflectionWidth: w < 768 ? 192 : 224,
         reflectionHeight: w < 768 ? 112 : 112,
         isCircularPond: false,
@@ -868,7 +868,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         aspect
       };
 
-      water.mesh.position.set(0, 0, zHorizon + 22 - 0.1);
+      water.mesh.position.set(0, 0, zHorizon + 60 - 0.1);
       water.setShoreZ(zHorizon);
 
       currentDpr = Math.min(window.devicePixelRatio || 1, 1.0);
@@ -1372,7 +1372,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       {/* Layer 1: ท้องฟ้ายามค่ำคืนโทนอุ่นสีเหลืองทอง + ดวงจันทร์ + ดาว + โคมลอย + พลุ */}
       <canvas
         ref={skyCanvasRef}
-        className="w-full h-[39%] absolute top-0 left-0 z-0 pointer-events-none"
+        className="w-full h-[38.5%] absolute top-0 left-0 z-0 pointer-events-none"
       />
 
       {/* Fallback River Surface เมื่อเครื่องไม่รองรับ WebGL */}

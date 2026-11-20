@@ -52,6 +52,9 @@ import {
   getModerationOverrides,
   mergeModerationOverrides,
   resetDeviceEvaluationLock,
+  getDeletedEvaluationIds,
+  mergeDeletedEvaluationIds,
+  deleteLocalEvaluationsByStudentId,
   type EvaluationAnalyticsSummary
 } from '../utils/evaluationHelpers';
 import { EvaluationRadarChart } from './EvaluationRadarChart';
@@ -134,14 +137,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
       }
 
       let overrides = getModerationOverrides();
+      let deletedEvalIds = getDeletedEvaluationIds();
 
-      // 1.5 ดึงสถานะ Moderation Overrides จาก Cloudflare D1 API (ถ้ามี)
+      // 1.5 ดึงสถานะ Moderation Overrides & รายการที่ถูกลบจาก Cloudflare D1 API (ถ้ามี)
       try {
         const modRes = await fetch('/api/admin/moderate', { credentials: 'include' });
         if (modRes.ok && (modRes.headers.get('content-type') || '').includes('application/json')) {
           const modData = await modRes.json();
           if (modData.overrides && typeof modData.overrides === 'object') {
             overrides = mergeModerationOverrides(modData.overrides);
+          }
+          if (Array.isArray(modData.deletedEvalIds)) {
+            deletedEvalIds = mergeDeletedEvaluationIds(modData.deletedEvalIds);
           }
           if (modData.requireApproval !== undefined) {
             approvalSetting = Boolean(modData.requireApproval);
@@ -208,9 +215,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
       setKrathongs(allKrathongs);
 
       // 3. รวมข้อมูลแบบประเมิน 10 ข้อจาก LocalStorage + Supabase แบบ O(N) Set Lookup (รองรับ 5,000+ รายการใน < 1ms)
-      const localEvalRecords = getLocalEvaluationRecords();
+      const deletedEvalSet = new Set(deletedEvalIds);
+      const localEvalRecords = getLocalEvaluationRecords().filter(
+        (rec) => !rec.id || !deletedEvalSet.has(rec.id)
+      );
       const dbEvalRecords = supaEvals
-        .filter((row) => row.id !== 'f85dd716-4bc9-4e11-b84f-66d5cf9e9007')
+        .filter((row) => row.id !== 'f85dd716-4bc9-4e11-b84f-66d5cf9e9007' && !deletedEvalSet.has(row.id))
         .map((row, idx) => parseEvaluationRow(row, idx));
 
       const combinedEvalRecords = [...localEvalRecords];
@@ -347,6 +357,52 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
     setResetLockNotice(
       'รีเซ็ตสถานะทดสอบบนเครื่องนี้เรียบร้อยแล้ว! สามารถกลับไปทดลองลอยกระทงและส่งแบบประเมินใหม่ได้ทันที (หากทดสอบด้วยรหัสนักศึกษา ให้ใช้รหัสทดสอบใหม่ที่ยังไม่ซ้ำในฐานข้อมูล)'
     );
+  };
+
+  // ลบรายชื่อนักศึกษาที่ยืนยันแล้วออกจาก Activity Transcript เพื่อให้สามารถกรอกรหัสเดิมทดสอบซ้ำได้ทันที
+  const handleDeleteTranscriptStudent = async (studentId: string) => {
+    if (!getAdminSession()) return;
+    const confirmed = window.confirm(
+      `ต้องการลบข้อมูลการยืนยันรหัสนักศึกษา ${studentId} ออกจากรายชื่อ Activity Transcript เพื่อรีเซ็ตให้ทดสอบซ้ำได้ใช่หรือไม่?`
+    );
+    if (!confirmed) return;
+
+    const matchingIds = evalAnalytics.records
+      .filter((r) => (r.student_id || '').trim() === studentId && r.id)
+      .map((r) => r.id);
+
+    const localRemovedIds = deleteLocalEvaluationsByStudentId(studentId);
+    const allIdsToDelete = Array.from(new Set([...matchingIds, ...localRemovedIds]));
+    if (allIdsToDelete.length > 0) {
+      mergeDeletedEvaluationIds(allIdsToDelete);
+    }
+
+    const uuidIds = allIdsToDelete.filter((id) =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+    );
+    if (uuidIds.length > 0) {
+      try {
+        await supabase.from('evaluations').delete().in('id', uuidIds);
+      } catch {}
+    }
+
+    try {
+      await fetch('/api/admin/moderate', {
+        method: 'POST',
+        headers: getAdminAuthHeaders(),
+        credentials: 'include',
+        body: JSON.stringify({
+          action: 'delete_student_eval',
+          studentId,
+          evalIds: allIdsToDelete
+        })
+      });
+    } catch {}
+
+    setResetLockNotice(
+      `ลบรหัสนักศึกษา ${studentId} ออกจากรายชื่อ Activity Transcript เรียบร้อยแล้ว สามารถนำไปกรอกทดสอบยืนยันใหม่ได้ทันที`
+    );
+    await loadData();
   };
 
   // สลับโหมด Approval
@@ -1029,12 +1085,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                     <th className="py-3 px-4 font-semibold">คณะ / วิทยาลัย (จำแนกจากรหัส)</th>
                     <th className="py-3 px-4 font-semibold">เวลาที่ส่ง</th>
                     <th className="py-3 px-4 font-semibold">สถานะตรวจสอบ</th>
+                    <th className="py-3 px-4 font-semibold text-center">จัดการ</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-amber-900/10 text-xs sm:text-sm">
                   {filteredTranscriptStudents.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-8 text-center text-[#7c5d3a]">
+                      <td colSpan={6} className="py-8 text-center text-[#7c5d3a]">
                         ไม่พบรายชื่อนักศึกษาที่ตรงกับเงื่อนไขการค้นหา
                       </td>
                     </tr>
@@ -1066,6 +1123,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                               ยืนยัน 1 เครื่อง 1 รหัส
                             </span>
                           )}
+                        </td>
+                        <td className="py-2.5 px-4 text-center whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTranscriptStudent(student.student_id)}
+                            title="ลบรายชื่อนี้ออกจาก Transcript เพื่อให้ทดสอบยืนยันรหัสเดิมซ้ำได้"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg transition active:scale-95 cursor-pointer text-xs font-semibold"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>ลบ</span>
+                          </button>
                         </td>
                       </tr>
                     ))

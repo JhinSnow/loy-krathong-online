@@ -13,11 +13,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   try {
     const rows = await env.DB.prepare(`
-      SELECT key, value FROM system_settings WHERE key IN ('require_approval', 'moderation_overrides')
+      SELECT key, value FROM system_settings WHERE key IN ('require_approval', 'moderation_overrides', 'deleted_eval_ids')
     `).all<{ key: string; value: string }>();
 
     let requireApproval = false;
     let overrides: Record<string, string> = {};
+    let deletedEvalIds: string[] = [];
 
     for (const row of rows.results || []) {
       if (row.key === 'require_approval') {
@@ -26,15 +27,20 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         try {
           overrides = JSON.parse(row.value || '{}');
         } catch {}
+      } else if (row.key === 'deleted_eval_ids') {
+        try {
+          const parsed = JSON.parse(row.value || '[]');
+          if (Array.isArray(parsed)) deletedEvalIds = parsed.map(String);
+        } catch {}
       }
     }
 
-    return new Response(JSON.stringify({ requireApproval, overrides }), {
+    return new Response(JSON.stringify({ requireApproval, overrides, deletedEvalIds }), {
       status: 200,
       headers
     });
   } catch {
-    return new Response(JSON.stringify({ requireApproval: false, overrides: {} }), {
+    return new Response(JSON.stringify({ requireApproval: false, overrides: {}, deletedEvalIds: [] }), {
       status: 200,
       headers
     });
@@ -112,6 +118,48 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       `).bind(overridesJson, overridesJson).run();
 
       return new Response(JSON.stringify({ success: true, krathongId, status, overrides }), {
+        status: 200,
+        headers
+      });
+    }
+
+    // 3. ลบข้อมูลการยืนยันรหัสนักศึกษาสำหรับ Activity Transcript (เพื่อรีเซ็ตทดสอบหรือคัดกรอง)
+    if (action === 'delete_student_eval') {
+      const studentId = String(body.studentId || '').replace(/\D/g, '').slice(0, 15);
+      const evalIds: string[] = Array.isArray(body.evalIds)
+        ? body.evalIds.map((id: unknown) => sanitizeText(String(id || ''), 80)).filter(Boolean)
+        : [];
+
+      if (studentId) {
+        await env.DB.prepare(
+          `DELETE FROM evaluations WHERE user_type = 'student' AND feedback LIKE ?`
+        ).bind(`%"sid":"${studentId}"%`).run();
+      }
+      for (const id of evalIds) {
+        await env.DB.prepare(`DELETE FROM evaluations WHERE id = ?`).bind(id).run();
+      }
+
+      let existingDeleted: string[] = [];
+      try {
+        const existing = await env.DB.prepare(
+          `SELECT value FROM system_settings WHERE key = 'deleted_eval_ids'`
+        ).first<{ value: string }>();
+        if (existing?.value) {
+          const parsed = JSON.parse(existing.value);
+          if (Array.isArray(parsed)) existingDeleted = parsed.map(String);
+        }
+      } catch {}
+
+      const mergedDeleted = Array.from(new Set([...existingDeleted, ...evalIds]));
+      const deletedJson = JSON.stringify(mergedDeleted);
+
+      await env.DB.prepare(`
+        INSERT INTO system_settings (key, value, updated_at)
+        VALUES ('deleted_eval_ids', ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(key) DO UPDATE SET value = ?, updated_at = CURRENT_TIMESTAMP
+      `).bind(deletedJson, deletedJson).run();
+
+      return new Response(JSON.stringify({ success: true, studentId, deletedEvalIds: mergedDeleted }), {
         status: 200,
         headers
       });

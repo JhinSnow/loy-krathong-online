@@ -3,7 +3,7 @@ import React from 'react';
 
 const ThaiArchitectureSkylineBase: React.FC = () => {
   return (
-    <div className="absolute inset-x-0 bottom-[62%] h-44 sm:h-64 md:h-80 pointer-events-none select-none z-10 overflow-hidden">
+    <div className="absolute inset-x-0 bottom-[62%] h-36 sm:h-40 md:h-44 lg:h-48 pointer-events-none select-none z-10 overflow-hidden">
       {/* Golden Backlight Ambient Spotlight behind Centerpiece Pumpkin Building (Zero-blur Radial Gradient) */}
       <div
         className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[520px] sm:w-[680px] md:w-[820px] h-48 pointer-events-none"
@@ -24,7 +24,7 @@ const ThaiArchitectureSkylineBase: React.FC = () => {
 
       {/* Responsive Thai Architecture Skyline SVG Layer (Static GPU Texture - Zero Per-Frame SVG Filter Repaint) */}
       <svg
-        viewBox="0 0 1600 320"
+        viewBox="-400 0 2400 320"
         preserveAspectRatio="xMidYMax meet"
         className="w-full h-full opacity-95 overflow-visible"
       >
@@ -100,19 +100,13 @@ const ThaiArchitectureSkylineBase: React.FC = () => {
             <stop offset="75%" stopColor="#c2a57a" stopOpacity="0.74" />
             <stop offset="100%" stopColor="#24180e" stopOpacity="0.92" />
           </linearGradient>
-
-          {/* Soft Horizon Blend Gradient (ไร้ขอบคั่นแข็งระหว่างพื้นหลังกับผิวน้ำ 3D สี Crystal Aqua Turquoise) */}
-          <linearGradient id="horizonFadeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#0c7c94" stopOpacity="0.65" />
-            <stop offset="100%" stopColor="#0c7c94" stopOpacity="0" />
-          </linearGradient>
         </defs>
 
         {/* ----------------- 0. เลเยอร์ภูเขาและขอบฟ้าชั้นหลังสุด (Distant Mountain Silhouette - ทิวเขาคอหงส์ Opacity 45%) ----------------- */}
         <g id="distantMountainLayer" opacity="0.48">
           {/* แสงเรืองสีทองสลัวเหนือสันเขา */}
           <path
-            d="M 0 302 L 0 210 Q 120 158 260 185 Q 410 120 560 162 Q 700 88 830 112 Q 970 78 1130 148 Q 1270 110 1420 172 Q 1520 150 1600 188 L 1600 302 Z"
+            d="M -500 320 L -500 226 Q -250 176 0 210 Q 120 158 260 185 Q 410 120 560 162 Q 700 88 830 112 Q 970 78 1130 148 Q 1270 110 1420 172 Q 1520 150 1600 188 Q 1850 156 2100 220 L 2100 320 Z"
             fill="url(#mountainDistGrad)"
             stroke="#f59e0b"
             strokeWidth="1"
@@ -120,7 +114,7 @@ const ThaiArchitectureSkylineBase: React.FC = () => {
           />
           {/* ทิวเขาชั้นรองด้านหน้า (Foothills Silhouette) */}
           <path
-            d="M 0 302 L 0 242 Q 180 192 350 222 Q 510 168 680 202 Q 840 152 1010 192 Q 1180 162 1350 212 Q 1480 188 1600 225 L 1600 302 Z"
+            d="M -500 320 L -500 250 Q -250 205 0 242 Q 180 192 350 222 Q 510 168 680 202 Q 840 152 1010 192 Q 1180 162 1350 212 Q 1480 188 1600 225 Q 1860 195 2100 248 L 2100 320 Z"
             fill="url(#mountainMidGrad)"
             stroke="#fbbf24"
             strokeWidth="0.8"
@@ -144,7 +138,7 @@ const ThaiArchitectureSkylineBase: React.FC = () => {
             <path d="M 383 155 L 387 155 L 390 185 L 380 185 Z" />
             <path d="M 360 220 L 385 182 L 410 220 Z" />
             <path d="M 348 250 L 385 205 L 422 250 Z" />
-            <path d="M 342 302 L 342 250 L 385 222 L 428 250 L 428 302 Z" />
+            <path d="M 342 320 L 342 250 L 385 222 L 428 250 L 428 320 Z" />
 
             {/* 2. เจดีย์ย่อมุมไม้สิบสอง / ยอดปรางค์องค์เล็ก แทรกข้างซ้ายตึกฟักทอง (x: 468..518) */}
             <path d="M 488 142 L 492 142 L 495 178 L 485 178 Z" />
@@ -152,28 +146,28 @@ const ThaiArchitectureSkylineBase: React.FC = () => {
             {/* องค์ระฆังย่อมุม */}
             <path d="M 474 202 L 506 202 L 512 232 L 468 232 Z" />
             {/* ฐานบัวลูกแก้วอกไก่ */}
-            <path d="M 464 302 L 464 232 L 516 232 L 516 302 Z" />
+            <path d="M 464 320 L 464 232 L 516 232 L 516 320 Z" />
 
             {/* 3. หลังคาศาลาจั่วซ้อนชั้นเชื่อมเข้าหาด้านซ้ายตึกฟักทอง (x: 500..555) */}
             <path d="M 505 245 L 530 212 L 555 245 Z" />
-            <path d="M 498 302 L 498 245 L 530 225 L 562 245 L 562 302 Z" />
+            <path d="M 498 320 L 498 245 L 530 225 L 562 245 L 562 320 Z" />
 
             {/* --- ฝั่งขวา: ปิดช่องว่างระหว่างตึกฟักทอง (1090) - พระปรางค์ขวา (1125..1180) - เจดีย์ขวา (1250) --- */}
             {/* 1. หลังคาศาลาจั่วซ้อนชั้นเชื่อมจากด้านขวาตึกฟักทอง (x: 1045..1100) */}
             <path d="M 1045 245 L 1070 212 L 1095 245 Z" />
-            <path d="M 1038 302 L 1038 245 L 1070 225 L 1102 245 L 1102 302 Z" />
+            <path d="M 1038 320 L 1038 245 L 1070 225 L 1102 245 L 1102 320 Z" />
 
             {/* 2. เจดีย์ย่อมุมไม้สิบสอง / ยอดปรางค์องค์เล็ก แทรกข้างขวาตึกฟักทอง (x: 1082..1132) */}
             <path d="M 1108 142 L 1112 142 L 1115 178 L 1105 178 Z" />
             <path d="M 1101 178 L 1119 178 L 1123 202 L 1097 202 Z" />
             <path d="M 1094 202 L 1126 202 L 1132 232 L 1088 232 Z" />
-            <path d="M 1084 302 L 1084 232 L 1136 232 L 1136 302 Z" />
+            <path d="M 1084 320 L 1084 232 L 1136 232 L 1136 320 Z" />
 
             {/* 3. ศาลาริมน้ำทรงจั่วซ้อนชั้น + ยอดมณฑปเล็กฝั่งขวา (x: 1175..1255) */}
             <path d="M 1213 155 L 1217 155 L 1220 185 L 1210 185 Z" />
             <path d="M 1190 220 L 1215 182 L 1240 220 Z" />
             <path d="M 1178 250 L 1215 205 L 1252 250 Z" />
-            <path d="M 1172 302 L 1172 250 L 1215 222 L 1258 250 L 1258 302 Z" />
+            <path d="M 1172 320 L 1172 250 L 1215 222 L 1258 250 L 1258 320 Z" />
           </g>
 
           {/* --- ทิวยอดต้นตาล / ต้นมะพร้าวริมน้ำแบบ Silhouette สีน้ำเงินเข้มขอบทอง (เอกลักษณ์ภูมิทัศน์ตึกฟักทอง ม.อ.) --- */}
@@ -268,11 +262,8 @@ const ThaiArchitectureSkylineBase: React.FC = () => {
           <path d="M 1340 275 L 1420 215 L 1500 275 Z" />
           <path d="M 1310 320 L 1310 280 L 1420 230 L 1530 280 L 1530 320 Z" />
 
-          {/* ----------------- รอยต่อนุ่มนวลสู่ผิวน้ำ 3D (นำกำแพงคั่นแข็งออกทั้งหมด) ----------------- */}
-          <rect x="0" y="296" width="1600" height="24" fill="url(#horizonFadeGrad)" stroke="none" />
-
           {[80, 180, 320, 440, 1160, 1280, 1400, 1500].map((pos, i) => (
-            <g key={i} transform={`translate(${pos}, 288)`}>
+            <g key={i} transform={`translate(${pos}, 304)`}>
               <rect x="0" y="0" width="10" height="16" rx="2" fill="#d97706" />
               <circle cx="5" cy="-2" r="4.5" fill="#fde047" />
             </g>
@@ -335,7 +326,7 @@ const ThaiArchitectureSkylineBase: React.FC = () => {
 
           {/* Silhouette บังฉากหลังเฉพาะช่วงตัวอาคารตึกฟักทอง เพื่อไม่ให้เส้นเจดีย์ด้านหลังทะลุเข้ามาซ้อนในตัวอาคาร */}
           <path
-            d="M 512 302 C 512 225, 575 176, 650 162 C 710 150, 755 148, 800 148 C 845 148, 890 150, 950 162 C 1025 176, 1088 225, 1088 302 Z"
+            d="M 512 320 C 512 243, 575 194, 650 180 C 710 168, 755 166, 800 166 C 845 166, 890 168, 950 180 C 1025 194, 1088 243, 1088 320 Z"
             fill="#1c120a"
             opacity="0.92"
           />
@@ -343,7 +334,7 @@ const ThaiArchitectureSkylineBase: React.FC = () => {
           <image
             href="/vector.png?v=warm-white"
             x="510"
-            y="130"
+            y="144"
             width="580"
             height="176"
             preserveAspectRatio="xMidYMax meet"
@@ -352,7 +343,7 @@ const ThaiArchitectureSkylineBase: React.FC = () => {
         </g>
 
         {/* ----------------- 4. ของห้อยตกแต่งบนตึกฟักทองตามธีมลอยกระทง (Festive Hanging Lanterns & Bunting Garland) ----------------- */}
-        <g id="pumpkinFestiveDecorations">
+        <g id="pumpkinFestiveDecorations" transform="translate(0, 14)">
           {/* สายพาดโคมแขวนและธงราวโค้งรับแนวหลังคาตึกฟักทอง */}
           <path
             d="M 540 198 Q 608 220 675 166 Q 738 188 800 148 Q 862 188 925 166 Q 992 220 1060 198"
@@ -428,15 +419,6 @@ const ThaiArchitectureSkylineBase: React.FC = () => {
           ))}
         </g>
       </svg>
-
-      {/* เงาสะท้อนสีขาวครีมอบอุ่น-ทองของทรงกลีบมนตึกฟักทองทอดลงบนผิวน้ำ (Soft Radial Reflection) */}
-      <div
-        className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-[380px] sm:w-[520px] h-20 pointer-events-none"
-        style={{
-          background:
-            'radial-gradient(ellipse at 50% 15%, rgba(255, 251, 235, 0.16) 0%, rgba(251, 191, 36, 0.10) 48%, transparent 74%)'
-        }}
-      />
     </div>
   );
 };

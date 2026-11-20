@@ -329,6 +329,7 @@ const LOCAL_KRATHONG_STORAGE_KEY = 'loy_krathong_items_v1';
 const LOCAL_KRATHONG_CLEAN_FLAG = 'loy_krathong_clean_v2';
 const LOCAL_APPROVAL_SETTING_KEY = 'loy_krathong_require_approval_v1';
 const LOCAL_MODERATION_OVERRIDES_KEY = 'loy_krathong_moderation_overrides_v1';
+const LOCAL_DELETED_EVAL_IDS_KEY = 'loy_krathong_deleted_eval_ids_v1';
 const LOCAL_DEVICE_TOKEN_KEY = 'loy_krathong_device_token_v1';
 const LOCAL_BOUND_STUDENT_ID_KEY = 'loy_krathong_bound_sid_v1';
 
@@ -400,6 +401,65 @@ export function resetDeviceEvaluationLock(): void {
       sessionStorage.removeItem('rl_evaluation_submit');
     }
   } catch {}
+}
+
+export function getDeletedEvaluationIds(): string[] {
+  try {
+    if (typeof localStorage === 'undefined') return [];
+    const raw = localStorage.getItem(LOCAL_DELETED_EVAL_IDS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function mergeDeletedEvaluationIds(ids: string[]): string[] {
+  try {
+    const current = getDeletedEvaluationIds();
+    const merged = Array.from(new Set([...current, ...ids.filter(Boolean).map(String)]));
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(LOCAL_DELETED_EVAL_IDS_KEY, JSON.stringify(merged));
+    }
+    return merged;
+  } catch {
+    return getDeletedEvaluationIds();
+  }
+}
+
+/**
+ * ลบประวัติการประเมินของรหัสนักศึกษาที่ระบุออกจาก LocalStorage และปลดล็อกเครื่องหากผูกกับรหัสนี้ไว้ (เพื่อใช้ทดสอบซ้ำ)
+ */
+export function deleteLocalEvaluationsByStudentId(studentId: string): string[] {
+  const cleanSid = (studentId || '').trim();
+  const removedIds: string[] = [];
+  if (!cleanSid) return removedIds;
+
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const records = getLocalEvaluationRecords();
+      const kept = records.filter((rec) => {
+        if ((rec.student_id || '').trim() === cleanSid) {
+          if (rec.id) removedIds.push(rec.id);
+          return false;
+        }
+        return true;
+      });
+      localStorage.setItem(LOCAL_EVAL_STORAGE_KEY, JSON.stringify(kept));
+
+      if (getBoundStudentId() === cleanSid) {
+        localStorage.removeItem(LOCAL_BOUND_STUDENT_ID_KEY);
+      }
+    }
+  } catch {}
+
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem('rl_evaluation_submit');
+    }
+  } catch {}
+
+  return removedIds;
 }
 
 // รายการ ID ทดสอบระบบช่วงพัฒนาที่เคลียร์ออกจากหน้าเว็บและสถิติเริ่มต้น

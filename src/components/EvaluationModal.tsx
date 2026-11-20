@@ -27,7 +27,9 @@ import {
   encodeEvaluationPayload,
   saveLocalEvaluationRecord,
   getLocalEvaluationRecords,
-  getLocalKrathongRecords
+  getLocalKrathongRecords,
+  getDeletedEvaluationIds,
+  mergeDeletedEvaluationIds
 } from '../utils/evaluationHelpers';
 import { ShareCardModal } from './ShareCardModal';
 
@@ -133,15 +135,28 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
     try {
       const deviceId = getOrCreateDeviceToken();
 
-      // เช็กรหัสนักศึกษาซ้ำบนฐานข้อมูล Supabase ก่อนบันทึก
+      // เช็กรหัสนักศึกษาซ้ำบนฐานข้อมูล Supabase ก่อนบันทึก (ไม่นับรายการที่ผู้ดูแลลบออกไปแล้ว)
       if (isStudent) {
         try {
+          let deletedIds = getDeletedEvaluationIds();
+          try {
+            const modRes = await fetch('/api/admin/moderate');
+            if (modRes.ok && (modRes.headers.get('content-type') || '').includes('application/json')) {
+              const modData = (await modRes.json()) as { deletedEvalIds?: string[] };
+              if (Array.isArray(modData.deletedEvalIds)) {
+                deletedIds = mergeDeletedEvaluationIds(modData.deletedEvalIds);
+              }
+            }
+          } catch {}
+          const deletedSet = new Set(deletedIds);
+
           const { data: dupRows } = await supabase
             .from('evaluations')
             .select('id')
             .ilike('feedback', `%"sid":"${cleanStudentId}"%`)
-            .limit(1);
-          if (dupRows && dupRows.length > 0) {
+            .limit(20);
+          const activeDups = (dupRows || []).filter((r) => r?.id && !deletedSet.has(r.id));
+          if (activeDups.length > 0) {
             setShowSkipEscape(true);
             setErrorMsg(`รหัสนักศึกษา ${cleanStudentId} ได้ลงทะเบียนบันทึกชั่วโมงกิจกรรมไปแล้ว`);
             return;

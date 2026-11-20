@@ -243,10 +243,10 @@ const WATER_FRAGMENT_SHADER = /* glsl */ `
       alpha = 1.0 - smoothstep(uPondRadius * 0.72, uPondRadius, radial);
       if (alpha <= 0.01) discard;
     } else if (uIsPreview < 0.5) {
-      // Gently blend top horizon into skyline while keeping water luminous
-      float horizon = 1.0 - smoothstep(0.0, 4.5, distShore);
-      finalColor = mix(finalColor, uDeepColor * 0.96 + uShallowColor * 0.14, horizon * 0.28);
-      alpha = smoothstep(0.0, 1.15, distShore);
+      // Crisp top horizon without murky wash band under architecture
+      float horizon = 1.0 - smoothstep(0.0, 2.2, distShore);
+      finalColor = mix(finalColor, uDeepColor * 0.96 + uShallowColor * 0.14, horizon * 0.12);
+      alpha = smoothstep(0.0, 0.28, distShore);
     } else {
       float edgeDist = length(vWorldPos.xz);
       float vignette = smoothstep(4.2, 8.2, edgeDist);
@@ -286,7 +286,7 @@ export function createRealisticRiverWater(options: {
 
   const geometry = isCircularPond
     ? new THREE.CircleGeometry(pondRadius, 32)
-    : new THREE.PlaneGeometry(width, depth, isPreview ? 18 : 32, isPreview ? 18 : 24);
+    : new THREE.PlaneGeometry(width, depth, isPreview ? 18 : 32, isPreview ? 18 : 36);
   geometry.rotateX(-Math.PI / 2);
 
   const reflectionTarget = new THREE.WebGLRenderTarget(reflectionWidth, reflectionHeight, {
