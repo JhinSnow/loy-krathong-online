@@ -294,14 +294,14 @@ export const WishesGallery: React.FC<WishesGalleryProps> = ({
   const remainingCount = Math.max(0, filteredWishes.length - displayedWishes.length);
 
   return (
-    <div className="min-h-screen bg-[#0b132b] text-[#fffbeb] flex flex-col py-2.5 sm:py-4 px-3 sm:px-6 lg:px-8 overflow-x-clip">
+    <div className="min-h-screen bg-[#140e09] text-[#fffbeb] flex flex-col py-2.5 sm:py-4 px-3 sm:px-6 lg:px-8 overflow-x-clip">
       {/* Top Bar */}
       <div className="max-w-6xl mx-auto w-full flex items-center justify-between gap-2 pb-3 border-b border-amber-500/25 shrink-0">
         <div className="flex items-center gap-1.5 sm:gap-2">
           <button
             type="button"
             onClick={onNavigateRiver}
-            className="flex items-center space-x-1.5 text-amber-200/85 hover:text-amber-100 transition text-xs sm:text-sm py-1.5 px-2.5 sm:px-3 rounded-xl bg-[#1c2541]/80 border border-amber-500/30 hover:border-amber-400 cursor-pointer shrink-0"
+            className="flex items-center space-x-1.5 text-amber-200/85 hover:text-amber-100 transition text-xs sm:text-sm py-1.5 px-2.5 sm:px-3 rounded-xl bg-[#26190e]/85 border border-amber-500/30 hover:border-amber-400 cursor-pointer shrink-0"
           >
             <Eye className="w-4 h-4 text-amber-300" />
             <span className="hidden sm:inline">ดูหน้าสายน้ำ</span>
@@ -327,7 +327,7 @@ export const WishesGallery: React.FC<WishesGalleryProps> = ({
             className={`flex items-center space-x-1 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-semibold border shadow-sm transition cursor-pointer ${
               isAudioPlaying
                 ? 'bg-amber-500/20 border-amber-400 text-amber-100'
-                : 'bg-[#162038] hover:bg-[#1c2845] border-amber-400/35 text-amber-200/85'
+                : 'bg-[#2a1d11] hover:bg-[#382617] border-amber-400/35 text-amber-200/85'
             }`}
           >
             {isAudioPlaying ? (
@@ -346,7 +346,7 @@ export const WishesGallery: React.FC<WishesGalleryProps> = ({
             disabled={refreshing}
             title="อัปเดตคำอวยพรล่าสุด"
             aria-label="อัปเดตคำอวยพรล่าสุด"
-            className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-[#162038] hover:bg-[#1c2845] border border-amber-400/35 text-amber-200 text-xs font-semibold transition cursor-pointer disabled:opacity-60"
+            className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-[#2a1d11] hover:bg-[#382617] border border-amber-400/35 text-amber-200 text-xs font-semibold transition cursor-pointer disabled:opacity-60"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">รีเฟรช</span>
@@ -363,7 +363,7 @@ export const WishesGallery: React.FC<WishesGalleryProps> = ({
       {/* Main Content */}
       <div className="max-w-6xl mx-auto w-full py-5 sm:py-6 space-y-5 flex-1">
         {/* Hero Header */}
-        <div className="bg-[#121b33] border border-amber-500/25 rounded-3xl p-4 sm:p-6 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="bg-[#1f150d] border border-amber-500/30 rounded-3xl p-4 sm:p-6 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-400/35 text-amber-200 text-xs font-semibold">
               <MessageSquareHeart className="w-3.5 h-3.5 text-amber-300" />
@@ -378,7 +378,7 @@ export const WishesGallery: React.FC<WishesGalleryProps> = ({
             </p>
           </div>
 
-          <div className="bg-[#0b132b]/85 border border-amber-400/30 rounded-2xl px-4 py-3 text-center sm:text-right shrink-0">
+          <div className="bg-[#17100a]/90 border border-amber-400/30 rounded-2xl px-4 py-3 text-center sm:text-right shrink-0">
             <p className="text-[11px] text-amber-200/75">จำนวนคำอวยพรที่แสดง</p>
             <p className="text-2xl font-extrabold text-amber-300 mt-0.5">
               {wishes.length.toLocaleString()}{' '}
@@ -388,7 +388,7 @@ export const WishesGallery: React.FC<WishesGalleryProps> = ({
         </div>
 
         {/* Search & Filter Controls */}
-        <div className="bg-[#121b33] border border-amber-500/25 rounded-2xl p-3.5 sm:p-4 space-y-3 shadow-lg">
+        <div className="bg-[#1f150d] border border-amber-500/30 rounded-2xl p-3.5 sm:p-4 space-y-3 shadow-lg">
           <div className="relative">
             <Search className="w-4 h-4 text-amber-300/70 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
@@ -399,7 +399,7 @@ export const WishesGallery: React.FC<WishesGalleryProps> = ({
                 setVisibleCount(PAGE_SIZE);
               }}
               placeholder="ค้นหาคำอวยพร หรือชื่อผู้ลอยกระทง..."
-              className="w-full bg-[#0b132b]/90 border border-amber-500/35 rounded-xl pl-10 pr-10 py-2.5 text-base sm:text-sm text-amber-50 placeholder-slate-400 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
+              className="w-full bg-[#17100a]/90 border border-amber-500/35 rounded-xl pl-10 pr-10 py-2.5 text-base sm:text-sm text-amber-50 placeholder-amber-200/40 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
             />
             {searchQuery && (
               <button
@@ -409,7 +409,7 @@ export const WishesGallery: React.FC<WishesGalleryProps> = ({
                   setVisibleCount(PAGE_SIZE);
                 }}
                 aria-label="ล้างคำค้นหา"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-amber-200 p-1 cursor-pointer"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-200/60 hover:text-amber-200 p-1 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -437,7 +437,7 @@ export const WishesGallery: React.FC<WishesGalleryProps> = ({
                 className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
                   filterTab === tab.id
                     ? 'bg-amber-500 text-stone-950 border-amber-300 shadow-sm'
-                    : 'bg-[#0b132b]/80 border-slate-700/80 text-slate-300 hover:border-amber-500/40 hover:text-amber-100'
+                    : 'bg-[#17100a]/85 border-amber-500/25 text-amber-100/75 hover:border-amber-400/50 hover:text-amber-100'
                 }`}
               >
                 {tab.label}
@@ -448,11 +448,11 @@ export const WishesGallery: React.FC<WishesGalleryProps> = ({
 
         {/* Wishes Grid */}
         {loading ? (
-          <div className="bg-[#121b33] border border-amber-500/20 rounded-3xl p-12 text-center text-amber-200/80 text-sm">
+          <div className="bg-[#1f150d] border border-amber-500/25 rounded-3xl p-12 text-center text-amber-200/80 text-sm">
             กำลังโหลดคำอวยพรจากสายน้ำ...
           </div>
         ) : displayedWishes.length === 0 ? (
-          <div className="bg-[#121b33] border border-amber-500/20 rounded-3xl p-10 text-center space-y-3">
+          <div className="bg-[#1f150d] border border-amber-500/25 rounded-3xl p-10 text-center space-y-3">
             <p className="text-amber-100 font-semibold text-base">
               ไม่พบคำอวยพรที่ตรงกับคำค้นหาหรือตัวกรองที่เลือก
             </p>
@@ -478,14 +478,14 @@ export const WishesGallery: React.FC<WishesGalleryProps> = ({
                     key={item.id}
                     className={`rounded-3xl p-4 border shadow-lg flex flex-col justify-between transition ${
                       item.isMine
-                        ? 'bg-[#172546] border-amber-400/75 ring-1 ring-amber-400/35'
-                        : 'bg-[#121b33] border-amber-500/25 hover:border-amber-400/45'
+                        ? 'bg-[#2d1e12] border-amber-400/75 ring-1 ring-amber-400/35'
+                        : 'bg-[#1f150d] border-amber-500/30 hover:border-amber-400/50'
                     }`}
                   >
                     <div>
                       {/* Card Header: Krathong Miniature + Owner Metadata */}
                       <div className="flex items-center gap-3">
-                        <div className="w-24 h-24 shrink-0 rounded-2xl bg-[#0b132b]/85 border border-amber-500/25 flex items-center justify-center overflow-hidden">
+                        <div className="w-24 h-24 shrink-0 rounded-2xl bg-[#17100a]/90 border border-amber-500/25 flex items-center justify-center overflow-hidden">
                           <div className="scale-90">
                             <KrathongThumb3D
                               baseType={item.base_type}
@@ -514,7 +514,7 @@ export const WishesGallery: React.FC<WishesGalleryProps> = ({
                             {item.owner_name}
                           </h2>
 
-                          <p className="text-[11px] text-slate-400 flex items-center gap-1">
+                          <p className="text-[11px] text-amber-200/60 flex items-center gap-1">
                             <Clock className="w-3 h-3 shrink-0" />
                             <span className="truncate">{formatWishDate(item.created_at)}</span>
                           </p>
@@ -522,7 +522,7 @@ export const WishesGallery: React.FC<WishesGalleryProps> = ({
                       </div>
 
                       {/* Full Wish Message */}
-                      <div className="mt-3 bg-[#0b132b]/80 border border-amber-500/20 rounded-2xl p-3.5 text-xs sm:text-sm text-amber-50/95 leading-relaxed whitespace-pre-wrap break-words">
+                      <div className="mt-3 bg-[#17100a]/85 border border-amber-500/20 rounded-2xl p-3.5 text-xs sm:text-sm text-amber-50/95 leading-relaxed whitespace-pre-wrap break-words">
                         “{item.wish_message}”
                       </div>
                     </div>
@@ -548,7 +548,7 @@ export const WishesGallery: React.FC<WishesGalleryProps> = ({
                 <button
                   type="button"
                   onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
-                  className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-2xl bg-[#162038] hover:bg-[#1c2845] border border-amber-400/45 text-amber-200 text-xs sm:text-sm font-semibold shadow-md transition cursor-pointer"
+                  className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-2xl bg-[#2a1d11] hover:bg-[#382617] border border-amber-400/45 text-amber-200 text-xs sm:text-sm font-semibold shadow-md transition cursor-pointer"
                 >
                   <ChevronDown className="w-4 h-4" />
                   <span>ดูคำอวยพรเพิ่มเติม (เหลืออีก {remainingCount.toLocaleString()} รายการ)</span>

@@ -1,6 +1,6 @@
 // src/components/Krathong3DPreview.tsx
 // หน้าต่างแสดงตัวอย่างกระทง 3 มิติแบบ Real-time สำหรับหน้าแต่งกระทง
-// เริ่มต้นด้วยมุมมองจากด้านบน (~77°) พร้อมปุ่มสลับมุมมอง ด้านบน / เอียงดู 3D และลากหมุนรอบตัว 360°
+// มุมกล้องเริ่มต้นมุมสูงเฉียง ~58° (เห็นด้านบน กลีบใบตองรอบขอบ และริ้วน้ำสะท้อนแสงทองแบบภาพตัวอย่าง)
 
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
@@ -23,11 +23,11 @@ interface Krathong3DPreviewProps {
   compact?: boolean;
 }
 
-type CameraPreset = 'top' | 'angle';
+type CameraPreset = 'angled' | 'top';
 
-const TOP_VIEW_POS = new THREE.Vector3(0, 2.75, 0.62);
-const ANGLE_VIEW_POS = new THREE.Vector3(0.65, 1.48, 2.42);
-const CAMERA_TARGET = new THREE.Vector3(0, 0.34, 0);
+const ANGLE_DEFAULT_POS = new THREE.Vector3(0, 2.08, 1.52);
+const TOP_VIEW_POS = new THREE.Vector3(0, 2.78, 0.36);
+const CAMERA_TARGET = new THREE.Vector3(0, 0.24, 0);
 
 export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
   baseType,
@@ -37,7 +37,7 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [webglReady] = useState<boolean>(() => isWebGLAvailable());
-  const [viewMode, setViewMode] = useState<CameraPreset>('top');
+  const [viewMode, setViewMode] = useState<CameraPreset>('angled');
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const krathongGroupRef = useRef<THREE.Group | null>(null);
@@ -45,7 +45,7 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
   const targetCameraPosRef = useRef<THREE.Vector3 | null>(null);
   const initialModelPropsRef = useRef({ baseType, flowerType, candleColor });
 
-  // ตั้งค่า Three.js Scene + Water Basin + OrbitControls ครั้งเดียวต่อการ Mount
+  // ตั้งค่า Three.js Scene + Warm Rippling Water + OrbitControls ครั้งเดียวต่อการ Mount
   useEffect(() => {
     const container = containerRef.current;
     if (!container || !webglReady) return;
@@ -53,7 +53,7 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({
-        antialias: true,
+        antialias: !compact,
         alpha: true,
         powerPreference: 'high-performance'
       });
@@ -61,11 +61,12 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
       return;
     }
 
-    const dpr = Math.min(window.devicePixelRatio || 1, compact ? 1.5 : 2);
+    const dpr = Math.min(window.devicePixelRatio || 1, compact ? 1.2 : 1.5);
     const width = Math.max(112, container.clientWidth);
     const height = Math.max(112, container.clientHeight);
     renderer.setPixelRatio(dpr);
     renderer.setSize(width, height);
+    renderer.setClearColor(0x000000, 0);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.15;
@@ -78,31 +79,32 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
     const scene = new THREE.Scene();
     sceneRef.current = scene;
 
-    // ระบบแสงกลางคืนบนสายน้ำ (แสงจันทร์คราม + แสงทองอุ่น)
-    const hemi = new THREE.HemisphereLight(0xc7d2fe, 0x0f172a, 1.0);
+    // ระบบแสงเหลืองทองอบอุ่น
+    const hemi = new THREE.HemisphereLight(0xfff3c4, 0x2b1d11, 1.15);
     scene.add(hemi);
 
-    const keyLight = new THREE.DirectionalLight(0xfffbeb, 1.5);
+    const keyLight = new THREE.DirectionalLight(0xfff4d6, 1.55);
     keyLight.position.set(2.5, 4.5, 3.0);
     scene.add(keyLight);
 
-    const rimLight = new THREE.DirectionalLight(0xf59e0b, 0.9);
+    const rimLight = new THREE.DirectionalLight(0xf59e0b, 0.95);
     rimLight.position.set(-2.5, 2.0, -2.5);
     scene.add(rimLight);
 
-    // ผิวน้ำวงกลม 3D พร้อมคลื่นริ้วเล็กๆ (เปิด Planar Reflection เฉพาะโหมดเต็มเพื่อความลื่นบนมือถือ)
+    // ผิวน้ำเต็มพื้นที่พร้อมริ้วคลื่นสะท้อนแสงทอง (เปิด Planar Reflection ในโหมดเต็มจอ)
     const water: WaterSystem = createRealisticRiverWater({
-      width: 5.2,
-      depth: 5.2,
-      isCircularPond: true,
-      pondRadius: 2.35,
+      width: 10,
+      depth: 10,
+      isCircularPond: false,
+      isPreview: true,
       hasReflection: !compact,
-      reflectionSize: 256
+      reflectionWidth: 256,
+      reflectionHeight: 256
     });
     scene.add(water.mesh);
 
-    const camera = new THREE.PerspectiveCamera(compact ? 42 : 38, width / height, 0.1, 40);
-    camera.position.copy(TOP_VIEW_POS);
+    const camera = new THREE.PerspectiveCamera(compact ? 42 : 39, width / height, 0.1, 40);
+    camera.position.copy(ANGLE_DEFAULT_POS);
     camera.lookAt(CAMERA_TARGET);
 
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -111,8 +113,8 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
     controls.dampingFactor = 0.08;
     controls.enablePan = false;
     controls.enableZoom = false;
-    controls.minPolarAngle = 0.14;
-    controls.maxPolarAngle = Math.PI * 0.45;
+    controls.minPolarAngle = 0.12;
+    controls.maxPolarAngle = Math.PI * 0.44;
     controls.update();
 
     const handleUserInteract = () => {
@@ -163,10 +165,9 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
 
       const kGroup = krathongGroupRef.current;
       if (kGroup) {
-        // โคลงเคลงเบาๆ ตามผิวน้ำ
-        kGroup.position.y = Math.sin(elapsedSec * 2.1) * 0.022;
-        kGroup.rotation.z = Math.sin(elapsedSec * 1.4) * 0.018;
-        kGroup.rotation.x = Math.cos(elapsedSec * 1.7) * 0.014;
+        kGroup.position.y = Math.sin(elapsedSec * 2.0) * 0.018;
+        kGroup.rotation.z = Math.sin(elapsedSec * 1.4) * 0.016;
+        kGroup.rotation.x = Math.cos(elapsedSec * 1.6) * 0.012;
       }
 
       if (animHandlesRef.current) {
@@ -202,7 +203,7 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
     };
   }, [webglReady, compact]);
 
-  // อัปเดตเฉพาะตัวโมเดล 3D เมื่อมีการเลือกฐาน ดอกไม้ เทียน ของเสริม หรือปรับขนาด (ไม่ต้องสร้าง WebGL ใหม่)
+  // อัปเดตเฉพาะตัวโมเดล 3D เมื่อมีการเลือกฐาน ดอกไม้ เทียน ของเสริม หรือปรับขนาด
   useEffect(() => {
     initialModelPropsRef.current = { baseType, flowerType, candleColor };
     const scene = sceneRef.current;
@@ -225,9 +226,9 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
   }, [baseType, flowerType, candleColor]);
 
   const handleToggleCameraView = () => {
-    const nextMode: CameraPreset = viewMode === 'top' ? 'angle' : 'top';
+    const nextMode: CameraPreset = viewMode === 'angled' ? 'top' : 'angled';
     setViewMode(nextMode);
-    targetCameraPosRef.current = nextMode === 'top' ? TOP_VIEW_POS.clone() : ANGLE_VIEW_POS.clone();
+    targetCameraPosRef.current = nextMode === 'top' ? TOP_VIEW_POS.clone() : ANGLE_DEFAULT_POS.clone();
   };
 
   if (!webglReady) {
@@ -245,27 +246,27 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
     <div
       className={`relative select-none ${
         compact ? 'w-28 h-28' : 'w-full h-60 sm:h-64'
-      } rounded-2xl overflow-hidden bg-[radial-gradient(circle_at_50%_55%,#132245_0%,#080f24_75%)]`}
+      } rounded-2xl overflow-hidden bg-[radial-gradient(circle_at_50%_55%,#2e2217_0%,#140e09_80%)]`}
     >
       <div ref={containerRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
 
-      {/* ปุ่มสลับมุมมอง ด้านบน / เอียง 3D */}
+      {/* ปุ่มสลับมุมมอง เอียง 3D (~58°) / มุมตรงด้านบน */}
       <button
         type="button"
         onClick={handleToggleCameraView}
-        title={viewMode === 'top' ? 'สลับเป็นมุมมองเอียง 3 มิติ' : 'กลับสู่มุมมองจากด้านบน'}
+        title={viewMode === 'angled' ? 'สลับเป็นมุมมองตรงจากด้านบน' : 'กลับสู่มุมมองเอียง 3 มิติ'}
         className={`absolute ${
           compact
             ? 'bottom-1 right-1 px-1.5 py-0.5 text-[9px]'
             : 'bottom-2 right-2 px-2.5 py-1 text-[11px]'
-        } flex items-center space-x-1 rounded-full bg-[#0b132b]/85 hover:bg-[#162038] text-amber-200 border border-amber-400/45 shadow transition cursor-pointer z-10`}
+        } flex items-center space-x-1 rounded-full bg-[#1f150d]/88 hover:bg-[#2b1d12] text-amber-200 border border-amber-400/45 shadow transition cursor-pointer z-10`}
       >
         <Rotate3D className={compact ? 'w-2.5 h-2.5 text-amber-300' : 'w-3.5 h-3.5 text-amber-300'} />
-        <span>{compact ? (viewMode === 'top' ? '3D' : 'บน') : viewMode === 'top' ? 'เอียงดู 3D' : 'มุมด้านบน'}</span>
+        <span>{compact ? (viewMode === 'angled' ? 'บน' : '3D') : viewMode === 'angled' ? 'มุมตรงด้านบน' : 'มุมเอียง 3D'}</span>
       </button>
 
       {!compact && (
-        <span className="absolute bottom-2 left-2.5 text-[10px] text-amber-200/70 pointer-events-none bg-[#0b132b]/65 px-2 py-0.5 rounded-full">
+        <span className="absolute bottom-2 left-2.5 text-[10px] text-amber-200/75 pointer-events-none bg-[#1f150d]/75 px-2 py-0.5 rounded-full border border-amber-500/20">
           ลากเพื่อหมุนดู 360°
         </span>
       )}

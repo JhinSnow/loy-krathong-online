@@ -7,10 +7,10 @@
 
 @layer base {
   :root {
-    --bg-night-top: #0b132b;
-    --bg-night-mid: #1c2541;
-    --bg-river-deep: #0a1128;
-    --bg-river-surface: #1b2a4a;
+    --bg-night-top: #140e09;
+    --bg-night-mid: #24170c;
+    --bg-river-deep: #171310;
+    --bg-river-surface: #2b221a;
     --gold-bright: #fde047;
     --gold-warm: #fbbf24;
     --gold-primary: #f59e0b;
@@ -92,7 +92,7 @@
 }
 
 .btn-gold-outline {
-  background: rgba(28, 37, 65, 0.85);
+  background: rgba(38, 26, 15, 0.88);
   color: #fde68a;
   border: 1px solid rgba(245, 158, 11, 0.35);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
@@ -107,7 +107,7 @@
 }
 
 .glass-gold-card {
-  background: linear-gradient(180deg, rgba(21, 31, 56, 0.94) 0%, rgba(11, 19, 43, 0.97) 100%);
+  background: linear-gradient(180deg, rgba(38, 25, 14, 0.94) 0%, rgba(20, 14, 9, 0.97) 100%);
   border: 1px solid rgba(251, 191, 36, 0.28);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
 }

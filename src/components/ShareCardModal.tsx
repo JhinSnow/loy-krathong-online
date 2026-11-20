@@ -57,10 +57,10 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-slate-900 border border-amber-500/30 rounded-3xl p-6 max-w-sm w-full text-center relative shadow-2xl">
+      <div className="bg-[#1f150d] border border-amber-500/35 rounded-3xl p-6 max-w-sm w-full text-center relative shadow-2xl">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white rounded-full bg-slate-800/80"
+          className="absolute top-4 right-4 p-2 text-amber-200/70 hover:text-amber-100 rounded-full bg-[#2a1d11]/85 cursor-pointer"
         >
           <X className="w-4 h-4" />
         </button>
@@ -70,7 +70,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
         {/* --- Exportable Card Target --- */}
         <div
           ref={cardRef}
-          className="bg-gradient-to-b from-[#0a1128] via-[#001e3d] to-[#000814] p-6 rounded-2xl border border-amber-500/40 text-center shadow-inner relative overflow-hidden"
+          className="bg-gradient-to-b from-[#24160b] via-[#362210] to-[#140c06] p-6 rounded-2xl border border-amber-500/45 text-center shadow-inner relative overflow-hidden"
         >
           {/* Moon Silhouette */}
           <div className="absolute top-3 right-4 w-10 h-10 rounded-full bg-yellow-200/90 shadow-sm" />
@@ -116,7 +116,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
 
           <button
             onClick={handleCopyLink}
-            className="w-full flex items-center justify-center space-x-2 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-sm transition"
+            className="w-full flex items-center justify-center space-x-2 py-2.5 bg-[#2b1d12] hover:bg-[#3b2819] text-amber-100 rounded-xl text-sm transition cursor-pointer"
           >
             {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4" />}
             <span>{copied ? 'คัดลอกลิงก์แล้ว!' : 'แชร์ชวนเพื่อนมาลอยด้วยกัน'}</span>

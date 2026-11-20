@@ -97,7 +97,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <main className="w-screen min-h-screen bg-slate-950 font-sans">
+    <main className="w-screen min-h-screen bg-[#140e09] font-sans">
       {currentView === 'river' && (
         <RiverCanvas
           myKrathongId={myKrathongId}

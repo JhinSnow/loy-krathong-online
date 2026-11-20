@@ -240,8 +240,8 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-[#050a16]/90 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
-      <div className="bg-gradient-to-b from-[#17213a] to-[#0b132b] border border-amber-400/30 rounded-3xl p-4 sm:p-6 max-w-2xl w-full relative shadow-2xl my-auto max-h-[94vh] flex flex-col">
+    <div className="fixed inset-0 bg-[#0f0a06]/90 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
+      <div className="bg-gradient-to-b from-[#281b10] to-[#160f09] border border-amber-400/35 rounded-3xl p-4 sm:p-6 max-w-2xl w-full relative shadow-2xl my-auto max-h-[94vh] flex flex-col">
         {/* Header */}
         <div className="text-center pb-3 border-b border-amber-500/20 shrink-0">
           <div className="flex flex-wrap items-center justify-center gap-2 mb-1.5">
@@ -271,7 +271,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
         {/* Scrollable Form Body */}
         <div className="overflow-y-auto pr-1 py-3 space-y-4 flex-1">
           {/* ส่วนที่ 1: ข้อมูลทั่วไปของผู้ตอบ */}
-          <div className="bg-[#0b132b]/85 border border-amber-500/25 rounded-2xl p-3.5 sm:p-4 space-y-3">
+          <div className="bg-[#17100a]/85 border border-amber-500/25 rounded-2xl p-3.5 sm:p-4 space-y-3">
             <div className="flex items-center space-x-1.5 text-xs font-bold text-amber-200">
               <UserCheck className="w-4 h-4 text-amber-400" />
               <span>ส่วนที่ 1: ข้อมูลทั่วไปของผู้เข้าร่วมกิจกรรม</span>
@@ -298,7 +298,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                     className={`py-2 px-2 rounded-xl text-[11px] font-semibold border transition cursor-pointer ${
                       selectedUserType === t.id
                         ? 'bg-amber-500/20 border-amber-400 text-amber-100 shadow-sm'
-                        : 'bg-slate-900/90 border-slate-700 text-slate-300 hover:border-amber-500/40'
+                        : 'bg-[#1f150d]/90 border-amber-500/25 text-amber-100/75 hover:border-amber-400/50'
                     }`}
                   >
                     {t.label}
@@ -333,7 +333,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                     placeholder="กรอกรหัสนักศึกษา 8–13 หลัก เช่น 6610110245"
                     maxLength={13}
                     required
-                    className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-base sm:text-sm text-amber-50 placeholder-slate-500 focus:outline-none"
+                    className="w-full bg-[#140e09] border border-amber-500/35 focus:border-amber-400 rounded-xl px-3 py-2 text-base sm:text-sm text-amber-50 placeholder-amber-200/40 focus:outline-none"
                   />
                 </div>
 
@@ -345,8 +345,8 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
           </div>
 
           {/* ส่วนที่ 2: หัวข้อประเมินความพึงพอใจ 10 ด้าน */}
-          <div className="bg-[#0b132b]/85 border border-amber-500/25 rounded-2xl p-3.5 sm:p-4 space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-800">
+          <div className="bg-[#17100a]/85 border border-amber-500/25 rounded-2xl p-3.5 sm:p-4 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-amber-500/20">
               <div>
                 <h4 className="text-xs font-bold text-amber-200 flex items-center gap-1.5">
                   <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
@@ -380,7 +380,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                 return (
                   <div
                     key={q.id}
-                    className="p-2.5 sm:p-3 rounded-xl bg-slate-900/80 border border-slate-800/90 hover:border-amber-500/30 transition flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                    className="p-2.5 sm:p-3 rounded-xl bg-[#1f150d]/85 border border-amber-500/20 hover:border-amber-400/40 transition flex flex-col sm:flex-row sm:items-center justify-between gap-2"
                   >
                     <div className="text-left flex-1 pr-2">
                       <span className="text-[11px] sm:text-xs font-semibold text-amber-50 leading-snug">
@@ -404,7 +404,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                             className={`w-8 h-8 sm:w-9 sm:h-8 rounded-lg text-xs font-bold border transition flex items-center justify-center cursor-pointer ${
                               isSelected
                                 ? 'bg-amber-400 text-stone-950 border-amber-300 shadow-sm scale-105'
-                                : 'bg-slate-950 text-slate-400 border-slate-700 hover:border-amber-400/50 hover:text-amber-200'
+                                : 'bg-[#140e09] text-amber-200/65 border-amber-500/25 hover:border-amber-400/55 hover:text-amber-200'
                             }`}
                           >
                             {scoreNum}
@@ -419,7 +419,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
 
             {/* สรุปคะแนนเฉลี่ยปัจจุบัน */}
             <div className="flex items-center justify-between pt-2 px-1 text-xs">
-              <span className="text-slate-400">ค่าเฉลี่ยความพึงพอใจของคุณ (x̄):</span>
+              <span className="text-amber-200/70">ค่าเฉลี่ยความพึงพอใจของคุณ (x̄):</span>
               <span className="font-extrabold text-amber-300 text-sm">
                 {currentAverage} / 5.00 ({RATING_LABELS[Math.round(Number(currentAverage))]})
               </span>
@@ -427,7 +427,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
           </div>
 
           {/* ส่วนที่ 3: ข้อเสนอแนะเพิ่มเติม */}
-          <div className="bg-[#0b132b]/85 border border-amber-500/25 rounded-2xl p-3.5 sm:p-4 text-left">
+          <div className="bg-[#17100a]/85 border border-amber-500/25 rounded-2xl p-3.5 sm:p-4 text-left">
             <label className="block text-xs font-bold text-amber-200 mb-1.5">
               ส่วนที่ 3: ข้อเสนอแนะเพิ่มเติมเพื่อการพัฒนา (ถ้ามี)
             </label>
@@ -437,7 +437,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
               placeholder="ความคิดเห็น ข้อเสนอแนะ หรือความประทับใจจากงานลอยกระทง..."
               maxLength={140}
               rows={2}
-              className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-amber-50 placeholder-slate-500 focus:outline-none focus:border-amber-400 resize-none"
+              className="w-full bg-[#140e09] border border-amber-500/35 rounded-xl p-2.5 text-xs text-amber-50 placeholder-amber-200/40 focus:outline-none focus:border-amber-400 resize-none"
             />
           </div>
         </div>

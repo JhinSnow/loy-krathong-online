@@ -9,7 +9,7 @@ export const ThaiArchitectureSkyline: React.FC = () => {
         className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[520px] sm:w-[680px] md:w-[820px] h-48 pointer-events-none"
         style={{
           background:
-            'radial-gradient(ellipse at 50% 85%, rgba(245, 158, 11, 0.1) 0%, rgba(250, 204, 21, 0.04) 42%, transparent 74%)'
+            'radial-gradient(ellipse at 50% 85%, rgba(245, 158, 11, 0.16) 0%, rgba(253, 224, 71, 0.08) 42%, transparent 74%)'
         }}
       />
 
@@ -18,7 +18,7 @@ export const ThaiArchitectureSkyline: React.FC = () => {
         className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-36 pointer-events-none"
         style={{
           background:
-            'linear-gradient(to top, rgba(245, 158, 11, 0.06) 0%, rgba(234, 179, 8, 0.02) 45%, transparent 100%)'
+            'linear-gradient(to top, rgba(245, 158, 11, 0.14) 0%, rgba(253, 224, 71, 0.05) 45%, transparent 100%)'
         }}
       />
 
@@ -32,26 +32,26 @@ export const ThaiArchitectureSkyline: React.FC = () => {
           {/* Main Architecture Golden Gradient */}
           <linearGradient id="templeGoldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" stopColor="#fde68a" stopOpacity="0.95" />
-            <stop offset="25%" stopColor="#f59e0b" stopOpacity="0.8" />
-            <stop offset="65%" stopColor="#b45309" stopOpacity="0.65" />
-            <stop offset="100%" stopColor="#0b132b" stopOpacity="0.9" />
+            <stop offset="25%" stopColor="#f59e0b" stopOpacity="0.82" />
+            <stop offset="65%" stopColor="#b45309" stopOpacity="0.68" />
+            <stop offset="100%" stopColor="#160f09" stopOpacity="0.92" />
           </linearGradient>
 
           {/* Prang Wat Arun Golden Gradient */}
           <linearGradient id="prangGoldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" stopColor="#fffbeb" stopOpacity="1" />
             <stop offset="15%" stopColor="#fde047" stopOpacity="0.9" />
-            <stop offset="45%" stopColor="#d97706" stopOpacity="0.75" />
-            <stop offset="100%" stopColor="#1c2541" stopOpacity="0.85" />
+            <stop offset="45%" stopColor="#d97706" stopOpacity="0.78" />
+            <stop offset="100%" stopColor="#26190e" stopOpacity="0.88" />
           </linearGradient>
 
           {/* Real Fluted Pumpkin Vault Gold Gradient */}
           <linearGradient id="vaultGoldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" stopColor="#fffbeb" stopOpacity="1" />
             <stop offset="20%" stopColor="#fde047" stopOpacity="0.95" />
-            <stop offset="60%" stopColor="#f59e0b" stopOpacity="0.8" />
-            <stop offset="90%" stopColor="#b45309" stopOpacity="0.7" />
-            <stop offset="100%" stopColor="#0b132b" stopOpacity="0.9" />
+            <stop offset="60%" stopColor="#f59e0b" stopOpacity="0.82" />
+            <stop offset="90%" stopColor="#b45309" stopOpacity="0.72" />
+            <stop offset="100%" stopColor="#160f09" stopOpacity="0.92" />
           </linearGradient>
 
           {/* Fluted Vault Ridge Side Gradient (สร้างแสงเงาร่องกลีบ) */}
@@ -59,13 +59,13 @@ export const ThaiArchitectureSkyline: React.FC = () => {
             <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.9" />
             <stop offset="40%" stopColor="#b45309" stopOpacity="0.8" />
             <stop offset="85%" stopColor="#78350f" stopOpacity="0.75" />
-            <stop offset="100%" stopColor="#0b132b" stopOpacity="0.95" />
+            <stop offset="100%" stopColor="#160f09" stopOpacity="0.95" />
           </linearGradient>
 
           {/* Golden Aura Radial Gradient for Stupa Tip */}
           <radialGradient id="spireAura" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#fef08a" stopOpacity="0.45" />
-            <stop offset="40%" stopColor="#f59e0b" stopOpacity="0.15" />
+            <stop offset="0%" stopColor="#fef08a" stopOpacity="0.52" />
+            <stop offset="40%" stopColor="#f59e0b" stopOpacity="0.2" />
             <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
           </radialGradient>
 
@@ -77,26 +77,26 @@ export const ThaiArchitectureSkyline: React.FC = () => {
             <stop offset="100%" stopColor="#ea580c" />
           </linearGradient>
 
-          {/* Distant Mountain Silhouette Gradient (ทิวเขาคอหงส์สีน้ำเงินเข้มอมครามโปร่งแสง) */}
+          {/* Distant Mountain Silhouette Gradient (ทิวเขาคอหงส์สีน้ำตาลชาโคลอบอุ่น) */}
           <linearGradient id="mountainDistGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#1e293b" stopOpacity="0.55" />
-            <stop offset="50%" stopColor="#0f172a" stopOpacity="0.7" />
-            <stop offset="100%" stopColor="#0b132b" stopOpacity="0.9" />
+            <stop offset="0%" stopColor="#332214" stopOpacity="0.58" />
+            <stop offset="50%" stopColor="#21160d" stopOpacity="0.72" />
+            <stop offset="100%" stopColor="#160f09" stopOpacity="0.92" />
           </linearGradient>
 
           {/* Mid-distance Foothill Gradient */}
           <linearGradient id="mountainMidGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#1c2541" stopOpacity="0.6" />
-            <stop offset="60%" stopColor="#111a30" stopOpacity="0.8" />
-            <stop offset="100%" stopColor="#091024" stopOpacity="0.95" />
+            <stop offset="0%" stopColor="#26190e" stopOpacity="0.65" />
+            <stop offset="60%" stopColor="#1c130b" stopOpacity="0.84" />
+            <stop offset="100%" stopColor="#140d07" stopOpacity="0.96" />
           </linearGradient>
 
           {/* Muted Translucent Gold Gradient for Midground Architecture */}
           <linearGradient id="mutedGoldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#fde68a" stopOpacity="0.8" />
-            <stop offset="35%" stopColor="#d97706" stopOpacity="0.65" />
-            <stop offset="75%" stopColor="#78350f" stopOpacity="0.6" />
-            <stop offset="100%" stopColor="#0b132b" stopOpacity="0.9" />
+            <stop offset="0%" stopColor="#fde68a" stopOpacity="0.82" />
+            <stop offset="35%" stopColor="#d97706" stopOpacity="0.68" />
+            <stop offset="75%" stopColor="#78350f" stopOpacity="0.62" />
+            <stop offset="100%" stopColor="#160f09" stopOpacity="0.92" />
           </linearGradient>
         </defs>
 
@@ -183,11 +183,11 @@ export const ThaiArchitectureSkyline: React.FC = () => {
               key={`palm-${idx}`}
               transform={`translate(${palm.x}, ${palm.y}) scale(${palm.scale})`}
             >
-              {/* ลำต้นตาล/มะพร้าวเรียวโค้งสีน้ำเงินเข้มตัดขอบทอง */}
+              {/* ลำต้นตาล/มะพร้าวเรียวโค้งสีน้ำตาลชาโคลตัดขอบทอง */}
               <path
                 d={`M ${palm.tilt * 1.5} 105 Q ${palm.tilt * 0.5} 50 0 0`}
                 fill="none"
-                stroke="#0b132b"
+                stroke="#160f09"
                 strokeWidth="4.5"
                 strokeLinecap="round"
               />
@@ -199,8 +199,8 @@ export const ThaiArchitectureSkyline: React.FC = () => {
                 strokeOpacity="0.75"
                 strokeLinecap="round"
               />
-              {/* พุ่มทางมะพร้าว/ใบตาลแผ่รัศมีโค้ง (Silhouette สีน้ำเงินเข้มขอบทอง) */}
-              <g fill="#0f172a" stroke="#fde047" strokeWidth="0.9" strokeOpacity="0.8">
+              {/* พุ่มทางมะพร้าว/ใบตาลแผ่รัศมีโค้ง (Silhouette สีน้ำตาลเข้มขอบทอง) */}
+              <g fill="#1c130b" stroke="#fde047" strokeWidth="0.9" strokeOpacity="0.8">
                 <path d="M 0 0 Q -14 -12 -26 -2 Q -12 -4 0 2 Z" />
                 <path d="M 0 0 Q -18 -4 -28 10 Q -14 2 0 3 Z" />
                 <path d="M 0 0 Q -10 4 -18 18 Q -8 8 0 4 Z" />
@@ -261,8 +261,8 @@ export const ThaiArchitectureSkyline: React.FC = () => {
           <path d="M 1310 320 L 1310 280 L 1420 230 L 1530 280 L 1530 320 Z" />
 
           {/* ----------------- แนวกำแพงแก้ว/ฐานตลิ่งทอดยาวต่อเนื่องตลอดแนวหน้าจอ (เชื่อมต่อกัน 100% ไม่เว้นช่องว่างตรงกลาง) ----------------- */}
-          <rect x="0" y="302" width="1600" height="18" fill="#1c2541" stroke="#f59e0b" strokeWidth="1" />
-          <line x1="0" y1="316" x2="1600" y2="316" stroke="#f59e0b" strokeWidth="1.2" opacity="0.7" />
+          <rect x="0" y="302" width="1600" height="18" fill="#26190e" stroke="#f59e0b" strokeWidth="1" />
+          <line x1="0" y1="316" x2="1600" y2="316" stroke="#fde047" strokeWidth="2.2" opacity="0.92" />
 
           {[80, 180, 320, 440, 1160, 1280, 1400, 1500].map((pos, i) => (
             <g key={i} transform={`translate(${pos}, 288)`}>
@@ -329,8 +329,8 @@ export const ThaiArchitectureSkyline: React.FC = () => {
           {/* Silhouette บังฉากหลังเฉพาะช่วงตัวอาคารตึกฟักทอง เพื่อไม่ให้เส้นเจดีย์ด้านหลังทะลุเข้ามาซ้อนในตัวอาคาร */}
           <path
             d="M 512 302 C 512 225, 575 176, 650 162 C 710 150, 755 148, 800 148 C 845 148, 890 150, 950 162 C 1025 176, 1088 225, 1088 302 Z"
-            fill="#0b132b"
-            opacity="0.9"
+            fill="#160f09"
+            opacity="0.92"
           />
 
           <image
@@ -427,7 +427,7 @@ export const ThaiArchitectureSkyline: React.FC = () => {
         className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-[380px] sm:w-[520px] h-20 pointer-events-none"
         style={{
           background:
-            'radial-gradient(ellipse at 50% 15%, rgba(251, 191, 36, 0.08) 0%, rgba(234, 179, 8, 0.03) 48%, transparent 74%)'
+            'radial-gradient(ellipse at 50% 15%, rgba(253, 224, 71, 0.16) 0%, rgba(245, 158, 11, 0.08) 48%, transparent 74%)'
         }}
       />
     </div>

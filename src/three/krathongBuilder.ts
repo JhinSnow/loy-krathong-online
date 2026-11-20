@@ -1,6 +1,6 @@
 // src/three/krathongBuilder.ts
-// ตัวสร้างโมเดลกระทง 3 มิติ (Procedural PBR Geometry + Shared Texture Cache + Animation Handles)
-// รองรับฐานกระทง 8 แบบ, ดอกไม้ 8 ชนิด, ของตกแต่งกลาง 8 แบบ, เทียน 8 สี, ของเสริมครบชุด และการปรับสเกลแยกชิ้น
+// โมเดลกระทง 3 มิติประณีต (InstancedMesh Batching ~10 Draw Calls/ใบ เพื่อความลื่น 60 FPS)
+// ปรับแต่งรูปทรงกลีบใบตองพับ 2 ชั้น หยวกกล้วย ดอกบัวตูม ดาวเรืองฟู มะลิ และธูปเทียนตามแบบงานฝีมือประณีต
 
 import * as THREE from 'three';
 import { parseCandleConfig } from '../utils/krathongConfig';
@@ -22,12 +22,24 @@ export interface BuildKrathong3DOptions {
 }
 
 interface SharedAssets {
-  leafTex: THREE.CanvasTexture;
+  bananaTrunkTex: THREE.CanvasTexture;
+  bananaGliebTex: THREE.CanvasTexture;
+  bananaDeckTex: THREE.CanvasTexture;
+  lotusPetalTex: THREE.CanvasTexture;
+  marigoldPetalTex: THREE.CanvasTexture;
   petalBump: THREE.CanvasTexture;
   coconutTex: THREE.CanvasTexture;
   breadTex: THREE.CanvasTexture;
-  foldedPetalGeo: THREE.BufferGeometry;
-  lotusPetalGeo: THREE.BufferGeometry;
+  foldedGliebGeo: THREE.BufferGeometry;
+  cuppedPetalGeo: THREE.BufferGeometry;
+  rufflePetalGeo: THREE.BufferGeometry;
+  jasmineBudGeo: THREE.BufferGeometry;
+  baseCupGeo: THREE.CylinderGeometry;
+  waistBandGeo: THREE.TorusGeometry;
+  deckPadGeo: THREE.CylinderGeometry;
+  candleStickGeo: THREE.CylinderGeometry;
+  incenseStemGeo: THREE.CylinderGeometry;
+  incenseTipGeo: THREE.SphereGeometry;
   heartGeo: THREE.BufferGeometry;
   haloGeo: THREE.RingGeometry;
 }
@@ -39,33 +51,145 @@ function markShared<T extends THREE.BufferGeometry | THREE.Texture>(asset: T): T
   return asset;
 }
 
-function createLeafTexture(): THREE.CanvasTexture {
+function createBananaTrunkTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    const grad = ctx.createLinearGradient(0, 0, 0, 64);
+    grad.addColorStop(0, '#c6d54c');
+    grad.addColorStop(0.55, '#b2c43a');
+    grad.addColorStop(1, '#8fa324');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 128, 64);
+
+    ctx.strokeStyle = 'rgba(255, 250, 220, 0.18)';
+    ctx.lineWidth = 1;
+    for (let y = 5; y < 64; y += 6) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(128, y);
+      ctx.stroke();
+    }
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = THREE.RepeatWrapping;
+  return markShared(tex);
+}
+
+function createBananaGliebTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 128;
   canvas.height = 128;
   const ctx = canvas.getContext('2d');
   if (ctx) {
-    const grad = ctx.createLinearGradient(0, 0, 0, 128);
-    grad.addColorStop(0, '#9ae6b4');
-    grad.addColorStop(0.5, '#38a169');
-    grad.addColorStop(1, '#1b4332');
+    const grad = ctx.createLinearGradient(0, 128, 0, 0);
+    grad.addColorStop(0, '#4d7c0f');
+    grad.addColorStop(0.45, '#65a30d');
+    grad.addColorStop(0.85, '#84cc16');
+    grad.addColorStop(1, '#a3e635');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, 128, 128);
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
+    // เส้นใบตองตามขวางเฉียงสมจริง
+    ctx.strokeStyle = 'rgba(236, 252, 203, 0.22)';
     ctx.lineWidth = 1.2;
-    for (let y = 6; y < 128; y += 6) {
+    for (let y = 8; y < 128; y += 6) {
       ctx.beginPath();
       ctx.moveTo(0, y);
-      ctx.lineTo(128, y - 4);
+      ctx.lineTo(64, y - 8);
+      ctx.lineTo(128, y);
       ctx.stroke();
     }
-    ctx.strokeStyle = 'rgba(10, 40, 22, 0.25)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(64, 0);
-    ctx.lineTo(64, 128);
-    ctx.stroke();
+
+    // แนวสันพับกลางกลีบ (แสงซ้าย-เงาขวาเล็กน้อยให้กลีบดูคมนูน)
+    const sideGrad = ctx.createLinearGradient(0, 0, 128, 0);
+    sideGrad.addColorStop(0, 'rgba(30, 58, 10, 0.22)');
+    sideGrad.addColorStop(0.47, 'rgba(255, 255, 255, 0.14)');
+    sideGrad.addColorStop(0.5, 'rgba(255, 255, 230, 0.28)');
+    sideGrad.addColorStop(0.54, 'rgba(20, 45, 5, 0.22)');
+    sideGrad.addColorStop(1, 'rgba(20, 45, 5, 0.30)');
+    ctx.fillStyle = sideGrad;
+    ctx.fillRect(0, 0, 128, 128);
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return markShared(tex);
+}
+
+function createBananaDeckTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    const rad = ctx.createRadialGradient(128, 128, 12, 128, 128, 128);
+    rad.addColorStop(0, '#5a8f14');
+    rad.addColorStop(0.65, '#6ca81b');
+    rad.addColorStop(0.92, '#7cb824');
+    rad.addColorStop(1, '#4f7f10');
+    ctx.fillStyle = rad;
+    ctx.fillRect(0, 0, 256, 256);
+
+    ctx.strokeStyle = 'rgba(217, 249, 157, 0.16)';
+    ctx.lineWidth = 1.2;
+    for (let i = 0; i < 36; i++) {
+      const ang = (i * Math.PI * 2) / 36;
+      ctx.beginPath();
+      ctx.moveTo(128, 128);
+      ctx.lineTo(128 + Math.cos(ang) * 126, 128 + Math.sin(ang) * 126);
+      ctx.stroke();
+    }
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return markShared(tex);
+}
+
+function createLotusPetalTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    const grad = ctx.createLinearGradient(0, 128, 0, 0);
+    grad.addColorStop(0.0, '#fff7e8');
+    grad.addColorStop(0.32, '#fde8d7');
+    grad.addColorStop(0.62, '#f9a8d4');
+    grad.addColorStop(0.88, '#ec5b8c');
+    grad.addColorStop(1.0, '#db2777');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 128, 128);
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+    ctx.lineWidth = 1;
+    for (let x = 14; x < 120; x += 11) {
+      ctx.beginPath();
+      ctx.moveTo(64 + (x - 64) * 0.4, 128);
+      ctx.quadraticCurveTo(x, 64, 64 + (x - 64) * 0.25, 0);
+      ctx.stroke();
+    }
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return markShared(tex);
+}
+
+function createMarigoldPetalTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    const grad = ctx.createLinearGradient(0, 64, 0, 0);
+    grad.addColorStop(0, '#c2410c');
+    grad.addColorStop(0.45, '#f97316');
+    grad.addColorStop(0.85, '#f59e0b');
+    grad.addColorStop(1, '#fbbf24');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 64, 64);
   }
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -81,7 +205,7 @@ function createPetalBumpTexture(): THREE.CanvasTexture {
     ctx.fillStyle = '#808080';
     ctx.fillRect(0, 0, 64, 64);
     for (let i = 0; i < 64; i += 4) {
-      ctx.fillStyle = i % 8 === 0 ? '#969696' : '#6c6c6c';
+      ctx.fillStyle = i % 8 === 0 ? '#949494' : '#6e6e6e';
       ctx.fillRect(i, 0, 2, 64);
     }
   }
@@ -134,53 +258,139 @@ function createBreadTexture(): THREE.CanvasTexture {
   return markShared(tex);
 }
 
-function createFoldedPetalGeometry(): THREE.BufferGeometry {
-  // รูปทรงกลีบกระทงพับจีบ 3 มิติ (ปลายแหลมด้านบน + สันพับกลางนูนออกด้านหน้า)
-  const positions = new Float32Array([
-    // Left half front/outer triangle
-    0.0, 0.38, 0.015,
-    -0.135, 0.03, -0.02,
-    0.0, -0.02, 0.06,
-    // Right half front/outer triangle
-    0.0, 0.38, 0.015,
-    0.0, -0.02, 0.06,
-    0.135, 0.03, -0.02,
-    // Lower skirt bridge left
-    -0.135, 0.03, -0.02,
-    -0.10, -0.08, -0.01,
-    0.0, -0.02, 0.06,
-    // Lower skirt bridge right
-    0.0, -0.02, 0.06,
-    0.10, -0.08, -0.01,
-    0.135, 0.03, -0.02
-  ]);
-  const uvs = new Float32Array([
-    0.5, 1.0, 0.0, 0.25, 0.5, 0.2,
-    0.5, 1.0, 0.5, 0.2, 1.0, 0.25,
-    0.0, 0.25, 0.1, 0.0, 0.5, 0.2,
-    0.5, 0.2, 0.9, 0.0, 1.0, 0.25
-  ]);
+function createFoldedGliebGeometry(): THREE.BufferGeometry {
+  // รูปทรงกลีบใบตองพับจีบตั้งอวบ 3 มิติ (ปลายยอดตั้งตรง โคนป่องรับแสง + สันพับกลางคมชัดแบบภาพตัวอย่าง)
+  const cols = 4;
+  const rows = 4;
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+
+  for (let r = 0; r <= rows; r++) {
+    const v = r / rows; // 0 = base, 1 = pointed tip
+    const y = v * 0.38;
+    const widthCurve = Math.sin(Math.min(1, v * 0.92 + 0.14) * Math.PI) * (1 - v * 0.25);
+    const halfW = 0.165 * Math.max(0.05, widthCurve);
+    // โค้งเข้าด้านในเล็กน้อยช่วงปลายยอดเพื่อให้กลีบโอบทรงถ้วยกระทง
+    const archZ = Math.sin(v * Math.PI) * 0.048 - v * v * 0.032;
+
+    for (let c = 0; c <= cols; c++) {
+      const u = c / cols; // 0 .. 1
+      const xFrac = u * 2 - 1; // -1 .. +1
+      const x = xFrac * halfW;
+      // สันพับกลางแหลม (|xFrac| == 0 นูนมาด้านหน้า z)
+      const foldRidge = (1 - Math.abs(xFrac)) * 0.068 * (1 - v * 0.45);
+      const z = archZ + foldRidge;
+      positions.push(x, y, z);
+      uvs.push(u, v);
+    }
+  }
+
+  const stride = cols + 1;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const a = r * stride + c;
+      const b = a + 1;
+      const d = (r + 1) * stride + c;
+      const e = d + 1;
+      indices.push(a, b, d, b, e, d);
+    }
+  }
+
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setIndex(indices);
   geo.computeVertexNormals();
   return markShared(geo);
 }
 
-function createLotusPetalGeometry(): THREE.BufferGeometry {
-  const shape = new THREE.Shape();
-  shape.moveTo(0, -0.05);
-  shape.bezierCurveTo(-0.12, 0.05, -0.14, 0.24, 0, 0.36);
-  shape.bezierCurveTo(0.14, 0.24, 0.12, 0.05, 0, -0.05);
-  const geo = new THREE.ExtrudeGeometry(shape, {
-    depth: 0.026,
-    bevelEnabled: true,
-    bevelThickness: 0.012,
-    bevelSize: 0.012,
-    bevelSegments: 2,
-    curveSegments: 8
-  });
-  geo.center();
+function createCuppedPetalGeometry(): THREE.BufferGeometry {
+  // กลีบดอกบัว/กุหลาบโค้งเว้าเป็นช้อนอวบอิ่ม (UV.y 0 โคน -> 1 ปลายกลีบ)
+  const cols = 4;
+  const rows = 5;
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+
+  for (let r = 0; r <= rows; r++) {
+    const v = r / rows;
+    const y = v * 0.34;
+    const widthProfile = Math.sin(Math.pow(v, 0.72) * Math.PI) * 0.145 + (1 - v) * 0.025;
+    // โค้งหุบปลายกลีบเข้าด้านในเหมือนกลีบดอกบัวตูมจริง
+    const cupVertical = Math.sin(v * Math.PI * 0.92) * 0.065;
+
+    for (let c = 0; c <= cols; c++) {
+      const u = c / cols;
+      const xFrac = u * 2 - 1;
+      const x = xFrac * widthProfile;
+      const cupSide = (xFrac * xFrac - 0.5) * 0.042 * Math.sin(v * Math.PI);
+      const z = cupVertical - cupSide;
+      positions.push(x, y, z);
+      uvs.push(u, v);
+    }
+  }
+
+  const stride = cols + 1;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const a = r * stride + c;
+      const b = a + 1;
+      const d = (r + 1) * stride + c;
+      const e = d + 1;
+      indices.push(a, b, d, b, e, d);
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return markShared(geo);
+}
+
+function createRufflePetalGeometry(): THREE.BufferGeometry {
+  // กลีบดอกดาวเรืองทรงพัดหยักเป็นลอนฟู
+  const cols = 4;
+  const rows = 3;
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+
+  for (let r = 0; r <= rows; r++) {
+    const v = r / rows;
+    const y = v * 0.11;
+    const halfW = 0.014 + v * 0.056;
+    const ruffleWave = v > 0.4 ? Math.sin(v * 6.0) * 0.008 : 0;
+
+    for (let c = 0; c <= cols; c++) {
+      const u = c / cols;
+      const xFrac = u * 2 - 1;
+      const x = xFrac * halfW;
+      const edgeRipple = Math.cos(xFrac * Math.PI * 2.5) * 0.012 * v;
+      const z = Math.sin(v * Math.PI * 0.7) * 0.024 + edgeRipple + ruffleWave;
+      positions.push(x, y, z);
+      uvs.push(u, v);
+    }
+  }
+
+  const stride = cols + 1;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const a = r * stride + c;
+      const b = a + 1;
+      const d = (r + 1) * stride + c;
+      const e = d + 1;
+      indices.push(a, b, d, b, e, d);
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
   return markShared(geo);
 }
 
@@ -205,31 +415,108 @@ function createHeartGeometry(): THREE.BufferGeometry {
 
 function getSharedAssets(): SharedAssets {
   if (cachedAssets) return cachedAssets;
+  const jasmineBudGeo = new THREE.SphereGeometry(0.03, 7, 6);
+  jasmineBudGeo.scale(0.86, 1.4, 0.86);
+
   cachedAssets = {
-    leafTex: createLeafTexture(),
+    bananaTrunkTex: createBananaTrunkTexture(),
+    bananaGliebTex: createBananaGliebTexture(),
+    bananaDeckTex: createBananaDeckTexture(),
+    lotusPetalTex: createLotusPetalTexture(),
+    marigoldPetalTex: createMarigoldPetalTexture(),
     petalBump: createPetalBumpTexture(),
     coconutTex: createCoconutTexture(),
     breadTex: createBreadTexture(),
-    foldedPetalGeo: createFoldedPetalGeometry(),
-    lotusPetalGeo: createLotusPetalGeometry(),
+    foldedGliebGeo: createFoldedGliebGeometry(),
+    cuppedPetalGeo: createCuppedPetalGeometry(),
+    rufflePetalGeo: createRufflePetalGeometry(),
+    jasmineBudGeo: markShared(jasmineBudGeo),
+    baseCupGeo: markShared(new THREE.CylinderGeometry(0.91, 0.82, 0.24, 28)),
+    waistBandGeo: markShared(new THREE.TorusGeometry(0.89, 0.022, 8, 32)),
+    deckPadGeo: markShared(new THREE.CylinderGeometry(0.79, 0.80, 0.06, 28)),
+    candleStickGeo: markShared(new THREE.CylinderGeometry(0.064, 0.072, 0.40, 14)),
+    incenseStemGeo: markShared(new THREE.CylinderGeometry(0.011, 0.012, 0.64, 6)),
+    incenseTipGeo: markShared(new THREE.SphereGeometry(0.016, 6, 6)),
     heartGeo: createHeartGeometry(),
-    haloGeo: markShared(new THREE.RingGeometry(1.06, 1.15, 48))
+    haloGeo: markShared(new THREE.RingGeometry(1.08, 1.18, 44))
   };
   return cachedAssets;
 }
 
 const BASE_PALETTES: Record<
   string,
-  { outer: number; mid: number; inner: number; rim: number; body: number; pin: number; metal?: number; opacity?: number }
+  {
+    rimBody: number;
+    waist: number;
+    outerHex: number;
+    innerHex: number;
+    deckTint: number;
+    metal?: number;
+    opacity?: number;
+  }
 > = {
-  banana_leaf: { outer: 0x1b4332, mid: 0x2d6a4f, inner: 0x52b788, rim: 0x74c69d, body: 0x143628, pin: 0xfde047 },
-  banana_gold: { outer: 0x064e3b, mid: 0x047857, inner: 0x10b981, rim: 0xfbbf24, body: 0x042f2e, pin: 0xfde047, metal: 0.35 },
-  lotus: { outer: 0x831843, mid: 0xdb2777, inner: 0xf472b6, rim: 0xfbcfe8, body: 0x701a45, pin: 0xfef08a },
-  lotus_crystal: { outer: 0x0c4a6e, mid: 0x0284c7, inner: 0x7dd3fc, rim: 0xe0f2fe, body: 0x082f49, pin: 0xffffff, metal: 0.25, opacity: 0.9 },
-  coconut: { outer: 0x432818, mid: 0x7f5539, inner: 0xb08968, rim: 0xddb892, body: 0x3b2112, pin: 0xfbbf24 },
-  bread: { outer: 0x78350f, mid: 0xd97706, inner: 0xfbbf24, rim: 0xfef08a, body: 0x92400e, pin: 0xfffbeb },
-  ice_swan: { outer: 0x0369a1, mid: 0x38bdf8, inner: 0xe0f2fe, rim: 0xffffff, body: 0x075985, pin: 0xbae6fd, metal: 0.2, opacity: 0.92 },
-  peacock_royal: { outer: 0x713f12, mid: 0xca8a04, inner: 0xfde047, rim: 0xfef08a, body: 0x422006, pin: 0x10b981, metal: 0.45 }
+  banana_leaf: {
+    rimBody: 0xffffff,
+    waist: 0x98ab2b,
+    outerHex: 0xf4fce3,
+    innerHex: 0xffffff,
+    deckTint: 0xffffff
+  },
+  banana_gold: {
+    rimBody: 0x064e3b,
+    waist: 0xfbbf24,
+    outerHex: 0x10b981,
+    innerHex: 0x34d399,
+    deckTint: 0x6ee7b7,
+    metal: 0.35
+  },
+  lotus: {
+    rimBody: 0xffffff,
+    waist: 0xb0c238,
+    outerHex: 0xffe4ec,
+    innerHex: 0xffffff,
+    deckTint: 0xffffff
+  },
+  lotus_crystal: {
+    rimBody: 0x0ea5e9,
+    waist: 0xe0f2fe,
+    outerHex: 0x7dd3fc,
+    innerHex: 0xe0f2fe,
+    deckTint: 0x7dd3fc,
+    metal: 0.22,
+    opacity: 0.88
+  },
+  coconut: {
+    rimBody: 0x5c3a21,
+    waist: 0xfbbf24,
+    outerHex: 0x99582a,
+    innerHex: 0xb08968,
+    deckTint: 0xd9f99d
+  },
+  bread: {
+    rimBody: 0xd97706,
+    waist: 0xfef08a,
+    outerHex: 0xfbbf24,
+    innerHex: 0xfde68a,
+    deckTint: 0xfef08a
+  },
+  ice_swan: {
+    rimBody: 0x0284c7,
+    waist: 0xffffff,
+    outerHex: 0xbae6fd,
+    innerHex: 0xf0f9ff,
+    deckTint: 0xe0f2fe,
+    metal: 0.18,
+    opacity: 0.91
+  },
+  peacock_royal: {
+    rimBody: 0x713f12,
+    waist: 0xfde047,
+    outerHex: 0xeab308,
+    innerHex: 0xfef08a,
+    deckTint: 0xa3e635,
+    metal: 0.42
+  }
 };
 
 function resolveBaseKey(raw: string): string {
@@ -245,12 +532,12 @@ function resolveBaseKey(raw: string): string {
 }
 
 const FLOWER_PALETTES: Record<string, { outer: number; inner: number; core: number }> = {
-  marigold: { outer: 0xf59e0b, inner: 0xfbbf24, core: 0xb45309 },
-  lotus_flower: { outer: 0xe11d48, inner: 0xfb7185, core: 0xfef08a },
-  lotus: { outer: 0xe11d48, inner: 0xfb7185, core: 0xfef08a },
+  marigold: { outer: 0xf59e0b, inner: 0xfbbf24, core: 0xc2410c },
+  lotus_flower: { outer: 0xf43f5e, inner: 0xf9a8d4, core: 0xfef08a },
+  lotus: { outer: 0xf43f5e, inner: 0xf9a8d4, core: 0xfef08a },
   orchid: { outer: 0x9333ea, inner: 0xd8b4fe, core: 0xfef08a },
-  jasmine: { outer: 0xe2e8f0, inner: 0xffffff, core: 0xfde047 },
-  rose: { outer: 0x9f1239, inner: 0xf43f5e, core: 0xfecdd3 },
+  jasmine: { outer: 0xfefce8, inner: 0xffffff, core: 0xfde047 },
+  rose: { outer: 0xbe123c, inner: 0xfb7185, core: 0xffe4e6 },
   dok_kem: { outer: 0xea580c, inner: 0xfb923c, core: 0xfef08a },
   anchan: { outer: 0x4338ca, inner: 0x818cf8, core: 0xe0e7ff },
   mixed_garland: { outer: 0xf43f5e, inner: 0xfbbf24, core: 0xfef08a },
@@ -261,25 +548,23 @@ const MIXED_BLOSSOM_COLORS = [
   { outer: 0xf59e0b, inner: 0xfde047 },
   { outer: 0xe11d48, inner: 0xfb7185 },
   { outer: 0x9333ea, inner: 0xd8b4fe },
-  { outer: 0x0284c7, inner: 0x7dd3fc },
-  { outer: 0x059669, inner: 0x6ee7b7 },
-  { outer: 0xea580c, inner: 0xfdba74 },
-  { outer: 0xcbd5e1, inner: 0xffffff }
+  { outer: 0xf97316, inner: 0xfdba74 },
+  { outer: 0xffffff, inner: 0xfef9c3 }
 ];
 
 const CANDLE_PALETTES: Record<string, { wax: number; flame: number; glow: number }> = {
-  yellow: { wax: 0xfef08a, flame: 0xf59e0b, glow: 0xfbbf24 },
-  'yellow-classic': { wax: 0xfef08a, flame: 0xf59e0b, glow: 0xfbbf24 },
-  red: { wax: 0xf87171, flame: 0xef4444, glow: 0xfca5a5 },
-  orange: { wax: 0xfb923c, flame: 0xea580c, glow: 0xfdba74 },
-  cyan: { wax: 0x7dd3fc, flame: 0x0ea5e9, glow: 0xbae6fd },
-  pink: { wax: 0xf472b6, flame: 0xec4899, glow: 0xfbcfe8 },
-  'scented-pink': { wax: 0xf472b6, flame: 0xec4899, glow: 0xfbcfe8 },
-  emerald: { wax: 0x6ee7b7, flame: 0x10b981, glow: 0xa7f3d0 },
-  purple: { wax: 0xc084fc, flame: 0xa855f7, glow: 0xe9d5ff },
-  rainbow: { wax: 0xf472b6, flame: 0xfde047, glow: 0xf472b6 },
-  'gold-glitter': { wax: 0xfde047, flame: 0xf59e0b, glow: 0xfef08a },
-  'twin-fortune': { wax: 0xf472b6, flame: 0xfde047, glow: 0xfbbf24 },
+  yellow: { wax: 0xfcf6dc, flame: 0xf59e0b, glow: 0xfbbf24 },
+  'yellow-classic': { wax: 0xfcf6dc, flame: 0xf59e0b, glow: 0xfbbf24 },
+  red: { wax: 0xfca5a5, flame: 0xef4444, glow: 0xf87171 },
+  orange: { wax: 0xfdba74, flame: 0xea580c, glow: 0xfb923c },
+  cyan: { wax: 0xbae6fd, flame: 0x38bdf8, glow: 0x7dd3fc },
+  pink: { wax: 0xfbcfe8, flame: 0xec4899, glow: 0xf472b6 },
+  'scented-pink': { wax: 0xfbcfe8, flame: 0xec4899, glow: 0xf472b6 },
+  emerald: { wax: 0xa7f3d0, flame: 0x10b981, glow: 0x34d399 },
+  purple: { wax: 0xe9d5ff, flame: 0xa855f7, glow: 0xc084fc },
+  rainbow: { wax: 0xfbcfe8, flame: 0xfde047, glow: 0xfbbf24 },
+  'gold-glitter': { wax: 0xfef08a, flame: 0xf59e0b, glow: 0xfde047 },
+  'twin-fortune': { wax: 0xfbcfe8, flame: 0xfde047, glow: 0xfbbf24 },
   'led-warm': { wax: 0xfef9c3, flame: 0xfacc15, glow: 0xfef08a }
 };
 
@@ -297,13 +582,169 @@ const CENTERPIECE_MODELS = new Set([
 function makeMat(params: THREE.MeshStandardMaterialParameters): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({
     roughness: 0.48,
-    metalness: 0.08,
+    metalness: 0.06,
     ...params
   });
 }
 
+// =========================================================================
+// Instanced Floral Helpers (ภาพตัวอย่างที่ 2: บัวตูมชมพู + ดาวเรืองฟู + มะลิ)
+// =========================================================================
+
+function addLotusBudInstanced(
+  parent: THREE.Group,
+  assets: SharedAssets,
+  pos: [number, number, number],
+  scale = 1
+): void {
+  const petalMat = makeMat({
+    color: 0xffffff,
+    map: assets.lotusPetalTex,
+    roughness: 0.36,
+    side: THREE.DoubleSide
+  });
+
+  const tiers = [
+    { count: 6, r: 0.085, y: 0.0, tilt: 0.04, sX: 1.05, sY: 0.92 },
+    { count: 5, r: 0.056, y: 0.02, tilt: -0.14, sX: 0.95, sY: 0.98 },
+    { count: 5, r: 0.028, y: 0.036, tilt: -0.28, sX: 0.84, sY: 1.04 }
+  ];
+  const total = tiers.reduce((acc, t) => acc + t.count, 0);
+  const inst = new THREE.InstancedMesh(assets.cuppedPetalGeo, petalMat, total);
+
+  const dummy = new THREE.Object3D();
+  const cObj = new THREE.Color();
+  let idx = 0;
+
+  tiers.forEach((t, tIdx) => {
+    for (let i = 0; i < t.count; i++) {
+      const ang = (i * Math.PI * 2) / t.count + tIdx * 0.52;
+      dummy.position.set(
+        pos[0] + Math.cos(ang) * t.r * scale,
+        pos[1] + t.y * scale,
+        pos[2] + Math.sin(ang) * t.r * scale
+      );
+      dummy.rotation.order = 'YXZ';
+      dummy.rotation.y = -ang + Math.PI / 2;
+      dummy.rotation.x = t.tilt;
+      dummy.scale.set(t.sX * scale, t.sY * scale, t.sX * scale);
+      dummy.updateMatrix();
+      inst.setMatrixAt(idx, dummy.matrix);
+
+      cObj.setHex(tIdx === 0 ? 0xffeef4 : tIdx === 1 ? 0xfff5f8 : 0xffffff);
+      inst.setColorAt(idx, cObj);
+      idx++;
+    }
+  });
+  inst.instanceMatrix.needsUpdate = true;
+  if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
+  parent.add(inst);
+}
+
+function addMarigoldsInstanced(
+  parent: THREE.Group,
+  assets: SharedAssets,
+  centers: { pos: [number, number, number]; scale: number; outerHex?: number; midHex?: number; coreHex?: number }[]
+): void {
+  // แต่ละพุ่มดาวเรืองประกอบด้วย 34 กลีบหยักฟูเรียงสลับ 4 ชั้น
+  const rings = [
+    { count: 12, r: 0.145, tilt: 0.92, y: 0.015, s: 1.08, tier: 0 },
+    { count: 10, r: 0.098, tilt: 0.65, y: 0.04, s: 0.94, tier: 1 },
+    { count: 7, r: 0.054, tilt: 0.42, y: 0.068, s: 0.78, tier: 2 },
+    { count: 5, r: 0.022, tilt: 0.2, y: 0.085, s: 0.62, tier: 2 }
+  ];
+  const perFlower = rings.reduce((a, b) => a + b.count, 0);
+  const total = perFlower * centers.length;
+
+  const mat = makeMat({
+    color: 0xffffff,
+    map: assets.marigoldPetalTex,
+    roughness: 0.42,
+    side: THREE.DoubleSide
+  });
+  const inst = new THREE.InstancedMesh(assets.rufflePetalGeo, mat, total);
+
+  const dummy = new THREE.Object3D();
+  const cObj = new THREE.Color();
+  let idx = 0;
+
+  centers.forEach((f) => {
+    const outerCol = f.outerHex ?? 0xfbbf24;
+    const midCol = f.midHex ?? 0xf59e0b;
+    const coreCol = f.coreHex ?? 0xc2410c;
+
+    rings.forEach((rg, rIdx) => {
+      for (let i = 0; i < rg.count; i++) {
+        const ang = (i * Math.PI * 2) / rg.count + rIdx * 0.47;
+        dummy.position.set(
+          f.pos[0] + Math.cos(ang) * rg.r * f.scale,
+          f.pos[1] + rg.y * f.scale,
+          f.pos[2] + Math.sin(ang) * rg.r * f.scale
+        );
+        dummy.rotation.order = 'YXZ';
+        dummy.rotation.y = -ang + Math.PI / 2;
+        dummy.rotation.x = rg.tilt;
+        dummy.scale.setScalar(rg.s * f.scale * 1.15);
+        dummy.updateMatrix();
+        inst.setMatrixAt(idx, dummy.matrix);
+
+        cObj.setHex(rg.tier === 0 ? outerCol : rg.tier === 1 ? midCol : coreCol);
+        inst.setColorAt(idx, cObj);
+        idx++;
+      }
+    });
+  });
+
+  inst.instanceMatrix.needsUpdate = true;
+  if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
+  parent.add(inst);
+}
+
+function addJasmineClustersInstanced(
+  parent: THREE.Group,
+  assets: SharedAssets,
+  clusterPositions: [number, number, number][],
+  tintHex = 0xfffdf2
+): void {
+  const budsPerCluster = 9;
+  const total = clusterPositions.length * budsPerCluster;
+  const mat = makeMat({ color: 0xffffff, roughness: 0.34 });
+  const inst = new THREE.InstancedMesh(assets.jasmineBudGeo, mat, total);
+
+  const dummy = new THREE.Object3D();
+  const cObj = new THREE.Color(tintHex);
+  const altObj = new THREE.Color(0xfef3c7);
+  let idx = 0;
+
+  clusterPositions.forEach((cp) => {
+    for (let i = 0; i < budsPerCluster; i++) {
+      const ang = (i * Math.PI * 2) / budsPerCluster;
+      const dist = i === 0 ? 0 : 0.048 + (i % 2) * 0.022;
+      dummy.position.set(
+        cp[0] + Math.cos(ang) * dist,
+        cp[1] + (i === 0 ? 0.04 : 0.02),
+        cp[2] + Math.sin(ang) * dist
+      );
+      dummy.rotation.set((i % 3) * 0.32 - 0.3, ang, (i % 2) * 0.28 - 0.14);
+      dummy.scale.setScalar(0.85 + (i % 3) * 0.12);
+      dummy.updateMatrix();
+      inst.setMatrixAt(idx, dummy.matrix);
+      inst.setColorAt(idx, i === 0 ? altObj : cObj);
+      idx++;
+    }
+  });
+
+  inst.instanceMatrix.needsUpdate = true;
+  if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
+  parent.add(inst);
+}
+
+// =========================================================================
+// 8 Centerpiece 3D Landmarks & Models (คงครบทั้ง 8 แบบรองรับปรับสเกล)
+// =========================================================================
+
 function addCurvedSwanPair(parent: THREE.Group, matBody: THREE.Material, matBeak: THREE.Material): void {
-  const matEye = makeMat({ color: 0x0f172a, roughness: 0.2 });
+  const matEye = makeMat({ color: 0x1c130b, roughness: 0.25 });
   [-1, 1].forEach((side) => {
     const curve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(side * 0.72, 0.16, 0.08),
@@ -311,10 +752,9 @@ function addCurvedSwanPair(parent: THREE.Group, matBody: THREE.Material, matBeak
       new THREE.Vector3(side * 0.88, 0.58, -0.02),
       new THREE.Vector3(side * 0.72, 0.56, 0.02)
     ]);
-    const neck = new THREE.Mesh(new THREE.TubeGeometry(curve, 16, 0.055, 8, false), matBody);
-    parent.add(neck);
+    parent.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 14, 0.055, 7, false), matBody));
 
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.068, 12, 10), matBody);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.068, 10, 8), matBody);
     head.position.set(side * 0.71, 0.56, 0.03);
     parent.add(head);
 
@@ -323,11 +763,11 @@ function addCurvedSwanPair(parent: THREE.Group, matBody: THREE.Material, matBeak
     beak.position.set(side * 0.63, 0.55, 0.03);
     parent.add(beak);
 
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.014, 6, 6), matEye);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.014, 5, 5), matEye);
     eye.position.set(side * 0.69, 0.575, 0.085);
     parent.add(eye);
 
-    const wing = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), matBody);
+    const wing = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), matBody);
     wing.scale.set(0.6, 0.85, 1.45);
     wing.rotation.z = side * -0.45;
     wing.position.set(side * 0.76, 0.21, -0.06);
@@ -335,69 +775,36 @@ function addCurvedSwanPair(parent: THREE.Group, matBody: THREE.Material, matBeak
   });
 }
 
-function buildSingleBlossom3D(outerColor: number, innerColor: number, coreColor: number): THREE.Group {
-  const g = new THREE.Group();
-  const outerMat = makeMat({ color: outerColor, roughness: 0.42 });
-  const innerMat = makeMat({ color: innerColor, roughness: 0.35 });
-  const coreMat = makeMat({ color: coreColor, emissive: coreColor, emissiveIntensity: 0.18, roughness: 0.3 });
-
-  const petalGeo = new THREE.SphereGeometry(0.068, 8, 6);
-  for (let i = 0; i < 6; i++) {
-    const ang = (i * Math.PI * 2) / 6;
-    const p = new THREE.Mesh(petalGeo, outerMat);
-    p.scale.set(0.75, 0.42, 1.35);
-    p.position.set(Math.cos(ang) * 0.095, 0.015, Math.sin(ang) * 0.095);
-    p.rotation.y = -ang + Math.PI / 2;
-    p.rotation.x = 0.28;
-    g.add(p);
-  }
-  for (let i = 0; i < 5; i++) {
-    const ang = (i * Math.PI * 2) / 5 + 0.3;
-    const p = new THREE.Mesh(petalGeo, innerMat);
-    p.scale.set(0.6, 0.42, 1.0);
-    p.position.set(Math.cos(ang) * 0.055, 0.042, Math.sin(ang) * 0.055);
-    p.rotation.y = -ang + Math.PI / 2;
-    p.rotation.x = 0.55;
-    g.add(p);
-  }
-  const core = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), coreMat);
-  core.position.y = 0.052;
-  g.add(core);
-  return g;
-}
-
 function buildPumpkinBuilding3D(scaleFactor = 1): THREE.Group {
-  // ตึกฟักทอง คณะวิทยาศาสตร์ ม.อ. แบบ 3D (โดมกลีบสีทอง + ซุ้มโค้งขอบทอง + ไฟส่องภายในอุ่น)
   const g = new THREE.Group();
   const matGoldDark = makeMat({ color: 0xb45309, metalness: 0.35, roughness: 0.4 });
   const matGoldMid = makeMat({ color: 0xf59e0b, metalness: 0.3, roughness: 0.35 });
   const matGoldBright = makeMat({
     color: 0xfde68a,
     emissive: 0xf59e0b,
-    emissiveIntensity: 0.2,
+    emissiveIntensity: 0.22,
     metalness: 0.28,
     roughness: 0.32
   });
   const matArchDark = makeMat({
-    color: 0x0b132b,
+    color: 0x241509,
     emissive: 0x451a03,
     emissiveIntensity: 0.35,
     roughness: 0.65
   });
-  const matRim = makeMat({ color: 0xfde047, emissive: 0xf59e0b, emissiveIntensity: 0.25, roughness: 0.3 });
+  const matRim = makeMat({ color: 0xfde047, emissive: 0xf59e0b, emissiveIntensity: 0.28, roughness: 0.3 });
 
-  const tier1 = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.6, 0.07, 24), matGoldDark);
+  const tier1 = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.6, 0.07, 20), matGoldDark);
   tier1.position.y = 0.035;
   g.add(tier1);
 
-  const tier2 = new THREE.Mesh(new THREE.CylinderGeometry(0.49, 0.52, 0.055, 24), matGoldBright);
+  const tier2 = new THREE.Mesh(new THREE.CylinderGeometry(0.49, 0.52, 0.055, 20), matGoldBright);
   tier2.position.y = 0.095;
   g.add(tier2);
 
-  // กลีบโดมฟักทอง 7 กลีบโค้งนูนแบบ 3D
   const lobeAngles = [-0.95, -0.62, -0.31, 0, 0.31, 0.62, 0.95];
   const lobeHeights = [0.34, 0.42, 0.48, 0.53, 0.48, 0.42, 0.34];
-  const lobeGeo = new THREE.SphereGeometry(0.16, 14, 12, 0, Math.PI * 2, 0, Math.PI * 0.55);
+  const lobeGeo = new THREE.SphereGeometry(0.16, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.55);
 
   lobeAngles.forEach((ang, idx) => {
     const isCenter = idx === 3;
@@ -410,37 +817,29 @@ function buildPumpkinBuilding3D(scaleFactor = 1): THREE.Group {
     g.add(lobe);
   });
 
-  // โดมครอบหลักด้านบนเชื่อมกลีบ
   const coreDome = new THREE.Mesh(
-    new THREE.SphereGeometry(0.45, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.5),
+    new THREE.SphereGeometry(0.45, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.5),
     matGoldMid
   );
   coreDome.scale.set(1.06, 0.88, 0.72);
   coreDome.position.y = 0.12;
   g.add(coreDome);
 
-  // ยอดจั่วกลาง
   const pinnacle = new THREE.Mesh(new THREE.ConeGeometry(0.048, 0.14, 8), matRim);
   pinnacle.position.y = 0.59;
   g.add(pinnacle);
 
-  // ซุ้มโค้งด้านหน้าและด้านหลัง
   for (const zDir of [1, -1]) {
     for (let i = -2; i <= 2; i++) {
       const archX = i * 0.145;
       const archH = i === 0 ? 0.14 : 0.115;
       const archW = i === 0 ? 0.055 : 0.045;
-      const archVoid = new THREE.Mesh(new THREE.CylinderGeometry(archW, archW, archH, 10), matArchDark);
+      const archVoid = new THREE.Mesh(new THREE.CylinderGeometry(archW, archW, archH, 8), matArchDark);
       archVoid.position.set(archX, 0.12 + archH * 0.45, zDir * 0.26);
       archVoid.scale.z = 0.55;
       g.add(archVoid);
 
-      const archTop = new THREE.Mesh(new THREE.SphereGeometry(archW, 10, 8), matArchDark);
-      archTop.position.set(archX, 0.12 + archH * 0.9, zDir * 0.26);
-      archTop.scale.z = 0.55;
-      g.add(archTop);
-
-      const frameRing = new THREE.Mesh(new THREE.TorusGeometry(archW * 1.15, 0.01, 6, 12, Math.PI), matRim);
+      const frameRing = new THREE.Mesh(new THREE.TorusGeometry(archW * 1.15, 0.01, 5, 10, Math.PI), matRim);
       frameRing.position.set(archX, 0.12 + archH * 0.9, zDir * 0.285);
       g.add(frameRing);
     }
@@ -455,7 +854,6 @@ function buildNoppamasCrown3D(): THREE.Group {
   const matGold = makeMat({ color: 0xfbbf24, metalness: 0.55, roughness: 0.28 });
   const matBronze = makeMat({ color: 0xb45309, metalness: 0.45, roughness: 0.35 });
   const matRuby = makeMat({ color: 0xef4444, emissive: 0x991b1b, emissiveIntensity: 0.3, roughness: 0.2 });
-  const matGem = makeMat({ color: 0x10b981, emissive: 0x047857, emissiveIntensity: 0.25, roughness: 0.2 });
 
   const pedPoints = [
     new THREE.Vector2(0.01, 0),
@@ -465,34 +863,26 @@ function buildNoppamasCrown3D(): THREE.Group {
     new THREE.Vector2(0.30, 0.19),
     new THREE.Vector2(0.01, 0.19)
   ];
-  g.add(new THREE.Mesh(new THREE.LatheGeometry(pedPoints, 20), matBronze));
+  g.add(new THREE.Mesh(new THREE.LatheGeometry(pedPoints, 16), matBronze));
 
-  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.26, 0.14, 16), matGold);
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.26, 0.14, 14), matGold);
   band.position.y = 0.25;
   g.add(band);
 
   for (let tier = 0; tier < 3; tier++) {
     const rBot = 0.22 - tier * 0.05;
-    const rTop = rBot - 0.045;
-    const cone = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBot, 0.11, 16), matGold);
+    const cone = new THREE.Mesh(new THREE.CylinderGeometry(rBot - 0.045, rBot, 0.11, 14), matGold);
     cone.position.y = 0.37 + tier * 0.11;
     g.add(cone);
   }
 
-  const spire = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.28, 12), matGold);
+  const spire = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.28, 10), matGold);
   spire.position.y = 0.78;
   g.add(spire);
 
-  const jewel = new THREE.Mesh(new THREE.SphereGeometry(0.042, 10, 8), matRuby);
+  const jewel = new THREE.Mesh(new THREE.SphereGeometry(0.042, 8, 6), matRuby);
   jewel.position.set(0, 0.27, 0.25);
   g.add(jewel);
-
-  [-0.14, 0.14].forEach((x) => {
-    const sideGem = new THREE.Mesh(new THREE.SphereGeometry(0.028, 8, 6), matGem);
-    sideGem.position.set(x, 0.26, 0.21);
-    g.add(sideGem);
-  });
-
   return g;
 }
 
@@ -507,18 +897,13 @@ function buildElephant3D(): THREE.Group {
   ped.position.y = 0.045;
   g.add(ped);
 
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 12), matIvory);
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.22, 14, 10), matIvory);
   body.scale.set(1.35, 0.95, 0.9);
   body.position.set(-0.04, 0.31, 0);
   g.add(body);
 
-  [
-    [-0.18, -0.1],
-    [-0.18, 0.1],
-    [0.12, -0.1],
-    [0.12, 0.1]
-  ].forEach(([lx, lz]) => {
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.06, 0.24, 10), matIvory);
+  [[-0.18, -0.1], [-0.18, 0.1], [0.12, -0.1], [0.12, 0.1]].forEach(([lx, lz]) => {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.06, 0.24, 8), matIvory);
     leg.position.set(lx, 0.18, lz);
     g.add(leg);
   });
@@ -527,7 +912,7 @@ function buildElephant3D(): THREE.Group {
   blanket.position.set(-0.04, 0.35, 0);
   g.add(blanket);
 
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.145, 14, 12), matIvory);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.145, 12, 10), matIvory);
   head.position.set(0.25, 0.38, 0);
   g.add(head);
 
@@ -541,15 +926,7 @@ function buildElephant3D(): THREE.Group {
     new THREE.Vector3(0.50, 0.44, 0),
     new THREE.Vector3(0.42, 0.52, 0)
   ]);
-  g.add(new THREE.Mesh(new THREE.TubeGeometry(trunkCurve, 12, 0.036, 8, false), matIvory));
-
-  [-0.12, 0.12].forEach((ez) => {
-    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), matIvory);
-    ear.scale.set(0.4, 1.1, 0.95);
-    ear.position.set(0.19, 0.37, ez * 1.15);
-    g.add(ear);
-  });
-
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(trunkCurve, 10, 0.036, 7, false), matIvory));
   return g;
 }
 
@@ -560,7 +937,7 @@ function buildGoldenSwanCenter3D(): THREE.Group {
   const matBeak = makeMat({ color: 0xea580c, roughness: 0.35 });
   const matOrb = makeMat({ color: 0xfef08a, emissive: 0xf59e0b, emissiveIntensity: 0.65, roughness: 0.15 });
 
-  const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.5, 0.08, 24), matBronze);
+  const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.5, 0.08, 20), matBronze);
   ped.position.y = 0.04;
   g.add(ped);
 
@@ -569,7 +946,7 @@ function buildGoldenSwanCenter3D(): THREE.Group {
   addCurvedSwanPair(swansWrap, matGold, matBeak);
   g.add(swansWrap);
 
-  const orb = new THREE.Mesh(new THREE.SphereGeometry(0.11, 14, 12), matOrb);
+  const orb = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 10), matOrb);
   orb.position.y = 0.25;
   g.add(orb);
   return g;
@@ -577,36 +954,51 @@ function buildGoldenSwanCenter3D(): THREE.Group {
 
 function buildLotusLamp3D(assets: SharedAssets): THREE.Group {
   const g = new THREE.Group();
-  const matLeaf = makeMat({ color: 0x0f766e, roughness: 0.5 });
-  const matOuter = makeMat({ color: 0xec4899, transparent: true, opacity: 0.85, roughness: 0.22 });
-  const matInner = makeMat({ color: 0xfdf2f8, transparent: true, opacity: 0.92, roughness: 0.18 });
+  const matLeaf = makeMat({ color: 0x15803d, roughness: 0.5 });
+  const matPetal = makeMat({ color: 0xffffff, map: assets.lotusPetalTex, transparent: true, opacity: 0.9, roughness: 0.2, side: THREE.DoubleSide });
   const matCore = makeMat({ color: 0xfef08a, emissive: 0xfbbf24, emissiveIntensity: 0.85, roughness: 0.15 });
 
-  const basePad = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.44, 0.07, 24), matLeaf);
+  const basePad = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.44, 0.07, 20), matLeaf);
   basePad.position.y = 0.035;
   g.add(basePad);
 
+  const inst = new THREE.InstancedMesh(assets.cuppedPetalGeo, matPetal, 14);
+  const dummy = new THREE.Object3D();
+  const cObj = new THREE.Color(0xffffff);
+  let idx = 0;
+
   for (let i = 0; i < 8; i++) {
     const ang = (i * Math.PI * 2) / 8;
-    const p = new THREE.Mesh(assets.lotusPetalGeo, matOuter);
-    p.scale.setScalar(1.05);
-    p.position.set(Math.cos(ang) * 0.23, 0.22, Math.sin(ang) * 0.23);
-    p.rotation.y = -ang + Math.PI / 2;
-    p.rotation.x = 0.52;
-    g.add(p);
+    dummy.position.set(Math.cos(ang) * 0.22, 0.08, Math.sin(ang) * 0.22);
+    dummy.rotation.order = 'YXZ';
+    dummy.rotation.y = -ang + Math.PI / 2;
+    dummy.rotation.x = 0.45;
+    dummy.scale.setScalar(1.0);
+    dummy.updateMatrix();
+    inst.setMatrixAt(idx, dummy.matrix);
+    cObj.setHex(0xfbcfe8);
+    inst.setColorAt(idx, cObj);
+    idx++;
   }
   for (let i = 0; i < 6; i++) {
     const ang = (i * Math.PI * 2) / 6 + 0.35;
-    const p = new THREE.Mesh(assets.lotusPetalGeo, matInner);
-    p.scale.setScalar(0.85);
-    p.position.set(Math.cos(ang) * 0.13, 0.28, Math.sin(ang) * 0.13);
-    p.rotation.y = -ang + Math.PI / 2;
-    p.rotation.x = 0.24;
-    g.add(p);
+    dummy.position.set(Math.cos(ang) * 0.12, 0.11, Math.sin(ang) * 0.12);
+    dummy.rotation.order = 'YXZ';
+    dummy.rotation.y = -ang + Math.PI / 2;
+    dummy.rotation.x = 0.2;
+    dummy.scale.setScalar(0.85);
+    dummy.updateMatrix();
+    inst.setMatrixAt(idx, dummy.matrix);
+    cObj.setHex(0xffffff);
+    inst.setColorAt(idx, cObj);
+    idx++;
   }
+  inst.instanceMatrix.needsUpdate = true;
+  if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
+  g.add(inst);
 
-  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.11, 14, 12), matCore);
-  bulb.position.y = 0.24;
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 10), matCore);
+  bulb.position.y = 0.22;
   g.add(bulb);
   return g;
 }
@@ -634,24 +1026,13 @@ function buildGoldPagoda3D(): THREE.Group {
     new THREE.Vector2(0.07, 0.36),
     new THREE.Vector2(0.01, 0.62)
   ];
-  const chedi = new THREE.Mesh(new THREE.LatheGeometry(bellPoints, 20), matGold);
+  const chedi = new THREE.Mesh(new THREE.LatheGeometry(bellPoints, 16), matGold);
   chedi.position.y = 0.15;
   g.add(chedi);
 
-  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.032, 8, 8), matBright);
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.032, 8, 6), matBright);
   tip.position.y = 0.78;
   g.add(tip);
-
-  [-0.36, 0.36].forEach((ux) => {
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.42, 6), matBright);
-    pole.position.set(ux, 0.25, 0);
-    g.add(pole);
-    for (let t = 0; t < 3; t++) {
-      const tier = new THREE.Mesh(new THREE.ConeGeometry(0.075 - t * 0.018, 0.07, 8), matGold);
-      tier.position.set(ux, 0.28 + t * 0.09, 0);
-      g.add(tier);
-    }
-  });
   return g;
 }
 
@@ -668,7 +1049,7 @@ function buildRoyalBarge3D(): THREE.Group {
     new THREE.Vector3(0.34, 0.08, 0),
     new THREE.Vector3(0.55, 0.26, 0)
   ]);
-  const hull = new THREE.Mesh(new THREE.TubeGeometry(hullCurve, 20, 0.07, 10, false), matBronze);
+  const hull = new THREE.Mesh(new THREE.TubeGeometry(hullCurve, 16, 0.07, 8, false), matBronze);
   hull.scale.set(1, 0.85, 1.35);
   g.add(hull);
 
@@ -678,7 +1059,7 @@ function buildRoyalBarge3D(): THREE.Group {
     new THREE.Vector3(-0.54, 0.48, 0),
     new THREE.Vector3(-0.46, 0.44, 0)
   ]);
-  g.add(new THREE.Mesh(new THREE.TubeGeometry(prowCurve, 12, 0.036, 8, false), matGold));
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(prowCurve, 10, 0.036, 7, false), matGold));
 
   const pavilion = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.16, 0.18), matCrimson);
   pavilion.position.y = 0.16;
@@ -703,18 +1084,18 @@ function buildCrystalHeartCenter3D(assets: SharedAssets): THREE.Group {
     color: 0xec4899,
     emissive: 0xbe185d,
     emissiveIntensity: 0.28,
-    roughness: 0.12,
+    roughness: 0.14,
     metalness: 0.2,
     transparent: true,
     opacity: 0.92
   });
 
-  const pillow = new THREE.Mesh(new THREE.SphereGeometry(0.34, 18, 10), matPillow);
+  const pillow = new THREE.Mesh(new THREE.SphereGeometry(0.34, 16, 10), matPillow);
   pillow.scale.set(1.15, 0.28, 0.9);
   pillow.position.y = 0.06;
   g.add(pillow);
 
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.02, 8, 28), matRim);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.02, 6, 24), matRim);
   ring.rotation.x = Math.PI / 2;
   ring.position.y = 0.07;
   g.add(ring);
@@ -741,22 +1122,22 @@ function addAccessory3D(
   const matGoldStick = makeMat({ color: 0xfbbf24, metalness: 0.45, roughness: 0.35 });
 
   if (id === 'sparkler') {
-    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.65, 8), matGoldStick);
-    stick.position.y = 0.32;
+    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.62, 6), matGoldStick);
+    stick.position.y = 0.31;
     wrap.add(stick);
 
     const starGroup = new THREE.Group();
-    starGroup.position.y = 0.66;
+    starGroup.position.y = 0.63;
     const matSpark = makeMat({
       color: 0xfef08a,
       emissive: 0xfde047,
-      emissiveIntensity: 0.9,
+      emissiveIntensity: 0.95,
       roughness: 0.2
     });
-    starGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), matSpark));
-    for (let i = 0; i < 6; i++) {
+    starGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.045, 7, 6), matSpark));
+    for (let i = 0; i < 4; i++) {
       const ray = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.28, 5), matSpark);
-      ray.rotation.z = (i * Math.PI) / 6;
+      ray.rotation.z = (i * Math.PI) / 4;
       ray.rotation.x = (i % 2) * 0.4;
       starGroup.add(ray);
     }
@@ -764,14 +1145,14 @@ function addAccessory3D(
     anim.sparklers.push(starGroup);
   } else if (id === 'sky_lantern') {
     const cord = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.006, 0.006, 0.48, 5),
-      makeMat({ color: 0xd97706, transparent: true, opacity: 0.6 })
+      new THREE.CylinderGeometry(0.006, 0.006, 0.46, 5),
+      makeMat({ color: 0xd97706, transparent: true, opacity: 0.65 })
     );
-    cord.position.y = 0.24;
+    cord.position.y = 0.23;
     wrap.add(cord);
 
     const lanternRoot = new THREE.Group();
-    lanternRoot.position.y = 0.56;
+    lanternRoot.position.y = 0.54;
     const body = new THREE.Mesh(
       new THREE.CylinderGeometry(0.11, 0.08, 0.24, 10),
       makeMat({
@@ -783,13 +1164,13 @@ function addAccessory3D(
     );
     lanternRoot.add(body);
     const flameDot = new THREE.Mesh(
-      new THREE.SphereGeometry(0.032, 8, 6),
+      new THREE.SphereGeometry(0.032, 6, 6),
       makeMat({ color: 0xfffbeb, emissive: 0xfef08a, emissiveIntensity: 1.0 })
     );
     flameDot.position.y = -0.09;
     lanternRoot.add(flameDot);
     wrap.add(lanternRoot);
-    anim.lanterns.push({ root: lanternRoot, baseY: 0.56 });
+    anim.lanterns.push({ root: lanternRoot, baseY: 0.54 });
   } else if (id === 'heart_sign') {
     const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.34, 6), matGoldStick);
     stick.position.y = 0.17;
@@ -803,12 +1184,12 @@ function addAccessory3D(
     heart.position.y = 0.42;
     wrap.add(heart);
   } else if (id === 'grad_cap') {
-    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.34, 6), matGoldStick);
+    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.34, 6), matGoldStick);
     stick.position.y = 0.17;
     wrap.add(stick);
 
-    const matCap = makeMat({ color: 0x0f172a, roughness: 0.5 });
-    const skull = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.1, 0.09, 12), matCap);
+    const matCap = makeMat({ color: 0x1c1917, roughness: 0.5 });
+    const skull = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.1, 0.09, 10), matCap);
     skull.position.y = 0.36;
     wrap.add(skull);
 
@@ -827,7 +1208,7 @@ function addAccessory3D(
     wrap.add(stick);
 
     const coin = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.14, 0.14, 0.036, 20),
+      new THREE.CylinderGeometry(0.14, 0.14, 0.036, 16),
       makeMat({ color: 0xf59e0b, metalness: 0.65, roughness: 0.25 })
     );
     coin.rotation.x = Math.PI / 2;
@@ -841,23 +1222,23 @@ function addAccessory3D(
     centerHole.position.y = 0.40;
     wrap.add(centerHole);
   } else if (id === 'flag_thai') {
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.68, 8), matGoldStick);
-    pole.position.y = 0.34;
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.64, 6), matGoldStick);
+    pole.position.y = 0.32;
     wrap.add(pole);
 
-    const flagColors = [0xf43f5e, 0x38bdf8, 0x10b981];
+    const flagColors = [0xf43f5e, 0xfbbf24, 0x10b981];
     flagColors.forEach((col, i) => {
       const flag = new THREE.Mesh(
-        new THREE.ConeGeometry(0.055, 0.22, 3),
+        new THREE.ConeGeometry(0.055, 0.21, 3),
         makeMat({ color: col, emissive: col, emissiveIntensity: 0.18, roughness: 0.45 })
       );
       flag.rotation.z = -Math.PI / 2;
-      flag.position.set(0.11, 0.60 - i * 0.13, 0);
+      flag.position.set(0.11, 0.56 - i * 0.12, 0);
       wrap.add(flag);
     });
   } else if (id === 'butterfly') {
     const bRoot = new THREE.Group();
-    bRoot.position.y = 0.58;
+    bRoot.position.y = 0.56;
 
     const body = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.14, 6), matGoldStick);
     body.rotation.x = Math.PI / 2;
@@ -866,8 +1247,8 @@ function addAccessory3D(
     const leftWing = new THREE.Group();
     const rightWing = new THREE.Group();
     const matWingBlue = makeMat({
-      color: 0x38bdf8,
-      emissive: 0x0284c7,
+      color: 0xfbbf24,
+      emissive: 0xd97706,
       emissiveIntensity: 0.35,
       side: THREE.DoubleSide
     });
@@ -878,7 +1259,7 @@ function addAccessory3D(
       side: THREE.DoubleSide
     });
 
-    const wGeo = new THREE.CircleGeometry(0.09, 10);
+    const wGeo = new THREE.CircleGeometry(0.09, 8);
     const lTop = new THREE.Mesh(wGeo, matWingBlue);
     lTop.rotation.x = -Math.PI / 2;
     lTop.position.set(-0.085, 0, 0.03);
@@ -892,7 +1273,7 @@ function addAccessory3D(
     bRoot.add(leftWing);
     bRoot.add(rightWing);
     wrap.add(bRoot);
-    anim.butterflies.push({ leftWing, rightWing, root: bRoot, baseY: 0.58 });
+    anim.butterflies.push({ leftWing, rightWing, root: bRoot, baseY: 0.56 });
   } else if (id === 'pumpkin') {
     const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.24, 6), matGoldStick);
     stick.position.y = 0.12;
@@ -924,7 +1305,7 @@ function addAccessory3D(
 }
 
 /**
- * สร้าง Group โมเดลกระทง 3 มิติพร้อมตัวควบคุมแอนิเมชันและ Cleanup GPU Resources
+ * สร้างโมเดลกระทง 3 มิติ (ลด Draw Calls เหลือ ~10 ชิ้น/ใบ เพื่อ 60 FPS ที่สมบูรณ์แบบ)
  */
 export function buildKrathong3D(options: BuildKrathong3DOptions): {
   group: THREE.Group;
@@ -946,120 +1327,125 @@ export function buildKrathong3D(options: BuildKrathong3DOptions): {
     lanterns: []
   };
 
-  // --- 1. ฐานกระทง 3D (8 รูปแบบ) ---
-  const baseMatOuter = makeMat({
-    color: bp.outer,
-    map: baseKey === 'banana_leaf' || baseKey === 'banana_gold' ? assets.leafTex : baseKey === 'coconut' ? assets.coconutTex : baseKey === 'bread' ? assets.breadTex : null,
-    bumpMap: assets.petalBump,
-    bumpScale: 0.015,
-    metalness: bp.metal ?? 0.08,
-    roughness: bp.opacity ? 0.2 : 0.48,
-    transparent: Boolean(bp.opacity),
-    opacity: bp.opacity ?? 1
-  });
-  const baseMatMid = makeMat({
-    color: bp.mid,
-    bumpMap: assets.petalBump,
-    bumpScale: 0.012,
-    metalness: bp.metal ?? 0.08,
-    roughness: bp.opacity ? 0.18 : 0.44,
-    transparent: Boolean(bp.opacity),
-    opacity: bp.opacity ?? 1
-  });
-  const baseMatInner = makeMat({
-    color: bp.inner,
-    metalness: bp.metal ?? 0.08,
-    roughness: bp.opacity ? 0.14 : 0.4,
-    transparent: Boolean(bp.opacity),
-    opacity: bp.opacity ?? 1
-  });
-  const rimMat = makeMat({ color: bp.rim, metalness: 0.45, roughness: 0.3 });
-  const pinMat = makeMat({ color: bp.pin, metalness: 0.55, roughness: 0.25 });
+  // --- 1. ฐานหยวกกล้วย + แนวกลีบกระทงตั้ง 2 ชั้น (1 InstancedMesh = 1 Draw Call) ---
+  const cupTex =
+    baseKey === 'banana_leaf' || baseKey === 'lotus'
+      ? assets.bananaTrunkTex
+      : baseKey === 'coconut'
+        ? assets.coconutTex
+        : baseKey === 'bread'
+          ? assets.breadTex
+          : null;
 
-  // ตัวถ้วยฐานด้านล่าง (วางลึกลงในน้ำเล็กน้อย y: -0.10 .. +0.20)
   const cup = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.86, 0.72, 0.28, 32),
+    assets.baseCupGeo,
     makeMat({
-      color: bp.body,
-      map: baseKey === 'coconut' ? assets.coconutTex : baseKey === 'bread' ? assets.breadTex : null,
-      roughness: 0.6
+      color: bp.rimBody,
+      map: cupTex,
+      roughness: bp.opacity ? 0.25 : 0.62,
+      metalness: bp.metal ?? 0.04,
+      transparent: Boolean(bp.opacity),
+      opacity: bp.opacity ?? 1
     })
   );
-  cup.position.y = 0.05;
+  cup.position.y = 0.06;
   group.add(cup);
 
-  // แถบคาดขอบทองรอบฐาน
-  const waistBand = new THREE.Mesh(new THREE.TorusGeometry(0.83, 0.025, 8, 36), rimMat);
+  const waistBand = new THREE.Mesh(
+    assets.waistBandGeo,
+    makeMat({ color: bp.waist, metalness: bp.metal ? 0.45 : 0.08, roughness: 0.45 })
+  );
   waistBand.rotation.x = Math.PI / 2;
-  waistBand.position.y = 0.14;
+  waistBand.position.y = 0.16;
   group.add(waistBand);
 
   if (baseKey === 'coconut') {
     const bowl = new THREE.Mesh(
-      new THREE.SphereGeometry(0.88, 28, 16, 0, Math.PI * 2, Math.PI * 0.5, Math.PI * 0.5),
-      makeMat({ color: bp.outer, map: assets.coconutTex, roughness: 0.5, side: THREE.DoubleSide })
+      new THREE.SphereGeometry(0.90, 24, 14, 0, Math.PI * 2, Math.PI * 0.5, Math.PI * 0.5),
+      makeMat({ color: 0x5c3a21, map: assets.coconutTex, roughness: 0.5, side: THREE.DoubleSide })
     );
-    bowl.scale.y = 0.45;
-    bowl.position.y = 0.20;
+    bowl.scale.y = 0.44;
+    bowl.position.y = 0.22;
     group.add(bowl);
-
-    const lip = new THREE.Mesh(new THREE.TorusGeometry(0.87, 0.032, 8, 36), rimMat);
-    lip.rotation.x = Math.PI / 2;
-    lip.position.y = 0.20;
-    group.add(lip);
   } else if (baseKey === 'bread') {
+    const bunGeo = new THREE.SphereGeometry(0.18, 10, 8);
+    const bunMat = makeMat({ color: 0xffffff, map: assets.breadTex, roughness: 0.55 });
+    const bunInst = new THREE.InstancedMesh(bunGeo, bunMat, 14);
+    const dummy = new THREE.Object3D();
+    const cObj = new THREE.Color(0xffffff);
     for (let i = 0; i < 14; i++) {
       const ang = (i * Math.PI * 2) / 14;
-      const bun = new THREE.Mesh(
-        new THREE.SphereGeometry(0.18, 12, 10),
-        makeMat({ color: bp.inner, map: assets.breadTex, roughness: 0.55 })
-      );
-      bun.scale.set(1.15, 0.78, 1.0);
-      bun.position.set(Math.cos(ang) * 0.78, 0.22, Math.sin(ang) * 0.78);
-      bun.rotation.y = -ang;
-      group.add(bun);
-
-      const sesame = new THREE.Mesh(
-        new THREE.SphereGeometry(0.02, 6, 4),
-        makeMat({ color: 0xfffbeb, roughness: 0.4 })
-      );
-      sesame.position.set(Math.cos(ang) * 0.80, 0.35, Math.sin(ang) * 0.80);
-      group.add(sesame);
+      dummy.position.set(Math.cos(ang) * 0.80, 0.22, Math.sin(ang) * 0.80);
+      dummy.rotation.set(0, -ang, 0);
+      dummy.scale.set(1.15, 0.78, 1.0);
+      dummy.updateMatrix();
+      bunInst.setMatrixAt(i, dummy.matrix);
+      cObj.setHex(i % 2 === 0 ? 0xfbbf24 : 0xfde68a);
+      bunInst.setColorAt(i, cObj);
     }
+    bunInst.instanceMatrix.needsUpdate = true;
+    if (bunInst.instanceColor) bunInst.instanceColor.needsUpdate = true;
+    group.add(bunInst);
   } else {
-    const isLotusPetal = baseKey === 'lotus' || baseKey === 'lotus_crystal' || baseKey === 'ice_swan';
-    const petalGeo = isLotusPetal ? assets.lotusPetalGeo : assets.foldedPetalGeo;
+    const isLotusPetalBase = baseKey === 'lotus' || baseKey === 'lotus_crystal' || baseKey === 'ice_swan';
+    const wallGeo = isLotusPetalBase ? assets.cuppedPetalGeo : assets.foldedGliebGeo;
+    const wallTex = isLotusPetalBase ? assets.lotusPetalTex : assets.bananaGliebTex;
 
-    const petalTiers = [
-      { count: 14, radius: 0.88, y: 0.16, tilt: 0.72, scale: 1.05, mat: baseMatOuter },
-      { count: 12, radius: 0.76, y: 0.22, tilt: 0.48, scale: 0.96, mat: baseMatMid },
-      { count: 10, radius: 0.62, y: 0.27, tilt: 0.26, scale: 0.86, mat: baseMatInner }
-    ];
-
-    petalTiers.forEach((tier, tIdx) => {
-      for (let i = 0; i < tier.count; i++) {
-        const ang = (i * Math.PI * 2) / tier.count + tIdx * 0.22;
-        const px = Math.cos(ang) * tier.radius;
-        const pz = Math.sin(ang) * tier.radius;
-
-        const petal = new THREE.Mesh(petalGeo, tier.mat);
-        petal.scale.setScalar(tier.scale);
-        petal.position.set(px, tier.y, pz);
-        petal.rotation.order = 'YXZ';
-        petal.rotation.y = -ang + Math.PI / 2;
-        petal.rotation.x = tier.tilt;
-        group.add(petal);
-
-        if (tIdx === 1 && i % 2 === 0) {
-          const pin = new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 6), pinMat);
-          pin.position.set(Math.cos(ang) * (tier.radius + 0.07), tier.y - 0.04, Math.sin(ang) * (tier.radius + 0.07));
-          group.add(pin);
-        }
-      }
+    const wallMat = makeMat({
+      color: 0xffffff,
+      map: wallTex,
+      bumpMap: assets.petalBump,
+      bumpScale: 0.01,
+      metalness: bp.metal ?? 0.05,
+      roughness: bp.opacity ? 0.18 : 0.44,
+      transparent: Boolean(bp.opacity),
+      opacity: bp.opacity ?? 1,
+      side: THREE.DoubleSide
     });
+
+    const outerCount = 20;
+    const innerCount = 20;
+    const wallInst = new THREE.InstancedMesh(wallGeo, wallMat, outerCount + innerCount);
+    const dummy = new THREE.Object3D();
+    const cObj = new THREE.Color();
+    let idx = 0;
+
+    // ชั้นนอก: กลีบพับตั้งแน่น 20 กลีบโอบขอบหยวกกล้วย
+    for (let i = 0; i < outerCount; i++) {
+      const ang = (i * Math.PI * 2) / outerCount;
+      dummy.position.set(Math.cos(ang) * 0.90, 0.135, Math.sin(ang) * 0.90);
+      dummy.rotation.order = 'YXZ';
+      dummy.rotation.y = -ang + Math.PI / 2;
+      dummy.rotation.x = isLotusPetalBase ? 0.26 : 0.16;
+      dummy.scale.set(1.04, 1.04, 1.0);
+      dummy.updateMatrix();
+      wallInst.setMatrixAt(idx, dummy.matrix);
+      cObj.setHex(bp.outerHex);
+      wallInst.setColorAt(idx, cObj);
+      idx++;
+    }
+
+    // ชั้นใน: สับหว่างสูงกว่าเล็กน้อย สร้างความอวบประณีต 2 ชั้น
+    for (let i = 0; i < innerCount; i++) {
+      const ang = ((i + 0.5) * Math.PI * 2) / innerCount;
+      dummy.position.set(Math.cos(ang) * 0.82, 0.18, Math.sin(ang) * 0.82);
+      dummy.rotation.order = 'YXZ';
+      dummy.rotation.y = -ang + Math.PI / 2;
+      dummy.rotation.x = isLotusPetalBase ? 0.14 : 0.08;
+      dummy.scale.set(0.98, 0.98, 0.96);
+      dummy.updateMatrix();
+      wallInst.setMatrixAt(idx, dummy.matrix);
+      cObj.setHex(bp.innerHex);
+      wallInst.setColorAt(idx, cObj);
+      idx++;
+    }
+
+    wallInst.instanceMatrix.needsUpdate = true;
+    if (wallInst.instanceColor) wallInst.instanceColor.needsUpdate = true;
+    group.add(wallInst);
   }
 
-  // รายละเอียดพิเศษฐานหงส์คู่ (ice_swan) และนกยูงทองคำ (peacock_royal)
+  // หงส์คู่ / นกยูง
   if (baseKey === 'ice_swan') {
     const matIceSwan = makeMat({
       color: 0xf0f9ff,
@@ -1067,155 +1453,186 @@ export function buildKrathong3D(options: BuildKrathong3DOptions): {
       emissiveIntensity: 0.18,
       roughness: 0.16,
       transparent: true,
-      opacity: 0.93
+      opacity: 0.92
     });
     const matBeak = makeMat({ color: 0xfb923c, roughness: 0.35 });
     addCurvedSwanPair(group, matIceSwan, matBeak);
   } else if (baseKey === 'peacock_royal') {
-    const matFeather = makeMat({ color: 0x065f46, metalness: 0.3, roughness: 0.38 });
-    const matEyeBlue = makeMat({ color: 0x0284c7, emissive: 0x0369a1, emissiveIntensity: 0.25 });
+    const matFeather = makeMat({ color: 0x065f46, metalness: 0.3, roughness: 0.38, side: THREE.DoubleSide });
+    const featherInst = new THREE.InstancedMesh(assets.cuppedPetalGeo, matFeather, 7);
+    const dummy = new THREE.Object3D();
     for (let f = -3; f <= 3; f++) {
       const ang = f * 0.24;
-      const feather = new THREE.Mesh(assets.lotusPetalGeo, matFeather);
-      feather.scale.set(0.85, 2.2, 0.7);
-      feather.position.set(Math.sin(ang) * 0.5, 0.56 + Math.cos(ang) * 0.22, -0.58);
-      feather.rotation.z = -ang;
-      group.add(feather);
-
-      const ocellus = new THREE.Mesh(new THREE.SphereGeometry(0.048, 8, 6), matEyeBlue);
-      ocellus.scale.z = 0.4;
-      ocellus.position.set(Math.sin(ang) * 0.65, 0.72 + Math.cos(ang) * 0.26, -0.55);
-      group.add(ocellus);
+      dummy.position.set(Math.sin(ang) * 0.5, 0.42 + Math.cos(ang) * 0.18, -0.58);
+      dummy.rotation.set(0, 0, -ang);
+      dummy.scale.set(0.85, 2.0, 0.7);
+      dummy.updateMatrix();
+      featherInst.setMatrixAt(f + 3, dummy.matrix);
     }
-
-    const headNeck = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(0, 0.18, 0.65),
-      new THREE.Vector3(0, 0.42, 0.76),
-      new THREE.Vector3(0, 0.64, 0.66),
-      new THREE.Vector3(0, 0.62, 0.58)
-    ]);
-    group.add(new THREE.Mesh(new THREE.TubeGeometry(headNeck, 12, 0.048, 8, false), rimMat));
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), makeMat({ color: 0x047857, roughness: 0.3 }));
-    head.position.set(0, 0.64, 0.62);
-    group.add(head);
+    featherInst.instanceMatrix.needsUpdate = true;
+    group.add(featherInst);
   }
 
-  // ใบตองรองกลางหน้าตักกระทง
+  // แผ่นหน้าใบตองรองกลางกระทง (เรียบอิ่ม ไร้ช่องโหว่)
   const centerPad = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.62, 0.66, 0.06, 28),
-    makeMat({ color: 0x14532d, map: assets.leafTex, roughness: 0.55 })
+    assets.deckPadGeo,
+    makeMat({ color: bp.deckTint, map: assets.bananaDeckTex, roughness: 0.52 })
   );
-  centerPad.position.y = 0.22;
+  centerPad.position.y = 0.24;
   group.add(centerPad);
 
-  // --- 2. ธูป 3 ดอก & เทียน 3D (วางถอยหลังเล็กน้อยเมื่อเป็น Centerpiece Model) ---
+  // --- 2. เทียนแท่งอ้วน 3D + ธูป 3 ดอก (Instanced Stems/Tips) ---
   const isCenterpiece = CENTERPIECE_MODELS.has(flowerType);
   const candleGroup = new THREE.Group();
-  candleGroup.position.set(0, 0.24, isCenterpiece ? -0.34 : -0.14);
+  candleGroup.position.set(-0.08, 0.26, isCenterpiece ? -0.34 : -0.14);
 
-  // ธูป 3 ดอก
-  const matIncense = makeMat({ color: 0x991b1b, roughness: 0.6 });
-  const matIncenseBody = makeMat({ color: 0xd97706, roughness: 0.5 });
-  const matTip = makeMat({ color: 0xef4444, emissive: 0xef4444, emissiveIntensity: 0.95 });
+  // ธูป 3 ดอกสีน้ำตาลทองอุ่น ปักเฉียงพอดีแบบภาพตัวอย่าง
+  const incenseInst = new THREE.InstancedMesh(
+    assets.incenseStemGeo,
+    makeMat({ color: 0xb45309, roughness: 0.52 }),
+    3
+  );
+  const tipInst = new THREE.InstancedMesh(
+    assets.incenseTipGeo,
+    makeMat({ color: 0xef4444, emissive: 0xea580c, emissiveIntensity: 0.85 }),
+    3
+  );
+  const dummy = new THREE.Object3D();
+  [-0.08, 0, 0.08].forEach((offset, idx) => {
+    const tiltZ = -offset * 0.95;
+    const midY = 0.30 + (idx === 1 ? 0.03 : 0);
+    dummy.position.set(offset, midY, -0.06);
+    dummy.rotation.set(-0.08, 0, tiltZ);
+    dummy.scale.set(1, idx === 1 ? 1.06 : 0.98, 1);
+    dummy.updateMatrix();
+    incenseInst.setMatrixAt(idx, dummy.matrix);
 
-  [-0.1, 0, 0.1].forEach((offset, idx) => {
-    const incenseHolder = new THREE.Group();
-    incenseHolder.position.set(offset, 0, -0.06);
-    incenseHolder.rotation.z = -offset * 1.1;
-
-    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.32, 6), matIncense);
-    stem.position.y = 0.16;
-    incenseHolder.add(stem);
-
-    const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.36 + (idx === 1 ? 0.05 : 0), 6), matIncenseBody);
-    upper.position.y = 0.48 + (idx === 1 ? 0.025 : 0);
-    incenseHolder.add(upper);
-
-    const glowingTip = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 6), matTip);
-    glowingTip.position.y = 0.67 + (idx === 1 ? 0.05 : 0);
-    incenseHolder.add(glowingTip);
-    candleGroup.add(incenseHolder);
+    const tipH = (idx === 1 ? 0.68 : 0.62) + 0.01;
+    dummy.position.set(
+      offset - Math.sin(tiltZ) * tipH * 0.48,
+      tipH * 0.97,
+      -0.06 - Math.sin(0.08) * tipH * 0.48
+    );
+    dummy.rotation.set(0, 0, 0);
+    dummy.scale.setScalar(1);
+    dummy.updateMatrix();
+    tipInst.setMatrixAt(idx, dummy.matrix);
   });
+  incenseInst.instanceMatrix.needsUpdate = true;
+  tipInst.instanceMatrix.needsUpdate = true;
+  candleGroup.add(incenseInst);
+  candleGroup.add(tipInst);
 
-  // ตัวเทียน & เปลวไฟ
+  // แท่งเทียนและเปลวเทียน
   const addCandleStick = (cx: number, h: number, waxColor: number, flameColor: number, phaseOffset: number) => {
     const wax = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.042, 0.05, h, 14),
-      makeMat({ color: waxColor, roughness: 0.35 })
+      assets.candleStickGeo,
+      makeMat({ color: waxColor, roughness: 0.38 })
     );
-    wax.position.set(cx, h / 2, 0);
+    wax.position.set(cx, h / 2, 0.02);
     candleGroup.add(wax);
 
-    const wick = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.008, 0.008, 0.06, 5),
-      makeMat({ color: 0x1c1917 })
-    );
-    wick.position.set(cx, h + 0.03, 0);
-    candleGroup.add(wick);
-
     const flameOuter = new THREE.Mesh(
-      new THREE.ConeGeometry(0.048, 0.17, 10),
+      new THREE.ConeGeometry(0.052, 0.16, 8),
       makeMat({
         color: flameColor,
         emissive: flameColor,
-        emissiveIntensity: 1.15,
+        emissiveIntensity: 1.25,
         transparent: true,
-        opacity: 0.92
+        opacity: 0.9
       })
     );
-    flameOuter.position.set(cx, h + 0.13, 0);
+    flameOuter.position.set(cx, h + 0.10, 0.02);
     candleGroup.add(flameOuter);
 
     const flameInner = new THREE.Mesh(
-      new THREE.ConeGeometry(0.024, 0.1, 8),
-      makeMat({ color: 0xffffff, emissive: 0xfffbeb, emissiveIntensity: 1.5 })
+      new THREE.ConeGeometry(0.025, 0.09, 6),
+      makeMat({ color: 0xffffff, emissive: 0xfffbeb, emissiveIntensity: 1.6 })
     );
-    flameInner.position.set(cx, h + 0.11, 0);
+    flameInner.position.set(cx, h + 0.08, 0.02);
     candleGroup.add(flameInner);
 
-    anim.flames.push({ mesh: flameOuter, baseY: h + 0.13, baseScaleY: 1, phase: phaseOffset });
+    anim.flames.push({ mesh: flameOuter, baseY: h + 0.10, baseScaleY: 1, phase: phaseOffset });
   };
 
   if (parsed.candleId === 'rainbow' || parsed.candleId === 'twin-fortune') {
-    addCandleStick(-0.06, 0.56, 0xf472b6, 0xf59e0b, 0);
-    addCandleStick(0.06, 0.52, 0x38bdf8, 0xec4899, 1.4);
+    addCandleStick(-0.075, 0.38, 0xfbcfe8, 0xf59e0b, 0);
+    addCandleStick(0.075, 0.36, 0xbae6fd, 0xfbbf24, 1.4);
   } else {
-    addCandleStick(0, 0.58, cp.wax, cp.flame, Math.random() * Math.PI * 2);
+    addCandleStick(0, 0.38, cp.wax, cp.flame, Math.random() * Math.PI * 2);
   }
 
   if (withFlameLight) {
-    const warmLight = new THREE.PointLight(cp.glow, 1.1, 4.5, 1.5);
-    warmLight.position.set(0, 0.78, 0.05);
+    const warmLight = new THREE.PointLight(cp.glow, 1.2, 4.2, 1.4);
+    warmLight.position.set(0, 0.72, 0.08);
     candleGroup.add(warmLight);
   }
   group.add(candleGroup);
 
-  // --- 3. พุ่มดอกไม้ 3 มิติ หรือ ของตกแต่งตรงกลางกระทง (ปรับสเกลได้ผ่าน centerScale) ---
+  // --- 3. ช่อดอกไม้ 3 มิติ (ภาพตัวอย่างที่ 2) หรือ ของตกแต่งกลางกระทง 8 แบบ ---
   const centerGroup = new THREE.Group();
-  centerGroup.position.y = 0.25;
+  centerGroup.position.y = 0.27;
 
   if (!isCenterpiece) {
-    const isMixed = flowerType === 'mixed_garland' || flowerType === 'mixed-thai';
-    const clusterOffsets: [number, number, number, number][] = [
-      [0, 0.08, 0.1, 1.12],
-      [-0.28, 0.04, 0.18, 0.92],
-      [0.28, 0.04, 0.18, 0.92],
-      [-0.44, 0.02, -0.02, 0.85],
-      [0.44, 0.02, -0.02, 0.85],
-      [-0.18, 0.03, 0.34, 0.96],
-      [0.18, 0.03, 0.34, 0.96],
-      [-0.24, 0.02, -0.26, 0.84],
-      [0.24, 0.02, -0.26, 0.84]
-    ];
-    clusterOffsets.forEach(([fx, fy, fz, fs], idx) => {
-      const col = isMixed ? MIXED_BLOSSOM_COLORS[idx % MIXED_BLOSSOM_COLORS.length] : fp;
-      const blossom = buildSingleBlossom3D(col.outer, col.inner, fp.core);
-      blossom.position.set(fx, fy, fz);
-      blossom.scale.setScalar(fs);
-      blossom.rotation.x = fz * 0.35;
-      blossom.rotation.z = -fx * 0.35;
-      centerGroup.add(blossom);
-    });
+    if (flowerType === 'lotus_flower' || flowerType === 'lotus') {
+      // จัดวางเอกลักษณ์แบบภาพตัวอย่าง: บัวตูมชมพูกลาง + ดาวเรืองฟู 2 ดอกใหญ่ซ้าย-หน้า + มะลิประดับซอก
+      addLotusBudInstanced(centerGroup, assets, [0.14, 0.01, 0.05], 1.18);
+      addMarigoldsInstanced(centerGroup, assets, [
+        { pos: [-0.26, 0.0, -0.06], scale: 1.18 },
+        { pos: [-0.08, 0.0, 0.28], scale: 1.22 }
+      ]);
+      addJasmineClustersInstanced(centerGroup, assets, [
+        [-0.36, 0.01, 0.16],
+        [0.34, 0.01, -0.04],
+        [0.16, 0.01, 0.28],
+        [-0.08, 0.01, -0.26]
+      ]);
+    } else if (flowerType === 'marigold') {
+      addMarigoldsInstanced(centerGroup, assets, [
+        { pos: [0.06, 0.01, 0.12], scale: 1.24 },
+        { pos: [-0.25, 0.0, 0.02], scale: 1.12 },
+        { pos: [0.22, 0.0, -0.08], scale: 1.08 }
+      ]);
+      addJasmineClustersInstanced(centerGroup, assets, [
+        [-0.14, 0.01, 0.30],
+        [0.24, 0.01, 0.22],
+        [-0.22, 0.01, -0.22]
+      ]);
+    } else if (flowerType === 'jasmine') {
+      addMarigoldsInstanced(centerGroup, assets, [
+        { pos: [0.08, 0.01, 0.14], scale: 1.05, outerHex: 0xffffff, midHex: 0xfefce8, coreHex: 0xfef08a }
+      ]);
+      addJasmineClustersInstanced(centerGroup, assets, [
+        [-0.24, 0.02, -0.04],
+        [-0.12, 0.02, 0.28],
+        [0.28, 0.02, -0.02],
+        [0.16, 0.02, 0.30],
+        [-0.26, 0.01, 0.18],
+        [0.04, 0.01, -0.24]
+      ]);
+    } else if (flowerType === 'mixed_garland' || flowerType === 'mixed-thai') {
+      addLotusBudInstanced(centerGroup, assets, [0.15, 0.01, 0.06], 1.1);
+      addMarigoldsInstanced(centerGroup, assets, [
+        { pos: [-0.24, 0.0, -0.04], scale: 1.15, outerHex: MIXED_BLOSSOM_COLORS[0].inner, midHex: MIXED_BLOSSOM_COLORS[0].outer, coreHex: 0xb45309 },
+        { pos: [-0.08, 0.0, 0.26], scale: 1.12, outerHex: MIXED_BLOSSOM_COLORS[2].inner, midHex: MIXED_BLOSSOM_COLORS[2].outer, coreHex: 0x581c87 }
+      ]);
+      addJasmineClustersInstanced(centerGroup, assets, [
+        [-0.34, 0.01, 0.16],
+        [0.28, 0.01, 0.22]
+      ]);
+    } else {
+      // กุหลาบแดง / กล้วยไม้ม่วง / ดอกเข็มส้ม / อัญชันคราม (พุ่มกลีบฟู + มะลิประดับ)
+      addMarigoldsInstanced(centerGroup, assets, [
+        { pos: [0.12, 0.01, 0.06], scale: 1.22, outerHex: fp.inner, midHex: fp.outer, coreHex: fp.core },
+        { pos: [-0.22, 0.0, -0.05], scale: 1.12, outerHex: fp.inner, midHex: fp.outer, coreHex: fp.core },
+        { pos: [-0.06, 0.0, 0.27], scale: 1.15, outerHex: fp.inner, midHex: fp.outer, coreHex: fp.core }
+      ]);
+      addJasmineClustersInstanced(centerGroup, assets, [
+        [-0.32, 0.01, 0.15],
+        [0.26, 0.01, 0.22],
+        [0.18, 0.01, -0.18]
+      ]);
+    }
   } else {
     let centerpieceMesh: THREE.Group;
     if (flowerType === 'pumpkin') centerpieceMesh = buildPumpkinBuilding3D(1);
@@ -1234,7 +1651,7 @@ export function buildKrathong3D(options: BuildKrathong3DOptions): {
   centerGroup.scale.setScalar(parsed.centerScale);
   group.add(centerGroup);
 
-  // --- 4. ของตกแต่งเสริมพิเศษรอบกระทง (ปรับขนาดแยกแต่ละชิ้นได้ 0.6x–1.6x) ---
+  // --- 4. ของตกแต่งเสริมพิเศษรอบกระทง (ปรับสเกลได้รายชิ้น 0.6x–1.6x) ---
   const accessoryAnchorMap: Record<string, [number, number, number]> = {
     flag_thai: [-0.52, 0.25, -0.18],
     grad_cap: [-0.48, 0.25, 0.26],
@@ -1262,9 +1679,9 @@ export function buildKrathong3D(options: BuildKrathong3DOptions): {
   // วงแหวนแสงสีทองรอบกระทงตัวเอง (isMine)
   if (isMine) {
     const haloMat = new THREE.MeshBasicMaterial({
-      color: 0xfacc15,
+      color: 0xfde047,
       transparent: true,
-      opacity: 0.72,
+      opacity: 0.78,
       side: THREE.DoubleSide
     });
     const halo = new THREE.Mesh(assets.haloGeo, haloMat);
@@ -1310,10 +1727,13 @@ export function animateKrathong3D(anim: KrathongAnimHandles, elapsedSec: number)
 }
 
 /**
- * คืนหน่วยความจำ GPU ของชิ้นส่วนที่สร้างเฉพาะตัว (ไม่แตะ Shared Assets)
+ * คืนหน่วยความจำ GPU ของชิ้นส่วนที่สร้างเฉพาะตัว รวมถึง InstancedMesh (ไม่แตะ Shared Assets)
  */
 export function disposeKrathong3D(root: THREE.Object3D): void {
   root.traverse((obj) => {
+    if (obj instanceof THREE.InstancedMesh) {
+      obj.dispose();
+    }
     if (obj instanceof THREE.Mesh) {
       if (obj.geometry && !obj.geometry.userData?.shared) {
         obj.geometry.dispose();

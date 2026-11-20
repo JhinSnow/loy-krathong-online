@@ -58,20 +58,20 @@ function getOffscreenEngine(): OffscreenEngine | null {
 
     const scene = new THREE.Scene();
 
-    const hemi = new THREE.HemisphereLight(0xc7d2fe, 0x1e293b, 0.95);
+    const hemi = new THREE.HemisphereLight(0xfff3c4, 0x2b1d11, 1.1);
     scene.add(hemi);
 
-    const keyLight = new THREE.DirectionalLight(0xfffbeb, 1.55);
+    const keyLight = new THREE.DirectionalLight(0xfff6db, 1.55);
     keyLight.position.set(2.5, 4.2, 3.2);
     scene.add(keyLight);
 
-    const rimLight = new THREE.DirectionalLight(0xfbbf24, 0.95);
+    const rimLight = new THREE.DirectionalLight(0xf59e0b, 0.95);
     rimLight.position.set(-2.8, 2.2, -2.5);
     scene.add(rimLight);
 
     const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 20);
-    camera.position.set(0.32, 1.85, 2.55);
-    camera.lookAt(0, 0.34, 0);
+    camera.position.set(0.25, 2.0, 1.75);
+    camera.lookAt(0, 0.26, 0);
 
     engine = { renderer, scene, camera };
     return engine;

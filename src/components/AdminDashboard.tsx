@@ -429,12 +429,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
   // หน้าจอยืนยันตัวตนสำหรับผู้ดูแลระบบ (Admin Authentication Gate)
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-slate-900/95 border border-amber-500/30 rounded-3xl p-6 sm:p-8 shadow-[0_15px_50px_rgba(0,0,0,0.8)]">
+      <div className="min-h-screen bg-[#140e09] text-amber-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-[#1f150d]/95 border border-amber-500/30 rounded-3xl p-6 sm:p-8 shadow-[0_15px_50px_rgba(0,0,0,0.8)]">
           <div className="flex items-center justify-between mb-6">
             <button
               onClick={onBackToRiver}
-              className="flex items-center space-x-1.5 text-xs text-slate-400 hover:text-amber-200 transition cursor-pointer"
+              className="flex items-center space-x-1.5 text-xs text-amber-200/75 hover:text-amber-200 transition cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>กลับหน้าแม่น้ำ</span>
@@ -449,7 +449,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
               <Lock className="w-7 h-7" />
             </div>
             <h1 className="text-xl font-bold text-amber-200">เข้าสู่ระบบผู้ดูแล (Admin Login)</h1>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-amber-200/70 mt-1">
               กรุณายืนยันตัวตนก่อนเข้าถึงระบบคัดกรองข้อความและรายงานสรุปผล 10 ด้าน
             </p>
           </div>
@@ -466,7 +466,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                 placeholder="admin"
                 maxLength={50}
                 required
-                className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none"
+                className="w-full bg-[#17100a] border border-amber-500/30 focus:border-amber-400 rounded-xl px-3.5 py-2.5 text-sm text-amber-50 placeholder-amber-200/40 focus:outline-none"
               />
             </div>
 
@@ -482,7 +482,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                   placeholder="••••••••••••"
                   maxLength={100}
                   required
-                  className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl pl-3.5 pr-10 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none"
+                  className="w-full bg-[#17100a] border border-amber-500/30 focus:border-amber-400 rounded-xl pl-3.5 pr-10 py-2.5 text-sm text-amber-50 placeholder-amber-200/40 focus:outline-none"
                 />
                 <button
                   type="button"
@@ -518,13 +518,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
   const totalUsers = stats?.userStats.reduce((acc, curr) => acc + curr.count, 0) || krathongs.length;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-[#140e09] text-amber-50 p-4 sm:p-6 lg:p-8">
       {/* Top Header */}
-      <div className="max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-center justify-between pb-6 border-b border-slate-800 gap-4">
+      <div className="max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-center justify-between pb-6 border-b border-amber-500/20 gap-4">
         <div className="flex items-center space-x-3">
           <button
             onClick={onBackToRiver}
-            className="p-2 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl border border-slate-700 transition cursor-pointer"
+            className="p-2 bg-[#1f150d] hover:bg-[#2a1d11] text-amber-200/75 hover:text-amber-100 rounded-xl border border-amber-500/30 transition cursor-pointer"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -532,7 +532,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
             <h1 className="text-xl sm:text-2xl font-bold text-amber-200">
               Admin Dashboard & ระบบสรุปผลประเมินโครงการ (10 ด้าน)
             </h1>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-amber-200/65">
               ระบบคัดกรองข้อความ วิเคราะห์ Radar Chart และส่งออกข้อมูลสำหรับทำเล่มสรุปโครงการ
             </p>
           </div>
@@ -546,13 +546,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
             className={`flex items-center space-x-2 px-3 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer ${
               requireApproval
                 ? 'bg-amber-500/20 border-amber-400 text-amber-300'
-                : 'bg-slate-900 border-slate-700 text-slate-300'
+                : 'bg-[#1f150d] border-amber-500/30 text-amber-100/80'
             }`}
           >
             {requireApproval ? (
               <ToggleRight className="w-5 h-5 text-amber-400" />
             ) : (
-              <ToggleLeft className="w-5 h-5 text-slate-500" />
+              <ToggleLeft className="w-5 h-5 text-amber-200/50" />
             )}
             <span>คัดกรองก่อนขึ้นจอ: {requireApproval ? 'เปิด' : 'ปิด'}</span>
           </button>
@@ -595,7 +595,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
           <button
             onClick={loadData}
             title="รีเฟรชข้อมูล"
-            className="p-2 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-xl border border-slate-700 cursor-pointer"
+            className="p-2 bg-[#1f150d] hover:bg-[#2a1d11] text-amber-200 rounded-xl border border-amber-500/30 cursor-pointer"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -603,7 +603,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
           <button
             onClick={handleLogout}
             title="ออกจากระบบผู้ดูแล"
-            className="flex items-center space-x-1.5 px-3 py-2 bg-slate-900 hover:bg-rose-950/60 text-rose-300 border border-rose-500/30 rounded-xl text-xs font-semibold transition cursor-pointer"
+            className="flex items-center space-x-1.5 px-3 py-2 bg-[#1f150d] hover:bg-rose-950/60 text-rose-300 border border-rose-500/30 rounded-xl text-xs font-semibold transition cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
             <span>ออกจากระบบ</span>
@@ -614,54 +614,54 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
       <div className="max-w-7xl mx-auto py-6 space-y-6">
         {/* Metric Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl">
+          <div className="bg-[#1f150d]/95 border border-amber-500/25 p-5 rounded-2xl">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-400">ผู้เข้าร่วมลอยกระทงทั้งหมด</span>
+              <span className="text-xs font-semibold text-amber-200/70">ผู้เข้าร่วมลอยกระทงทั้งหมด</span>
               <Users className="w-5 h-5 text-amber-400" />
             </div>
-            <p className="text-2xl font-black text-white mt-2">{totalUsers.toLocaleString()} คน</p>
-            <div className="text-[11px] text-slate-400 mt-2 space-x-2">
+            <p className="text-2xl font-black text-amber-50 mt-2">{totalUsers.toLocaleString()} คน</p>
+            <div className="text-[11px] text-amber-200/65 mt-2 space-x-2">
               <span>นศ: {stats?.userStats.find(u => u.user_type === 'student')?.count || 0}</span>
               <span>• บุคลากร: {stats?.userStats.find(u => u.user_type === 'staff')?.count || 0}</span>
               <span>• ภายนอก: {stats?.userStats.find(u => u.user_type === 'general')?.count || 0}</span>
             </div>
           </div>
 
-          <div className="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl">
+          <div className="bg-[#1f150d]/95 border border-amber-500/25 p-5 rounded-2xl">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-400">ค่าเฉลี่ยรวมทุกด้าน (Overall Mean)</span>
+              <span className="text-xs font-semibold text-amber-200/70">ค่าเฉลี่ยรวมทุกด้าน (Overall Mean)</span>
               <Star className="w-5 h-5 text-yellow-400 fill-yellow-400" />
             </div>
             <p className="text-2xl font-black text-amber-300 mt-2">
               x̄ = {evalAnalytics.overallMean.toFixed(2)} / 5.00
             </p>
-            <p className="text-[11px] text-slate-400 mt-2">
+            <p className="text-[11px] text-amber-200/65 mt-2">
               ระดับความพึงพอใจ: <strong className="text-amber-200">{evalAnalytics.overallLevelText}</strong> (N = {evalAnalytics.totalN} คน)
             </p>
           </div>
 
-          <div className="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl">
+          <div className="bg-[#1f150d]/95 border border-amber-500/25 p-5 rounded-2xl">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-400">ด้านที่ได้คะแนนสูงสุด</span>
+              <span className="text-xs font-semibold text-amber-200/70">ด้านที่ได้คะแนนสูงสุด</span>
               <Award className="w-5 h-5 text-emerald-400" />
             </div>
             <p className="text-base font-extrabold text-emerald-300 mt-2 line-clamp-1">
               {evalAnalytics.highestDimension?.shortLabel || '-'}
             </p>
-            <p className="text-[11px] text-slate-400 mt-2">
+            <p className="text-[11px] text-amber-200/65 mt-2">
               x̄ = {evalAnalytics.highestDimension?.mean.toFixed(2) || '-'} (S.D. = {evalAnalytics.highestDimension?.sd.toFixed(2) || '-'})
             </p>
           </div>
 
-          <div className="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl">
+          <div className="bg-[#1f150d]/95 border border-amber-500/25 p-5 rounded-2xl">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-400">สถานะกระทงบนแม่น้ำ</span>
-              <ShieldCheck className="w-5 h-5 text-sky-400" />
+              <span className="text-xs font-semibold text-amber-200/70">สถานะกระทงบนแม่น้ำ</span>
+              <ShieldCheck className="w-5 h-5 text-amber-300" />
             </div>
-            <p className="text-2xl font-black text-sky-300 mt-2">
+            <p className="text-2xl font-black text-amber-200 mt-2">
               {stats?.statusStats.find(s => s.status === 'approved')?.count || krathongs.length} ใบ
             </p>
-            <p className="text-[11px] text-slate-400 mt-2">
+            <p className="text-[11px] text-amber-200/65 mt-2">
               รอตรวจ: {stats?.statusStats.find(s => s.status === 'pending')?.count || 0} | ปฏิเสธ: {stats?.statusStats.find(s => s.status === 'rejected')?.count || 0}
             </p>
           </div>
@@ -675,8 +675,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
         />
 
         {/* 2. ตารางสรุปผลสถิติความพึงพอใจ 10 ด้าน (ตามรูปแบบเอกสารรายงานสรุปโครงการ) */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-          <div className="p-4 sm:p-5 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="bg-[#1f150d]/95 border border-amber-500/25 rounded-2xl overflow-hidden shadow-xl">
+          <div className="p-4 sm:p-5 border-b border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
                 <BarChart3 className="w-5 h-5 text-amber-400" />
@@ -689,7 +689,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-amber-200/65 mt-0.5">
                 แสดงจำนวนผู้ตอบทั้งหมด (N = {evalAnalytics.totalN} คน), ร้อยละ (%) ในแต่ละระดับคะแนน (1–5), ค่าเฉลี่ย (x̄) และส่วนเบี่ยงเบนมาตรฐาน (S.D.)
               </p>
             </div>
@@ -712,46 +712,46 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
-              <thead className="bg-slate-950 text-slate-300 border-b border-slate-800">
+              <thead className="bg-[#17100a] text-amber-100/85 border-b border-amber-500/20">
                 <tr>
-                  <th className="py-3 px-3 text-center border-r border-slate-800 w-12">ข้อ</th>
-                  <th className="py-3 px-4 border-r border-slate-800 min-w-[260px]">
+                  <th className="py-3 px-3 text-center border-r border-amber-500/15 w-12">ข้อ</th>
+                  <th className="py-3 px-4 border-r border-amber-500/15 min-w-[260px]">
                     ประเด็นการประเมินความพึงพอใจ
                   </th>
-                  <th className="py-2 px-2 text-center border-r border-slate-800">
+                  <th className="py-2 px-2 text-center border-r border-amber-500/15">
                     5 มากที่สุด<br />
-                    <span className="text-[10px] text-slate-400">จำนวน (%)</span>
+                    <span className="text-[10px] text-amber-200/60">จำนวน (%)</span>
                   </th>
-                  <th className="py-2 px-2 text-center border-r border-slate-800">
+                  <th className="py-2 px-2 text-center border-r border-amber-500/15">
                     4 มาก<br />
-                    <span className="text-[10px] text-slate-400">จำนวน (%)</span>
+                    <span className="text-[10px] text-amber-200/60">จำนวน (%)</span>
                   </th>
-                  <th className="py-2 px-2 text-center border-r border-slate-800">
+                  <th className="py-2 px-2 text-center border-r border-amber-500/15">
                     3 ปานกลาง<br />
-                    <span className="text-[10px] text-slate-400">จำนวน (%)</span>
+                    <span className="text-[10px] text-amber-200/60">จำนวน (%)</span>
                   </th>
-                  <th className="py-2 px-2 text-center border-r border-slate-800">
+                  <th className="py-2 px-2 text-center border-r border-amber-500/15">
                     2 น้อย<br />
-                    <span className="text-[10px] text-slate-400">จำนวน (%)</span>
+                    <span className="text-[10px] text-amber-200/60">จำนวน (%)</span>
                   </th>
-                  <th className="py-2 px-2 text-center border-r border-slate-800">
+                  <th className="py-2 px-2 text-center border-r border-amber-500/15">
                     1 น้อยที่สุด<br />
-                    <span className="text-[10px] text-slate-400">จำนวน (%)</span>
+                    <span className="text-[10px] text-amber-200/60">จำนวน (%)</span>
                   </th>
-                  <th className="py-3 px-3 text-center border-r border-slate-800 text-amber-300">
+                  <th className="py-3 px-3 text-center border-r border-amber-500/15 text-amber-300">
                     ค่าเฉลี่ย (x̄)
                   </th>
-                  <th className="py-3 px-3 text-center border-r border-slate-800">S.D.</th>
+                  <th className="py-3 px-3 text-center border-r border-amber-500/15">S.D.</th>
                   <th className="py-3 px-3 text-center">แปลผล</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/70">
+              <tbody className="divide-y divide-amber-500/15">
                 {evalAnalytics.questionStats.map((st) => (
-                  <tr key={st.questionId} className="hover:bg-slate-800/40 transition">
-                    <td className="py-3 px-3 text-center font-bold text-amber-300 border-r border-slate-800/70">
+                  <tr key={st.questionId} className="hover:bg-[#2a1d11]/55 transition">
+                    <td className="py-3 px-3 text-center font-bold text-amber-300 border-r border-amber-500/15">
                       {st.questionId}
                     </td>
-                    <td className="py-3 px-4 font-medium text-slate-100 border-r border-slate-800/70">
+                    <td className="py-3 px-4 font-medium text-amber-50 border-r border-amber-500/15">
                       {st.title}
                     </td>
                     {[5, 4, 3, 2, 1].map((lvl) => {
@@ -759,21 +759,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                       return (
                         <td
                           key={lvl}
-                          className="py-2.5 px-2 text-center border-r border-slate-800/70 whitespace-nowrap"
+                          className="py-2.5 px-2 text-center border-r border-amber-500/15 whitespace-nowrap"
                         >
-                          <span className="font-semibold text-slate-200">
+                          <span className="font-semibold text-amber-100">
                             {st.percentages[scoreKey].toFixed(1)}%
                           </span>
-                          <span className="block text-[10px] text-slate-500">
+                          <span className="block text-[10px] text-amber-200/55">
                             ({st.counts[scoreKey]} คน)
                           </span>
                         </td>
                       );
                     })}
-                    <td className="py-3 px-3 text-center font-extrabold text-amber-300 border-r border-slate-800/70 text-sm">
+                    <td className="py-3 px-3 text-center font-extrabold text-amber-300 border-r border-amber-500/15 text-sm">
                       {st.mean.toFixed(2)}
                     </td>
-                    <td className="py-3 px-3 text-center text-slate-300 border-r border-slate-800/70">
+                    <td className="py-3 px-3 text-center text-amber-100/80 border-r border-amber-500/15">
                       {st.sd.toFixed(2)}
                     </td>
                     <td className="py-3 px-3 text-center whitespace-nowrap">
@@ -807,14 +807,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
         </div>
 
         {/* 2.5 Student Activity Transcript Roster by Faculty */}
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-          <div className="p-4 sm:p-5 border-b border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="bg-[#1f150d]/90 border border-amber-500/25 rounded-2xl overflow-hidden shadow-xl">
+          <div className="p-4 sm:p-5 border-b border-amber-500/20 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <h2 className="text-base sm:text-lg font-bold text-amber-100 flex items-center gap-2">
                 <GraduationCap className="w-5 h-5 text-amber-400" />
                 <span>รายชื่อนักศึกษาสำหรับ Activity Transcript แยกตามคณะ (ตัดซ้ำอัตโนมัติ)</span>
               </h2>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-amber-200/65 mt-1">
                 เก็บเฉพาะรหัสนักศึกษาสำหรับกลุ่มนักศึกษา • จำแนกคณะอัตโนมัติจากรหัสและตัดรหัสซ้ำอัตโนมัติ พร้อมตรวจจับอุปกรณ์ที่ส่งหลายรหัส
               </p>
             </div>
@@ -830,25 +830,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
           <div className="p-4 sm:p-5 space-y-4">
             {/* Summary Badges */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="bg-slate-950/60 border border-emerald-500/30 rounded-xl p-3.5">
-                <p className="text-xs text-slate-400">นักศึกษาไม่ซ้ำทั้งหมด (Unique IDs)</p>
+              <div className="bg-[#17100a]/85 border border-emerald-500/30 rounded-xl p-3.5">
+                <p className="text-xs text-amber-200/70">นักศึกษาไม่ซ้ำทั้งหมด (Unique IDs)</p>
                 <p className="text-2xl font-bold text-emerald-400 mt-1">
                   {transcriptRoster.uniqueStudents.length.toLocaleString()}{' '}
-                  <span className="text-xs font-normal text-slate-400">คน</span>
+                  <span className="text-xs font-normal text-amber-200/65">คน</span>
                 </p>
               </div>
-              <div className="bg-slate-950/60 border border-sky-500/30 rounded-xl p-3.5">
-                <p className="text-xs text-slate-400">ตัดรหัสนักศึกษาซ้ำออกอัตโนมัติ</p>
+              <div className="bg-[#17100a]/85 border border-sky-500/30 rounded-xl p-3.5">
+                <p className="text-xs text-amber-200/70">ตัดรหัสนักศึกษาซ้ำออกอัตโนมัติ</p>
                 <p className="text-2xl font-bold text-sky-400 mt-1">
                   {transcriptRoster.duplicateIdCount.toLocaleString()}{' '}
-                  <span className="text-xs font-normal text-slate-400">รายการ</span>
+                  <span className="text-xs font-normal text-amber-200/65">รายการ</span>
                 </p>
               </div>
-              <div className="bg-slate-950/60 border border-amber-500/30 rounded-xl p-3.5">
-                <p className="text-xs text-slate-400">พบส่งมากกว่า 1 รหัสจากอุปกรณ์เดียวกัน</p>
+              <div className="bg-[#17100a]/85 border border-amber-500/30 rounded-xl p-3.5">
+                <p className="text-xs text-amber-200/70">พบส่งมากกว่า 1 รหัสจากอุปกรณ์เดียวกัน</p>
                 <p className="text-2xl font-bold text-amber-400 mt-1">
                   {transcriptRoster.sharedDeviceCount.toLocaleString()}{' '}
-                  <span className="text-xs font-normal text-slate-400">คน</span>
+                  <span className="text-xs font-normal text-amber-200/65">คน</span>
                 </p>
               </div>
             </div>
@@ -862,7 +862,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
                     selectedFacultyFilter === 'all'
                       ? 'bg-amber-500/20 border-amber-400 text-amber-200'
-                      : 'bg-slate-950/60 border-slate-700 text-slate-300 hover:border-slate-500'
+                      : 'bg-[#17100a]/80 border-amber-500/25 text-amber-100/80 hover:border-amber-400/50'
                   }`}
                 >
                   ทุกคณะ ({transcriptRoster.uniqueStudents.length})
@@ -879,11 +879,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition cursor-pointer ${
                         isActive
                           ? 'bg-amber-500/20 border-amber-400 text-amber-200 font-semibold'
-                          : 'bg-slate-950/60 border-slate-700 text-slate-300 hover:border-slate-500'
+                          : 'bg-[#17100a]/80 border-amber-500/25 text-amber-100/80 hover:border-amber-400/50'
                       }`}
                     >
                       {item.faculty}: <span className="font-bold">{item.count}</span>{' '}
-                      <span className="text-slate-400">({item.percentage.toFixed(1)}%)</span>
+                      <span className="text-amber-200/60">({item.percentage.toFixed(1)}%)</span>
                     </button>
                   );
                 })}
@@ -896,7 +896,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                 value={selectedFacultyFilter}
                 onChange={(e) => setSelectedFacultyFilter(e.target.value)}
                 aria-label="กรองตามคณะ"
-                className="bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-amber-400"
+                className="bg-[#17100a] border border-amber-500/30 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-amber-100 focus:outline-none focus:border-amber-400"
               >
                 <option value="all">
                   แสดงทุกคณะ ({transcriptRoster.uniqueStudents.length} คน)
@@ -912,14 +912,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                 value={transcriptSearch}
                 onChange={(e) => setTranscriptSearch(e.target.value)}
                 placeholder="ค้นหารหัสนักศึกษา หรือคณะ..."
-                className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                className="flex-1 bg-[#17100a] border border-amber-500/30 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-amber-50 placeholder-amber-200/40 focus:outline-none focus:border-amber-400"
               />
             </div>
 
             {/* Deduplicated Student Table */}
-            <div className="overflow-x-auto max-h-96 overflow-y-auto border border-slate-800 rounded-xl">
+            <div className="overflow-x-auto max-h-96 overflow-y-auto border border-amber-500/20 rounded-xl">
               <table className="w-full text-left border-collapse">
-                <thead className="bg-slate-950 text-slate-400 text-xs sticky top-0 z-10">
+                <thead className="bg-[#17100a] text-amber-200/75 text-xs sticky top-0 z-10">
                   <tr>
                     <th className="py-3 px-4 font-semibold">#</th>
                     <th className="py-3 px-4 font-semibold">รหัสนักศึกษา</th>
@@ -928,10 +928,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                     <th className="py-3 px-4 font-semibold">สถานะตรวจสอบ</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/80 text-xs sm:text-sm">
+                <tbody className="divide-y divide-amber-500/15 text-xs sm:text-sm">
                   {filteredTranscriptStudents.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-8 text-center text-slate-500">
+                      <td colSpan={5} className="py-8 text-center text-amber-200/50">
                         ไม่พบรายชื่อนักศึกษาที่ตรงกับเงื่อนไขการค้นหา
                       </td>
                     </tr>
@@ -939,16 +939,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                     filteredTranscriptStudents.map((student, idx) => (
                       <tr
                         key={student.student_id}
-                        className="hover:bg-slate-800/40 transition-colors"
+                        className="hover:bg-[#2a1d11]/55 transition-colors"
                       >
-                        <td className="py-2.5 px-4 text-slate-500">{idx + 1}</td>
+                        <td className="py-2.5 px-4 text-amber-200/60">{idx + 1}</td>
                         <td className="py-2.5 px-4 font-mono font-semibold text-amber-300">
                           {student.student_id}
                         </td>
-                        <td className="py-2.5 px-4 text-slate-300">
+                        <td className="py-2.5 px-4 text-amber-100/85">
                           {student.faculty || 'ไม่ระบุคณะ'}
                         </td>
-                        <td className="py-2.5 px-4 text-slate-400 whitespace-nowrap">
+                        <td className="py-2.5 px-4 text-amber-200/65 whitespace-nowrap">
                           {student.created_at
                             ? new Date(student.created_at).toLocaleString('th-TH')
                             : '-'}
@@ -974,13 +974,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
         </div>
 
         {/* 3. Live Moderation Table */}
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-          <div className="p-4 sm:p-5 border-b border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <div className="bg-[#1f150d]/90 border border-amber-500/25 rounded-2xl overflow-hidden shadow-xl">
+          <div className="p-4 sm:p-5 border-b border-amber-500/20 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
             <div>
               <h2 className="text-base font-bold text-amber-200">
                 รายการกระทงล่าสุด (Live Moderation Stream)
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-amber-200/65">
                 สามารถค้นหา กรองสถานะ ตรวจสอบ อนุมัติ หรือซ่อนข้อความที่ไม่เหมาะสมได้ทันที
               </p>
             </div>
@@ -988,17 +988,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
             {/* Search & Status Filter Controls */}
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative">
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Search className="w-3.5 h-3.5 text-amber-300/70 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="ค้นหาชื่อ หรือคำอธิษฐาน..."
-                  className="bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none w-48 sm:w-56"
+                  className="bg-[#17100a] border border-amber-500/30 focus:border-amber-400 rounded-xl pl-8 pr-3 py-1.5 text-xs text-amber-50 placeholder-amber-200/40 focus:outline-none w-48 sm:w-56"
                 />
               </div>
 
-              <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
+              <div className="flex items-center bg-[#17100a] p-1 rounded-xl border border-amber-500/20">
                 {[
                   { id: 'all', label: `ทั้งหมด (${krathongs.length})` },
                   {
@@ -1021,7 +1021,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                     className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer ${
                       statusFilter === tab.id
                         ? 'bg-amber-500/25 text-amber-200 border border-amber-400/40'
-                        : 'text-slate-400 hover:text-slate-200'
+                        : 'text-amber-200/65 hover:text-amber-100'
                     }`}
                   >
                     {tab.label}
@@ -1037,7 +1037,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                       .filter((k) => k.status === 'pending')
                       .forEach((k) => handleModerate(k.id, 'approved'));
                   }}
-                  className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition shadow cursor-pointer flex items-center space-x-1"
+                  className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-stone-950 text-xs font-bold transition shadow cursor-pointer flex items-center space-x-1"
                 >
                   <CheckCircle className="w-3.5 h-3.5" />
                   <span>อนุมัติที่รอตรวจทั้งหมด</span>
@@ -1048,7 +1048,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
+              <thead className="bg-[#17100a] text-amber-200/75 uppercase tracking-wider font-semibold border-b border-amber-500/20">
                 <tr>
                   <th className="py-3 px-4">ผู้ปล่อย</th>
                   <th className="py-3 px-4">กลุ่ม</th>
@@ -1058,7 +1058,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                   <th className="py-3 px-4 text-center">จัดการ</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y divide-amber-500/15">
                 {(() => {
                   const q = searchQuery.trim().toLowerCase();
                   const filtered = krathongs.filter((k: any) => {
@@ -1074,7 +1074,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                   if (filtered.length === 0) {
                     return (
                       <tr>
-                        <td colSpan={6} className="py-8 text-center text-slate-500">
+                        <td colSpan={6} className="py-8 text-center text-amber-200/50">
                           {krathongs.length === 0
                             ? 'ยังไม่มีรายการกระทงในขณะนี้'
                             : 'ไม่พบรายการกระทงที่ตรงกับเงื่อนไขการค้นหา'}
@@ -1086,16 +1086,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                   return filtered.map((k: any) => {
                     const currentStatus = k.status || 'approved';
                     return (
-                      <tr key={k.id} className="hover:bg-slate-800/40 transition">
-                        <td className="py-3 px-4 font-bold text-white whitespace-nowrap">
+                      <tr key={k.id} className="hover:bg-[#2a1d11]/55 transition">
+                        <td className="py-3 px-4 font-bold text-amber-50 whitespace-nowrap">
                           {k.owner_name}
                         </td>
                         <td className="py-3 px-4 whitespace-nowrap">
-                          <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-slate-300 border border-slate-700">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] bg-[#2a1d11] text-amber-200 border border-amber-500/30">
                             {k.user_type === 'student' ? 'นักศึกษา' : k.user_type === 'staff' ? 'บุคลากร' : 'บุคคลภายนอก'}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-slate-200 max-w-xs break-words">
+                        <td className="py-3 px-4 text-amber-100/90 max-w-xs break-words">
                           "{k.wish_message}"
                         </td>
                         <td className="py-3 px-4 text-center whitespace-nowrap">
@@ -1166,7 +1166,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
 
         {/* 4. Feedback Section */}
         {evalAnalytics.records.some(r => r.comment) && (
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5">
+          <div className="bg-[#1f150d]/90 border border-amber-500/25 rounded-2xl p-5">
             <h3 className="text-sm font-bold text-amber-200 mb-3">
               ข้อเสนอแนะและความคิดเห็นจากผู้ตอบแบบประเมินล่าสุด
             </h3>
@@ -1175,8 +1175,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                 .filter(r => r.comment)
                 .slice(0, 12)
                 .map((f, i) => (
-                  <div key={i} className="bg-slate-950 p-3.5 rounded-xl border border-slate-800/80">
-                    <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+                  <div key={i} className="bg-[#17100a] p-3.5 rounded-xl border border-amber-500/20">
+                    <div className="flex items-center justify-between text-xs text-amber-200/70 mb-1">
                       <span>
                         {f.user_type === 'student'
                           ? `นักศึกษา ${f.student_id ? `(${f.student_id})` : ''}`
@@ -1188,7 +1188,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                         x̄ = {f.average_score.toFixed(2)} / 5.00
                       </span>
                     </div>
-                    <p className="text-xs text-slate-200 italic">"{f.comment}"</p>
+                    <p className="text-xs text-amber-100/90 italic">"{f.comment}"</p>
                   </div>
                 ))}
             </div>

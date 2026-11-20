@@ -3,7 +3,7 @@ import React from 'react';
 
 export const DecorativeScreenBorders: React.FC = () => {
   return (
-    <div className="absolute inset-0 pointer-events-none select-none overflow-hidden z-10 will-change-transform transform-gpu">
+    <div className="absolute inset-0 pointer-events-none select-none overflow-hidden z-[18] will-change-transform transform-gpu">
       {/* ---------------- 1. ลายประดับมุมบนซ้ายและมุมบนขวา (Thai Golden Corner Accents) ---------------- */}
       {/* มุมบนซ้าย (Top-Left Thai Kranok Pattern) */}
       <div className="absolute top-0 left-0 w-20 h-20 opacity-30 sm:w-48 sm:h-48 sm:opacity-45">
@@ -130,13 +130,13 @@ export const DecorativeScreenBorders: React.FC = () => {
         <svg viewBox="0 0 280 180" className="w-full h-full">
           <defs>
             <linearGradient id="foreLeftGrad" x1="0%" y1="100%" x2="50%" y2="0%">
-              <stop offset="0%" stopColor="#050a16" />
-              <stop offset="60%" stopColor="#0b132b" />
-              <stop offset="100%" stopColor="#b45309" stopOpacity="0.85" />
+              <stop offset="0%" stopColor="#140d07" />
+              <stop offset="60%" stopColor="#21160d" />
+              <stop offset="100%" stopColor="#b45309" stopOpacity="0.88" />
             </linearGradient>
           </defs>
           {/* ตลิ่งดินริมน้ำ */}
-          <path d="M 0 180 L 190 180 Q 120 155 60 145 Q 20 135 0 120 Z" fill="#050a16" />
+          <path d="M 0 180 L 190 180 Q 120 155 60 145 Q 20 135 0 120 Z" fill="#140d07" />
           
           {/* ก้านและใบบัวหลวงใบใหญ่ 1 */}
           <ellipse cx="65" cy="130" rx="60" ry="22" fill="url(#foreLeftGrad)" stroke="#f59e0b" strokeWidth="1" strokeOpacity="0.6" transform="rotate(-12, 65, 130)" />
@@ -163,7 +163,7 @@ export const DecorativeScreenBorders: React.FC = () => {
       <div className="absolute bottom-0 right-0 w-24 h-20 opacity-45 sm:w-64 sm:h-52 md:w-80 sm:opacity-80 z-15 transform scale-x-[-1]">
         <svg viewBox="0 0 280 180" className="w-full h-full">
           {/* ตลิ่งริมฝั่งขวา */}
-          <path d="M 0 180 L 210 180 Q 140 150 70 140 Q 25 130 0 110 Z" fill="#050a16" />
+          <path d="M 0 180 L 210 180 Q 140 150 70 140 Q 25 130 0 110 Z" fill="#140d07" />
           
           {/* กอใบบัวหลวงหนาทึบ */}
           <ellipse cx="75" cy="125" rx="65" ry="24" fill="url(#foreLeftGrad)" stroke="#f59e0b" strokeWidth="1" strokeOpacity="0.6" transform="rotate(-15, 75, 125)" />
