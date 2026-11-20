@@ -69,7 +69,7 @@ const WATER_FRAGMENT_SHADER = /* glsl */ `
   varying vec3 vWorldPos;
   varying vec2 vUv;
 
-  // Glossy horizontal liquid ripple bands with domain-warped organic pinching
+  // Glossy horizontal liquid ripple bands with domain-warped organic pinching (fast GPU ALU math)
   vec4 getWaterWave(vec2 p, float t) {
     vec2 wp = uIsPreview > 0.5 ? vec2(p.x * 2.15, p.y * 2.65) : vec2(p.x * 1.15, p.y * 1.45);
 
@@ -77,14 +77,12 @@ const WATER_FRAGMENT_SHADER = /* glsl */ `
     float dz = 0.0;
     float signedWave = 0.0;
 
-    float warp1 = sin(wp.x * 0.82 + wp.y * 1.35 - t * 0.65) * 0.85
-                + cos(wp.x * 1.55 - wp.y * 2.10 + t * 0.80) * 0.45;
-    float warp2 = cos(wp.y * 1.75 - wp.x * 0.95 - t * 0.75) * 0.70
-                + sin(wp.x * 2.10 + wp.y * 1.60 + t * 0.90) * 0.35;
+    float warp1 = sin(wp.x * 0.85 + wp.y * 1.35 - t * 0.65) * 0.95;
+    float warp2 = cos(wp.y * 1.75 - wp.x * 0.95 - t * 0.75) * 0.85;
 
     // Layer 1: Primary glossy horizontal liquid ridges with rounded pinching lobes
     float a1 = wp.y * 4.2 + wp.x * 0.55 + warp1 - t * 1.45;
-    float pinch1 = 0.68 + 0.32 * cos(wp.x * 0.95 - wp.y * 1.25 + warp2 * 0.7 + t * 0.55);
+    float pinch1 = 0.70 + 0.30 * cos(wp.x * 0.95 - wp.y * 1.25 + t * 0.55);
     float c1 = cos(a1) * pinch1;
     dx += c1 * 0.16;
     dz += c1 * 0.48;
@@ -92,7 +90,7 @@ const WATER_FRAGMENT_SHADER = /* glsl */ `
 
     // Layer 2: Interlocking counter-angled liquid ribbons forming oval ripple pockets
     float a2 = wp.y * 8.8 - wp.x * 1.20 + warp2 + t * 1.90;
-    float pinch2 = 0.65 + 0.35 * sin(wp.x * 1.50 + wp.y * 1.90 - warp1 * 0.6 + t * 0.80);
+    float pinch2 = 0.66 + 0.34 * sin(wp.x * 1.50 + wp.y * 1.90 + t * 0.80);
     float c2 = cos(a2) * pinch2;
     dx += c2 * -0.20;
     dz += c2 * 0.50;
@@ -121,7 +119,7 @@ const WATER_FRAGMENT_SHADER = /* glsl */ `
 
       // Concentric water ripple rings radiating outward from krathong base
       float r = length(p);
-      float ringEnv = smoothstep(0.42, 0.85, r) * exp(-max(r - 0.72, 0.0) * 0.65);
+      float ringEnv = smoothstep(0.42, 0.85, r) / (1.0 + max(r - 0.72, 0.0) * 0.85);
       float ringPhase = r * 14.5 - t * 3.5;
       float ringSin = sin(ringPhase) * ringEnv;
       float ringCos = cos(ringPhase) * ringEnv;
@@ -141,9 +139,9 @@ const WATER_FRAGMENT_SHADER = /* glsl */ `
     float waveH = wave.w;
     vec3 viewDir = normalize(cameraPosition - vWorldPos);
 
-    // Fresnel term increases reflection readability at grazing angles
-    float ndotv = max(dot(viewDir, normal), 0.0);
-    float fresnel = clamp(0.16 + 0.84 * pow(1.0 - ndotv, 2.2), 0.0, 1.0);
+    // Fast quadratic Fresnel approximation (zero pow/log2/exp2 overhead)
+    float invV = 1.0 - max(dot(viewDir, normal), 0.0);
+    float fresnel = clamp(0.16 + 0.84 * (invV * invV), 0.0, 1.0);
 
     // Glossy liquid wave slope parameter (-1 = back trough, 0 = contour edge, +1 = sky-facing ridge)
     float rawSlope = normal.z * 1.95 + (waveH - 0.5) * 0.85;
@@ -152,10 +150,8 @@ const WATER_FRAGMENT_SHADER = /* glsl */ `
     float skyFace = smoothstep(-0.12, 0.20, rawSlope);
     vec3 waterColor = mix(uDeepColor, uShallowColor, skyFace);
 
-    // 2. Subsurface crystal caustic shimmer so water stays bright and transparent
-    float causticA = sin(vWorldPos.x * 2.4 + vWorldPos.z * 3.3 - uTime * 1.65);
-    float causticB = cos(vWorldPos.z * 4.1 - vWorldPos.x * 1.85 + uTime * 1.35);
-    float caustic = clamp(0.5 + 0.5 * causticA * causticB, 0.0, 1.0);
+    // 2. Subsurface crystal caustic shimmer
+    float caustic = 0.5 + 0.5 * sin(vWorldPos.x * 2.4 + vWorldPos.z * 3.3 - uTime * 1.65);
     waterColor = mix(waterColor, uRippleHighlight, caustic * 0.18);
 
     // 3. Luminous cyan-aqua upper wave face (#67f5ff)
@@ -164,11 +160,12 @@ const WATER_FRAGMENT_SHADER = /* glsl */ `
 
     // 4. Gleaming icy-white aqua ribbon core (#f0fdff) inside each glossy horizontal ripple ridge
     float glossCore = smoothstep(0.30, 0.66, rawSlope);
-    float crestLine = pow(smoothstep(0.60, 0.92, waveH * 0.58 + clamp(normal.z + 0.35, 0.0, 1.0) * 0.42), 1.8);
+    float clTmp = smoothstep(0.60, 0.92, waveH * 0.58 + clamp(normal.z + 0.35, 0.0, 1.0) * 0.42);
+    float crestLine = clTmp * clTmp;
     waterColor = mix(waterColor, uCrestFoam, clamp(glossCore * 0.64 + crestLine * 0.34, 0.0, 0.88));
 
-    // 5. Crisp dark-teal liquid contour rim at the wave inflection boundary
-    float contourEdge = exp(-pow((rawSlope + 0.08) * 6.8, 2.0));
+    // 5. Crisp dark-teal liquid contour rim at the wave inflection boundary (fast smoothstep, zero exp/pow)
+    float contourEdge = 1.0 - smoothstep(0.0, 0.15, abs(rawSlope + 0.08));
     waterColor = mix(waterColor, uDeepColor * 0.74, contourEdge * 0.40);
 
     // Gentle sky-aqua Fresnel sheen
@@ -177,13 +174,13 @@ const WATER_FRAGMENT_SHADER = /* glsl */ `
     float distShore = max(0.0, vWorldPos.z - uShoreZ);
 
     // 6. Warm golden-amber reflection ribbons nested inside wave troughs (reference photo look)
-    // Confined strictly to back-tilted trough bands so turquoise wave faces stay 100% pure crystal cyan
     float troughPocket = (1.0 - smoothstep(-0.02, 0.16, rawSlope)) * smoothstep(-0.62, -0.10, rawSlope);
-    float crestSparkle = pow(smoothstep(0.24, 0.56, rawSlope), 2.4);
+    float csTmp = smoothstep(0.24, 0.56, rawSlope);
+    float crestSparkle = csTmp * csTmp;
 
     if (uIsPreview < 0.5) {
-      float shoreMask = 0.28 + 0.72 * exp(-distShore * 0.14);
-      float pumpkinGlow = exp(-abs(vWorldPos.x) * 0.14) * 0.85;
+      float shoreMask = 0.28 + 0.72 / (1.0 + distShore * 0.15);
+      float pumpkinGlow = 0.85 / (1.0 + abs(vWorldPos.x) * 0.15);
       float flankLamps = 0.50 + 0.50 * cos(vWorldPos.x * 0.78 + normal.x * 3.5);
       float goldWavePattern = 0.45 + 0.55 * sin(vWorldPos.x * 1.15 + vWorldPos.z * 2.4 + normal.x * 6.0 - uTime * 1.1);
 
@@ -192,11 +189,17 @@ const WATER_FRAGMENT_SHADER = /* glsl */ `
       col = mix(col, warmAmberGold, clamp(goldTroughBand * 0.78, 0.0, 0.76));
       col += uShoreGold * crestSparkle * shoreMask * 0.22;
 
-      // Clean white-gold moon specular sparkle along right water lane
-      float moonLane = exp(-pow((vWorldPos.x - 8.2) * 0.18, 2.0)) * (1.0 - smoothstep(-14.0, 2.0, vWorldPos.z));
+      // Clean white-gold moon specular sparkle along right water lane (pure multiplication powers)
+      float moonDx = (vWorldPos.x - 8.2) * 0.18;
+      float moonLane = (1.0 / (1.0 + moonDx * moonDx * 1.35)) * (1.0 - smoothstep(-14.0, 2.0, vWorldPos.z));
       vec3 halfVec = normalize(uMoonDir + viewDir);
-      float moonSpec = pow(max(dot(normal, halfVec), 0.0), 38.0);
-      float moonWide = pow(max(dot(normal, halfVec), 0.0), 10.0) * 0.20;
+      float nh = max(dot(normal, halfVec), 0.0);
+      float nh2 = nh * nh;
+      float nh4 = nh2 * nh2;
+      float nh8 = nh4 * nh4;
+      float nh16 = nh8 * nh8;
+      float moonSpec = nh16 * nh16 * nh4;
+      float moonWide = nh8 * nh2 * 0.20;
       col += uMoonColor * (moonSpec * 0.62 + moonWide * moonLane * 0.85);
     } else {
       // Customizer preview mode: glossy turquoise ripples with warm golden trough ribbons
@@ -209,7 +212,7 @@ const WATER_FRAGMENT_SHADER = /* glsl */ `
       col += uShoreGold * crestSparkle * backGlow * 0.20;
 
       float distCenter = length(vWorldPos.xz);
-      float centerGlow = exp(-distCenter * 0.32) * (0.68 + 0.32 * sin(distCenter * 12.0 - uTime * 3.0));
+      float centerGlow = (1.0 / (1.0 + distCenter * 0.38)) * (0.68 + 0.32 * sin(distCenter * 12.0 - uTime * 3.0));
       col += mix(uRippleHighlight, uCrestFoam, 0.45) * centerGlow * 0.24;
     }
 
@@ -227,8 +230,11 @@ const WATER_FRAGMENT_SHADER = /* glsl */ `
       finalColor = mix(finalColor, reflSample.rgb * 1.04 + waterColor * 0.14, reflWeight);
     }
 
-    // Subtle crisp sparkle on sharpest peaks
-    float peakSparkle = pow(clamp(normal.z * 0.5 + waveH * 0.5, 0.0, 1.0), 10.0);
+    // Subtle crisp sparkle on sharpest peaks (fast multiplication power)
+    float ps = clamp(normal.z * 0.5 + waveH * 0.5, 0.0, 1.0);
+    float ps2 = ps * ps;
+    float ps4 = ps2 * ps2;
+    float peakSparkle = ps4 * ps4 * ps2;
     finalColor += uCrestFoam * peakSparkle * 0.12;
 
     float alpha = 1.0;
@@ -279,8 +285,8 @@ export function createRealisticRiverWater(options: {
   } = options;
 
   const geometry = isCircularPond
-    ? new THREE.CircleGeometry(pondRadius, 40)
-    : new THREE.PlaneGeometry(width, depth, isPreview ? 24 : 56, isPreview ? 24 : 40);
+    ? new THREE.CircleGeometry(pondRadius, 32)
+    : new THREE.PlaneGeometry(width, depth, isPreview ? 18 : 32, isPreview ? 18 : 24);
   geometry.rotateX(-Math.PI / 2);
 
   const reflectionTarget = new THREE.WebGLRenderTarget(reflectionWidth, reflectionHeight, {

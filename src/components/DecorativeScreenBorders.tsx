@@ -78,12 +78,9 @@ const DecorativeScreenBordersBase: React.FC = () => {
               key={index}
               style={{
                 left: item.left,
-                top: item.top,
-                animation: `swaySlow ${item.duration} ease-in-out infinite alternate`,
-                animationDelay: item.delay,
-                transformOrigin: 'top center'
+                top: item.top
               }}
-              className={`absolute flex flex-col items-center ${widthClass} will-change-transform transform-gpu`}
+              className={`absolute flex flex-col items-center ${widthClass}`}
             >
               {/* สายแขวนโคมสั้นๆ */}
               <div className="w-[1.5px] h-3 sm:h-4 bg-gradient-to-b from-amber-300 to-amber-500" />

@@ -651,6 +651,16 @@ const CENTERPIECE_MODELS = new Set([
 ]);
 
 const sharedMatCache = new Map<string, THREE.MeshStandardMaterial>();
+const sharedGeoCache = new Map<string, THREE.BufferGeometry>();
+
+function getCachedGeo<T extends THREE.BufferGeometry>(key: string, factory: () => T): T {
+  let geo = sharedGeoCache.get(key) as T | undefined;
+  if (!geo) {
+    geo = markShared(factory());
+    sharedGeoCache.set(key, geo);
+  }
+  return geo;
+}
 
 function makeMat(params: THREE.MeshStandardMaterialParameters): THREE.MeshStandardMaterial {
   const key = [
@@ -838,29 +848,37 @@ function addJasmineClustersInstanced(
 
 function addCurvedSwanPair(parent: THREE.Group, matBody: THREE.Material, matBeak: THREE.Material): void {
   const matEye = makeMat({ color: 0x1c130b, roughness: 0.25 });
-  [-1, 1].forEach((side) => {
-    const curve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(side * 0.72, 0.16, 0.08),
-      new THREE.Vector3(side * 0.94, 0.34, 0.04),
-      new THREE.Vector3(side * 0.88, 0.58, -0.02),
-      new THREE.Vector3(side * 0.72, 0.56, 0.02)
-    ]);
-    parent.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 14, 0.055, 7, false), matBody));
+  const headGeo = getCachedGeo('swan_head', () => new THREE.SphereGeometry(0.068, 8, 6));
+  const beakGeo = getCachedGeo('swan_beak', () => new THREE.ConeGeometry(0.025, 0.09, 6));
+  const eyeGeo = getCachedGeo('swan_eye', () => new THREE.SphereGeometry(0.014, 5, 5));
+  const wingGeo = getCachedGeo('swan_wing', () => new THREE.SphereGeometry(0.16, 8, 6));
 
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.068, 10, 8), matBody);
+  [-1, 1].forEach((side) => {
+    const neckGeo = getCachedGeo(`swan_neck_${side}`, () => {
+      const curve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(side * 0.72, 0.16, 0.08),
+        new THREE.Vector3(side * 0.94, 0.34, 0.04),
+        new THREE.Vector3(side * 0.88, 0.58, -0.02),
+        new THREE.Vector3(side * 0.72, 0.56, 0.02)
+      ]);
+      return new THREE.TubeGeometry(curve, 10, 0.055, 6, false);
+    });
+    parent.add(new THREE.Mesh(neckGeo, matBody));
+
+    const head = new THREE.Mesh(headGeo, matBody);
     head.position.set(side * 0.71, 0.56, 0.03);
     parent.add(head);
 
-    const beak = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.09, 6), matBeak);
+    const beak = new THREE.Mesh(beakGeo, matBeak);
     beak.rotation.z = side * (Math.PI * 0.58);
     beak.position.set(side * 0.63, 0.55, 0.03);
     parent.add(beak);
 
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.014, 5, 5), matEye);
+    const eye = new THREE.Mesh(eyeGeo, matEye);
     eye.position.set(side * 0.69, 0.575, 0.085);
     parent.add(eye);
 
-    const wing = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), matBody);
+    const wing = new THREE.Mesh(wingGeo, matBody);
     wing.scale.set(0.6, 0.85, 1.45);
     wing.rotation.z = side * -0.45;
     wing.position.set(side * 0.76, 0.21, -0.06);
@@ -891,12 +909,18 @@ function buildPumpkinBuilding3D(scaleFactor = 1): THREE.Group {
   const matCanopy = makeMat({ color: 0xf7f1e5, roughness: 0.48, metalness: 0.05 });
 
   // 1. ฐานลานวงกลมรับตึกฟักทอง
-  const plinth = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.59, 0.042, 32), matStonePlinth);
+  const plinth = new THREE.Mesh(
+    getCachedGeo('pk_plinth', () => new THREE.CylinderGeometry(0.56, 0.59, 0.042, 24)),
+    matStonePlinth
+  );
   plinth.position.y = 0.021;
   g.add(plinth);
 
   // 2. ผนังกระจกโถงมืดชั้นในใต้ซุ้มโค้ง (มองเห็นลอดเข้าซุ้มโค้งรอบอาคาร)
-  const innerHall = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.46, 0.19, 28), matInnerHall);
+  const innerHall = new THREE.Mesh(
+    getCachedGeo('pk_hall', () => new THREE.CylinderGeometry(0.45, 0.46, 0.19, 20)),
+    matInnerHall
+  );
   innerHall.position.y = 0.135;
   g.add(innerHall);
 
@@ -926,11 +950,17 @@ function buildPumpkinBuilding3D(scaleFactor = 1): THREE.Group {
   g.add(ribInst);
 
   // 4. วงแหวน Skylight กึ่งกลางหลังคา
-  const skylightCore = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.095, 0.06, 20), matInnerHall);
+  const skylightCore = new THREE.Mesh(
+    getCachedGeo('pk_sky_core', () => new THREE.CylinderGeometry(0.095, 0.095, 0.06, 16)),
+    matInnerHall
+  );
   skylightCore.position.y = 0.24;
   g.add(skylightCore);
 
-  const skylightRim = new THREE.Mesh(new THREE.TorusGeometry(0.10, 0.012, 6, 24), matCanopy);
+  const skylightRim = new THREE.Mesh(
+    getCachedGeo('pk_sky_rim', () => new THREE.TorusGeometry(0.10, 0.012, 6, 18)),
+    matCanopy
+  );
   skylightRim.rotation.x = Math.PI / 2;
   skylightRim.position.y = 0.255;
   g.add(skylightRim);
@@ -939,15 +969,24 @@ function buildPumpkinBuilding3D(scaleFactor = 1): THREE.Group {
   const entranceGroup = new THREE.Group();
   entranceGroup.rotation.y = angBase;
 
-  const doorway = new THREE.Mesh(new THREE.BoxGeometry(0.095, 0.13, 0.15), matInnerHall);
+  const doorway = new THREE.Mesh(
+    getCachedGeo('pk_door', () => new THREE.BoxGeometry(0.095, 0.13, 0.15)),
+    matInnerHall
+  );
   doorway.position.set(0, 0.105, 0.36);
   entranceGroup.add(doorway);
 
-  const canopy = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.018, 0.16), matCanopy);
+  const canopy = new THREE.Mesh(
+    getCachedGeo('pk_canopy', () => new THREE.BoxGeometry(0.10, 0.018, 0.16)),
+    matCanopy
+  );
   canopy.position.set(0, 0.175, 0.44);
   entranceGroup.add(canopy);
 
-  const walkway = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.01, 0.26), matStonePlinth);
+  const walkway = new THREE.Mesh(
+    getCachedGeo('pk_walk', () => new THREE.BoxGeometry(0.11, 0.01, 0.26)),
+    matStonePlinth
+  );
   walkway.position.set(0, 0.047, 0.45);
   entranceGroup.add(walkway);
 
@@ -963,32 +1002,49 @@ function buildNoppamasCrown3D(): THREE.Group {
   const matBronze = makeMat({ color: 0xb45309, metalness: 0.45, roughness: 0.35 });
   const matRuby = makeMat({ color: 0xef4444, emissive: 0x991b1b, emissiveIntensity: 0.3, roughness: 0.2 });
 
-  const pedPoints = [
-    new THREE.Vector2(0.01, 0),
-    new THREE.Vector2(0.26, 0),
-    new THREE.Vector2(0.14, 0.08),
-    new THREE.Vector2(0.32, 0.16),
-    new THREE.Vector2(0.30, 0.19),
-    new THREE.Vector2(0.01, 0.19)
-  ];
-  g.add(new THREE.Mesh(new THREE.LatheGeometry(pedPoints, 16), matBronze));
+  const pedGeo = getCachedGeo('crown_ped', () =>
+    new THREE.LatheGeometry(
+      [
+        new THREE.Vector2(0.01, 0),
+        new THREE.Vector2(0.26, 0),
+        new THREE.Vector2(0.14, 0.08),
+        new THREE.Vector2(0.32, 0.16),
+        new THREE.Vector2(0.30, 0.19),
+        new THREE.Vector2(0.01, 0.19)
+      ],
+      14
+    )
+  );
+  g.add(new THREE.Mesh(pedGeo, matBronze));
 
-  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.26, 0.14, 14), matGold);
+  const band = new THREE.Mesh(
+    getCachedGeo('crown_band', () => new THREE.CylinderGeometry(0.24, 0.26, 0.14, 12)),
+    matGold
+  );
   band.position.y = 0.25;
   g.add(band);
 
   for (let tier = 0; tier < 3; tier++) {
     const rBot = 0.22 - tier * 0.05;
-    const cone = new THREE.Mesh(new THREE.CylinderGeometry(rBot - 0.045, rBot, 0.11, 14), matGold);
+    const cone = new THREE.Mesh(
+      getCachedGeo(`crown_tier_${tier}`, () => new THREE.CylinderGeometry(rBot - 0.045, rBot, 0.11, 12)),
+      matGold
+    );
     cone.position.y = 0.37 + tier * 0.11;
     g.add(cone);
   }
 
-  const spire = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.28, 10), matGold);
+  const spire = new THREE.Mesh(
+    getCachedGeo('crown_spire', () => new THREE.ConeGeometry(0.06, 0.28, 10)),
+    matGold
+  );
   spire.position.y = 0.78;
   g.add(spire);
 
-  const jewel = new THREE.Mesh(new THREE.SphereGeometry(0.042, 8, 6), matRuby);
+  const jewel = new THREE.Mesh(
+    getCachedGeo('crown_jewel', () => new THREE.SphereGeometry(0.042, 7, 6)),
+    matRuby
+  );
   jewel.position.set(0, 0.27, 0.25);
   g.add(jewel);
   return g;
@@ -1001,40 +1057,59 @@ function buildElephant3D(): THREE.Group {
   const matRed = makeMat({ color: 0xdc2626, roughness: 0.55 });
   const matBronze = makeMat({ color: 0x92400e, metalness: 0.3, roughness: 0.45 });
 
-  const ped = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.09, 0.42), matBronze);
+  const ped = new THREE.Mesh(
+    getCachedGeo('el_ped', () => new THREE.BoxGeometry(0.68, 0.09, 0.42)),
+    matBronze
+  );
   ped.position.y = 0.045;
   g.add(ped);
 
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.22, 14, 10), matIvory);
+  const body = new THREE.Mesh(
+    getCachedGeo('el_body', () => new THREE.SphereGeometry(0.22, 12, 8)),
+    matIvory
+  );
   body.scale.set(1.35, 0.95, 0.9);
   body.position.set(-0.04, 0.31, 0);
   g.add(body);
 
+  const legGeo = getCachedGeo('el_leg', () => new THREE.CylinderGeometry(0.055, 0.06, 0.24, 7));
   [[-0.18, -0.1], [-0.18, 0.1], [0.12, -0.1], [0.12, 0.1]].forEach(([lx, lz]) => {
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.06, 0.24, 8), matIvory);
+    const leg = new THREE.Mesh(legGeo, matIvory);
     leg.position.set(lx, 0.18, lz);
     g.add(leg);
   });
 
-  const blanket = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.22, 0.4), matRed);
+  const blanket = new THREE.Mesh(
+    getCachedGeo('el_blanket', () => new THREE.BoxGeometry(0.32, 0.22, 0.4)),
+    matRed
+  );
   blanket.position.set(-0.04, 0.35, 0);
   g.add(blanket);
 
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.145, 12, 10), matIvory);
+  const head = new THREE.Mesh(
+    getCachedGeo('el_head', () => new THREE.SphereGeometry(0.145, 10, 8)),
+    matIvory
+  );
   head.position.set(0.25, 0.38, 0);
   g.add(head);
 
-  const crown = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.14, 8), matGold);
+  const crown = new THREE.Mesh(
+    getCachedGeo('el_crown', () => new THREE.ConeGeometry(0.07, 0.14, 8)),
+    matGold
+  );
   crown.position.set(0.25, 0.55, 0);
   g.add(crown);
 
-  const trunkCurve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(0.35, 0.34, 0),
-    new THREE.Vector3(0.46, 0.32, 0),
-    new THREE.Vector3(0.50, 0.44, 0),
-    new THREE.Vector3(0.42, 0.52, 0)
-  ]);
-  g.add(new THREE.Mesh(new THREE.TubeGeometry(trunkCurve, 10, 0.036, 7, false), matIvory));
+  const trunkGeo = getCachedGeo('el_trunk', () => {
+    const trunkCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.35, 0.34, 0),
+      new THREE.Vector3(0.46, 0.32, 0),
+      new THREE.Vector3(0.50, 0.44, 0),
+      new THREE.Vector3(0.42, 0.52, 0)
+    ]);
+    return new THREE.TubeGeometry(trunkCurve, 8, 0.036, 6, false);
+  });
+  g.add(new THREE.Mesh(trunkGeo, matIvory));
   return g;
 }
 
@@ -1045,7 +1120,10 @@ function buildGoldenSwanCenter3D(): THREE.Group {
   const matBeak = makeMat({ color: 0xea580c, roughness: 0.35 });
   const matOrb = makeMat({ color: 0xfef08a, emissive: 0xf59e0b, emissiveIntensity: 0.65, roughness: 0.15 });
 
-  const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.5, 0.08, 20), matBronze);
+  const ped = new THREE.Mesh(
+    getCachedGeo('gswan_ped', () => new THREE.CylinderGeometry(0.46, 0.5, 0.08, 16)),
+    matBronze
+  );
   ped.position.y = 0.04;
   g.add(ped);
 
@@ -1054,7 +1132,10 @@ function buildGoldenSwanCenter3D(): THREE.Group {
   addCurvedSwanPair(swansWrap, matGold, matBeak);
   g.add(swansWrap);
 
-  const orb = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 10), matOrb);
+  const orb = new THREE.Mesh(
+    getCachedGeo('gswan_orb', () => new THREE.SphereGeometry(0.11, 10, 8)),
+    matOrb
+  );
   orb.position.y = 0.25;
   g.add(orb);
   return g;
@@ -1228,9 +1309,12 @@ function addAccessory3D(
   wrap.scale.setScalar(scale);
 
   const matGoldStick = makeMat({ color: 0xfbbf24, metalness: 0.45, roughness: 0.35 });
+  const stickLongGeo = getCachedGeo('acc_stick_long', () => new THREE.CylinderGeometry(0.014, 0.014, 0.62, 6));
+  const stickMidGeo = getCachedGeo('acc_stick_mid', () => new THREE.CylinderGeometry(0.014, 0.014, 0.34, 6));
+  const stickShortGeo = getCachedGeo('acc_stick_short', () => new THREE.CylinderGeometry(0.014, 0.014, 0.24, 6));
 
   if (id === 'sparkler') {
-    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.62, 6), matGoldStick);
+    const stick = new THREE.Mesh(stickLongGeo, matGoldStick);
     stick.position.y = 0.31;
     wrap.add(stick);
 
@@ -1242,9 +1326,10 @@ function addAccessory3D(
       emissiveIntensity: 0.95,
       roughness: 0.2
     });
-    starGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.045, 7, 6), matSpark));
+    starGroup.add(new THREE.Mesh(getCachedGeo('acc_spark_core', () => new THREE.SphereGeometry(0.045, 7, 6)), matSpark));
+    const rayGeo = getCachedGeo('acc_spark_ray', () => new THREE.CylinderGeometry(0.008, 0.008, 0.28, 5));
     for (let i = 0; i < 4; i++) {
-      const ray = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.28, 5), matSpark);
+      const ray = new THREE.Mesh(rayGeo, matSpark);
       ray.rotation.z = (i * Math.PI) / 4;
       ray.rotation.x = (i % 2) * 0.4;
       starGroup.add(ray);
@@ -1253,7 +1338,7 @@ function addAccessory3D(
     anim.sparklers.push(starGroup);
   } else if (id === 'sky_lantern') {
     const cord = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.006, 0.006, 0.46, 5),
+      getCachedGeo('acc_lan_cord', () => new THREE.CylinderGeometry(0.006, 0.006, 0.46, 5)),
       makeMat({ color: 0xd97706, transparent: true, opacity: 0.65 })
     );
     cord.position.y = 0.23;
@@ -1262,7 +1347,7 @@ function addAccessory3D(
     const lanternRoot = new THREE.Group();
     lanternRoot.position.y = 0.54;
     const body = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.11, 0.08, 0.24, 10),
+      getCachedGeo('acc_lan_body', () => new THREE.CylinderGeometry(0.11, 0.08, 0.24, 10)),
       makeMat({
         color: 0xfb923c,
         emissive: 0xf97316,
@@ -1272,7 +1357,7 @@ function addAccessory3D(
     );
     lanternRoot.add(body);
     const flameDot = new THREE.Mesh(
-      new THREE.SphereGeometry(0.032, 6, 6),
+      getCachedGeo('acc_lan_dot', () => new THREE.SphereGeometry(0.032, 6, 6)),
       makeMat({ color: 0xfffbeb, emissive: 0xfef08a, emissiveIntensity: 1.0 })
     );
     flameDot.position.y = -0.09;
@@ -1280,7 +1365,7 @@ function addAccessory3D(
     wrap.add(lanternRoot);
     anim.lanterns.push({ root: lanternRoot, baseY: 0.54 });
   } else if (id === 'heart_sign') {
-    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.34, 6), matGoldStick);
+    const stick = new THREE.Mesh(stickMidGeo, matGoldStick);
     stick.position.y = 0.17;
     wrap.add(stick);
 
@@ -1292,31 +1377,31 @@ function addAccessory3D(
     heart.position.y = 0.42;
     wrap.add(heart);
   } else if (id === 'grad_cap') {
-    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.34, 6), matGoldStick);
+    const stick = new THREE.Mesh(stickMidGeo, matGoldStick);
     stick.position.y = 0.17;
     wrap.add(stick);
 
     const matCap = makeMat({ color: 0x1c1917, roughness: 0.5 });
-    const skull = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.1, 0.09, 10), matCap);
+    const skull = new THREE.Mesh(getCachedGeo('acc_cap_skull', () => new THREE.CylinderGeometry(0.095, 0.1, 0.09, 10)), matCap);
     skull.position.y = 0.36;
     wrap.add(skull);
 
-    const board = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.025, 0.28), matCap);
+    const board = new THREE.Mesh(getCachedGeo('acc_cap_board', () => new THREE.BoxGeometry(0.28, 0.025, 0.28)), matCap);
     board.position.y = 0.41;
     board.rotation.y = Math.PI / 4;
     wrap.add(board);
 
-    const tassel = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.018, 0.14, 6), matGoldStick);
+    const tassel = new THREE.Mesh(getCachedGeo('acc_cap_tassel', () => new THREE.CylinderGeometry(0.012, 0.018, 0.14, 6)), matGoldStick);
     tassel.position.set(0.14, 0.35, 0.04);
     tassel.rotation.z = 0.2;
     wrap.add(tassel);
   } else if (id === 'lucky_coin') {
-    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.32, 6), matGoldStick);
+    const stick = new THREE.Mesh(stickMidGeo, matGoldStick);
     stick.position.y = 0.16;
     wrap.add(stick);
 
     const coin = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.14, 0.14, 0.036, 16),
+      getCachedGeo('acc_coin_disc', () => new THREE.CylinderGeometry(0.14, 0.14, 0.036, 14)),
       makeMat({ color: 0xf59e0b, metalness: 0.65, roughness: 0.25 })
     );
     coin.rotation.x = Math.PI / 2;
@@ -1324,20 +1409,21 @@ function addAccessory3D(
     wrap.add(coin);
 
     const centerHole = new THREE.Mesh(
-      new THREE.BoxGeometry(0.09, 0.09, 0.046),
+      getCachedGeo('acc_coin_hole', () => new THREE.BoxGeometry(0.09, 0.09, 0.046)),
       makeMat({ color: 0x451a03, roughness: 0.6 })
     );
     centerHole.position.y = 0.40;
     wrap.add(centerHole);
   } else if (id === 'flag_thai') {
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.64, 6), matGoldStick);
+    const pole = new THREE.Mesh(stickLongGeo, matGoldStick);
     pole.position.y = 0.32;
     wrap.add(pole);
 
+    const flagGeo = getCachedGeo('acc_flag_tri', () => new THREE.ConeGeometry(0.055, 0.21, 3));
     const flagColors = [0xf43f5e, 0xfbbf24, 0x10b981];
     flagColors.forEach((col, i) => {
       const flag = new THREE.Mesh(
-        new THREE.ConeGeometry(0.055, 0.21, 3),
+        flagGeo,
         makeMat({ color: col, emissive: col, emissiveIntensity: 0.18, roughness: 0.45 })
       );
       flag.rotation.z = -Math.PI / 2;
@@ -1348,7 +1434,7 @@ function addAccessory3D(
     const bRoot = new THREE.Group();
     bRoot.position.y = 0.56;
 
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.14, 6), matGoldStick);
+    const body = new THREE.Mesh(getCachedGeo('acc_bf_body', () => new THREE.CylinderGeometry(0.014, 0.014, 0.14, 6)), matGoldStick);
     body.rotation.x = Math.PI / 2;
     bRoot.add(body);
 
@@ -1367,7 +1453,7 @@ function addAccessory3D(
       side: THREE.DoubleSide
     });
 
-    const wGeo = new THREE.CircleGeometry(0.09, 8);
+    const wGeo = getCachedGeo('acc_bf_wing', () => new THREE.CircleGeometry(0.09, 8));
     const lTop = new THREE.Mesh(wGeo, matWingBlue);
     lTop.rotation.x = -Math.PI / 2;
     lTop.position.set(-0.085, 0, 0.03);
@@ -1383,14 +1469,14 @@ function addAccessory3D(
     wrap.add(bRoot);
     anim.butterflies.push({ leftWing, rightWing, root: bRoot, baseY: 0.56 });
   } else if (id === 'pumpkin') {
-    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.24, 6), matGoldStick);
+    const stick = new THREE.Mesh(stickShortGeo, matGoldStick);
     stick.position.y = 0.12;
     wrap.add(stick);
     const mini = buildPumpkinBuilding3D(0.42);
     mini.position.y = 0.24;
     wrap.add(mini);
   } else if (id === 'noppamas_crown') {
-    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.24, 6), matGoldStick);
+    const stick = new THREE.Mesh(stickShortGeo, matGoldStick);
     stick.position.y = 0.12;
     wrap.add(stick);
     const mini = buildNoppamasCrown3D();

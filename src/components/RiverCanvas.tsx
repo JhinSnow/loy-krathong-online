@@ -317,7 +317,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
     const fetchRecentKrathongs = async () => {
       try {
         const bounds = boundsRef.current;
-        const maxActive = window.innerWidth < 768 ? 7 : 10;
+        const maxActive = window.innerWidth < 768 ? 5 : 6;
 
         let overrides = getModerationOverrides();
         try {
@@ -483,7 +483,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       }
 
       const isMineItem = data.id === myKrathongId;
-      const maxActive = window.innerWidth < 768 ? 7 : 10;
+      const maxActive = window.innerWidth < 768 ? 5 : 6;
       const isQueueFull = krathongsRef.current.length >= maxActive && pendingQueueRef.current.length >= 60;
 
       // Fast path when 5,000+ krathongs arrive in a burst and queue is already full (skip string allocation for overflow items)
@@ -616,7 +616,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
   // 2. Initialize Warm Night Sky Stars & Sky Lanterns (ทำงานใน Single rAF Loop)
   useEffect(() => {
     const stars: SkyStar[] = [];
-    for (let i = 0; i < 55; i++) {
+    for (let i = 0; i < 32; i++) {
       stars.push({
         xFrac: Math.random(),
         yFrac: Math.random() * 0.86,
@@ -785,8 +785,8 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       water = createRealisticRiverWater({
         width: 90,
         depth: 44,
-        reflectionWidth: w < 768 ? 224 : 384,
-        reflectionHeight: w < 768 ? 128 : 192,
+        reflectionWidth: w < 768 ? 192 : 224,
+        reflectionHeight: w < 768 ? 112 : 112,
         isCircularPond: false,
         hasReflection: true,
         isPreview: false
@@ -831,6 +831,8 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
     let isRunning = false;
     let frameCount = 0;
     let reflectionDirty = true;
+    let currentDpr = 1.0;
+    let reflSkip = 4;
 
     const updateLayoutAndCamera = () => {
       w = Math.max(1, window.innerWidth);
@@ -869,8 +871,8 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       water.mesh.position.set(0, 0, zHorizon + 22 - 0.1);
       water.setShoreZ(zHorizon);
 
-      const maxDpr = w < 768 ? 1.25 : 1.5;
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxDpr));
+      currentDpr = Math.min(window.devicePixelRatio || 1, 1.0);
+      renderer.setPixelRatio(currentDpr);
       renderer.setSize(w, h);
     };
 
@@ -1073,6 +1075,9 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
     let elapsedSec = 0;
     let lastQueueReleaseSec = 0;
     let autoFwCooldown = 2.6;
+    let skyAccumDtNorm = 0;
+    let govSampleCount = 0;
+    let govAccumMs = 0;
     const projVec = new THREE.Vector3();
 
     const shouldPause = () => isDisposed || document.hidden || overlayPausedRef.current;
@@ -1084,10 +1089,27 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         return;
       }
 
-      const rawDt = Math.min(0.08, Math.max(0.001, (now - lastTime) / 1000));
+      const deltaMs = now - lastTime;
+      const rawDt = Math.min(0.08, Math.max(0.001, deltaMs / 1000));
       const dtNorm = rawDt * 60;
       lastTime = now;
       elapsedSec += rawDt;
+
+      // Adaptive 60 FPS Quality Governor: ปรับลด PixelRatio อัตโนมัติหากเฟรมเรตต่ำกว่า 59 FPS
+      if (deltaMs > 4 && deltaMs < 120 && renderer) {
+        govAccumMs += deltaMs;
+        govSampleCount++;
+        if (govSampleCount >= 18) {
+          const avgFrameMs = govAccumMs / govSampleCount;
+          govAccumMs = 0;
+          govSampleCount = 0;
+          if (avgFrameMs > 16.9 && currentDpr > 0.72) {
+            currentDpr = Math.max(0.72, Number((currentDpr - 0.10).toFixed(2)));
+            renderer.setPixelRatio(currentDpr);
+            reflSkip = 6;
+          }
+        }
+      }
 
       autoFwCooldown -= rawDt;
       if (autoFwCooldown <= 0) {
@@ -1095,18 +1117,26 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         autoFwCooldown = 2.8 + Math.random() * 2.5;
       }
 
-      // วาดท้องฟ้ายามค่ำคืนโทนอุ่น
-      renderWarmNightSky(dtNorm);
+      const isReflectionFrame = frameCount === 0 || reflectionDirty || frameCount % reflSkip === 0;
+
+      // สลับเฟรมวาดท้องฟ้า 2D (30Hz) ไม่ให้ชนกับเฟรมที่เรนเดอร์ 3D Planar Reflection
+      skyAccumDtNorm += dtNorm;
+      if (frameCount === 0 || (!isReflectionFrame && frameCount % 2 === 1)) {
+        renderWarmNightSky(skyAccumDtNorm);
+        skyAccumDtNorm = 0;
+      }
 
       if (renderer && scene && camera && water && krathongContainer) {
         let labelListDirty = false;
-        const maxActive = w < 768 ? 7 : 10;
+        const maxActive = w < 768 ? 5 : 6;
 
-        // 1. รับกระทงใหม่เข้าฉาก
-        while (sceneAddQueueRef.current.length > 0) {
+        // 1. รับกระทงใหม่เข้าฉากทีละ 1 ใบต่อเฟรม (ป้องกัน Frame Spike เมื่อมีกระทงเข้าพร้อมกัน 5,000 ใบ)
+        if (sceneAddQueueRef.current.length > 0 && sceneEntriesRef.current.length < maxActive) {
           const nextItem = sceneAddQueueRef.current.shift()!;
           addKrathongEntryToScene(nextItem);
           labelListDirty = true;
+        } else if (sceneAddQueueRef.current.length > maxActive) {
+          sceneAddQueueRef.current.length = maxActive;
         }
 
         // 2. ปล่อยจากคิว หรือเติมกระทงตัวอย่างเริ่มต้นให้ครบ 3 ใบ
@@ -1249,9 +1279,9 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
           syncLabelItems();
         }
 
-        // 5. อัปเดต Shader ผิวน้ำ + เรนเดอร์ Planar Reflection (ซ่อนกลีบดอกไม้เล็กๆ ระหว่างวาดเงาสะท้อนเพื่อลด Draw Calls)
+        // 5. อัปเดต Shader ผิวน้ำ + เรนเดอร์ Planar Reflection (สลับเฟรมกับ 2D Sky Canvas เพื่อล็อก 60 FPS)
         water.update(elapsedSec);
-        if (frameCount === 0 || reflectionDirty || frameCount % 3 === 0) {
+        if (isReflectionFrame) {
           if (petalInst) petalInst.visible = false;
           water.renderReflection(renderer, scene, camera);
           if (petalInst) petalInst.visible = true;
