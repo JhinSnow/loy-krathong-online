@@ -223,8 +223,8 @@ export const openOfficialA4ReportPrintView = (
     * { box-sizing: border-box; }
     body {
       font-family: 'IBM Plex Sans Thai Looped', sans-serif;
-      color: #0f172a;
-      background: #f1f5f9;
+      color: #231912;
+      background: #fdfaf4;
       margin: 0;
       padding: 20px;
       font-size: 12px;
@@ -236,21 +236,27 @@ export const openOfficialA4ReportPrintView = (
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: #0f172a;
-      color: #fff;
+      gap: 12px;
+      background: #fffbeb;
+      color: #231912;
+      border: 1px solid rgba(120, 53, 15, 0.16);
       padding: 10px 18px;
       border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(35, 25, 18, 0.06);
     }
     .toolbar button {
       background: #f59e0b;
-      color: #0f172a;
-      border: none;
+      color: #231912;
+      border: 1px solid rgba(217, 119, 6, 0.45);
       padding: 8px 16px;
       border-radius: 8px;
       font-family: 'IBM Plex Sans Thai Looped', sans-serif;
       font-weight: 700;
       font-size: 13px;
       cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
     .a4-page {
       max-width: 210mm;
@@ -330,8 +336,14 @@ export const openOfficialA4ReportPrintView = (
 </head>
 <body>
   <div class="toolbar">
-    <span>📄 รายงานสรุปผลขนาดมาตรฐาน A4 (พร้อมแนบเล่มสรุปโครงการ)</span>
-    <button onclick="window.print()">🖨️ พิมพ์รายงาน / บันทึกเป็น PDF (A4)</button>
+    <span style="display:inline-flex;align-items:center;gap:6px;font-weight:700;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+      <span>รายงานสรุปผลขนาดมาตรฐาน A4 (พร้อมแนบเล่มสรุปโครงการ)</span>
+    </span>
+    <button onclick="window.print()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg>
+      <span>พิมพ์รายงาน / บันทึกเป็น PDF (A4)</span>
+    </button>
   </div>
 
   <div class="a4-page">

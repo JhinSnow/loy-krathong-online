@@ -72,19 +72,19 @@ export const PSU_FACULTIES: readonly string[] = [
   'คณะวิศวกรรมศาสตร์',
   'คณะวิทยาศาสตร์',
   'คณะแพทยศาสตร์',
-  'คณะเภสัชศาสตร์',
+  'คณะพยาบาลศาสตร์',
   'คณะวิทยาการจัดการ',
   'คณะทรัพยากรธรรมชาติ',
-  'คณะพยาบาลศาสตร์',
+  'คณะเภสัชศาสตร์',
   'คณะทันตแพทยศาสตร์',
+  'คณะสัตวแพทยศาสตร์',
   'คณะอุตสาหกรรมเกษตร',
-  'คณะนิติศาสตร์',
-  'คณะเศรษฐศาสตร์',
   'คณะศิลปศาสตร์',
+  'คณะเศรษฐศาสตร์',
+  'คณะนิติศาสตร์',
   'คณะการแพทย์แผนไทย',
   'คณะเทคนิคการแพทย์',
-  'คณะสัตวแพทยศาสตร์',
-  'วิทยาลัยนานาชาติ (UIC)',
+  'วิทยาลัยนานาชาติ',
   'วิทยาลัยการคอมพิวเตอร์',
   'บัณฑิตวิทยาลัย',
   'วิทยาเขตปัตตานี / ภูเก็ต / สุราษฎร์ธานี / ตรัง',
@@ -95,19 +95,19 @@ const PSU_FACULTY_CODE_MAP: Record<string, string> = {
   '101': 'คณะวิศวกรรมศาสตร์',
   '102': 'คณะวิทยาศาสตร์',
   '103': 'คณะแพทยศาสตร์',
-  '104': 'คณะเภสัชศาสตร์',
+  '104': 'คณะพยาบาลศาสตร์',
   '105': 'คณะวิทยาการจัดการ',
   '106': 'คณะทรัพยากรธรรมชาติ',
-  '107': 'คณะพยาบาลศาสตร์',
+  '107': 'คณะเภสัชศาสตร์',
   '108': 'คณะทันตแพทยศาสตร์',
-  '109': 'คณะอุตสาหกรรมเกษตร',
-  '110': 'คณะนิติศาสตร์',
-  '111': 'คณะเศรษฐศาสตร์',
-  '112': 'คณะศิลปศาสตร์',
-  '113': 'คณะการแพทย์แผนไทย',
-  '114': 'วิทยาลัยนานาชาติ (UIC)',
+  '109': 'คณะสัตวแพทยศาสตร์',
+  '110': 'คณะอุตสาหกรรมเกษตร',
+  '111': 'คณะศิลปศาสตร์',
+  '112': 'คณะเศรษฐศาสตร์',
+  '113': 'คณะนิติศาสตร์',
+  '114': 'คณะการแพทย์แผนไทย',
   '115': 'คณะเทคนิคการแพทย์',
-  '116': 'คณะสัตวแพทยศาสตร์',
+  '116': 'วิทยาลัยนานาชาติ',
   '120': 'วิทยาลัยการคอมพิวเตอร์'
 };
 
@@ -306,14 +306,16 @@ export function parseEvaluationRow(raw: any, index = 0): ParsedEvaluationRecord 
   }
 
   const avg = Number((scores.reduce((a, b) => a + b, 0) / 10).toFixed(2));
+  const cleanSid = (studentId || '').trim();
+  const derivedFaculty = cleanSid ? guessFacultyFromStudentId(cleanSid) : '';
 
   return {
     id: raw?.id || `eval-${index + 1}`,
     krathong_id: raw?.krathong_id || null,
     user_type: raw?.user_type || 'general',
-    student_id: (studentId || '').trim(),
+    student_id: cleanSid,
     student_name: (studentName || '').trim(),
-    faculty: (faculty || '').trim(),
+    faculty: derivedFaculty || (faculty || '').trim(),
     device_id: (deviceId || '').trim(),
     scores,
     average_score: avg,
@@ -712,7 +714,7 @@ export function buildStudentTranscriptRoster(
     const sid = (rec.student_id || '').trim();
     const did = (rec.device_id || '').trim();
     const resolvedFaculty =
-      (rec.faculty || '').trim() || guessFacultyFromStudentId(sid) || 'ไม่ระบุคณะ';
+      guessFacultyFromStudentId(sid) || (rec.faculty || '').trim() || 'คณะ/หน่วยงานอื่นๆ';
 
     const sharedOnSameDevice = did ? (deviceToStudentIds.get(did)?.size || 0) > 1 : false;
 
@@ -728,7 +730,11 @@ export function buildStudentTranscriptRoster(
         krathong_id: rec.krathong_id || null
       });
     } else {
-      if (existing.faculty === 'ไม่ระบุคณะ' && resolvedFaculty !== 'ไม่ระบุคณะ') {
+      if (
+        (existing.faculty === 'ไม่ระบุคณะ' || existing.faculty === 'คณะ/หน่วยงานอื่นๆ') &&
+        resolvedFaculty !== 'ไม่ระบุคณะ' &&
+        resolvedFaculty !== 'คณะ/หน่วยงานอื่นๆ'
+      ) {
         existing.faculty = resolvedFaculty;
       }
       if (sharedOnSameDevice) {

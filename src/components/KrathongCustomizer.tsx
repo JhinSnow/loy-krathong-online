@@ -1,8 +1,9 @@
 // src/components/KrathongCustomizer.tsx
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { UserType } from '../types';
 import { Krathong3DPreview } from './Krathong3DPreview';
 import { ShareCardModal } from './ShareCardModal';
+import { KrathongItemIcon, PumpkinBuildingIcon } from './KrathongIcons';
 import {
   Sparkles,
   Eye,
@@ -11,10 +12,13 @@ import {
   Volume2,
   VolumeX,
   MessageSquareHeart,
+  MessageCircle,
   RotateCcw,
   Check,
   ArrowLeft,
-  ArrowRight
+  ArrowRight,
+  Flower2,
+  Flame
 } from 'lucide-react';
 import {
   MIN_DECOR_SCALE,
@@ -58,6 +62,150 @@ interface IdeaPreset {
   centerScale?: number;
 }
 
+// 1. ฐานกระทง 8 รูปแบบ
+const BASES = [
+  { id: 'banana_leaf', shortName: 'ใบตอง', name: 'ใบตองดั้งเดิม', swatch: '#65a30d' },
+  { id: 'banana_gold', shortName: 'ยอดฉัตรทอง', name: 'ใบตองยอดฉัตรทอง', swatch: '#047857' },
+  { id: 'lotus', shortName: 'ดอกบัว', name: 'บัวหลวงชมพู', swatch: '#f472b6' },
+  { id: 'lotus_crystal', shortName: 'บัวแก้ว', name: 'บัวแก้วคริสตัล', swatch: '#38bdf8' },
+  { id: 'coconut', shortName: 'กะลา', name: 'กะลารักษ์โลก', swatch: '#78350f' },
+  { id: 'bread', shortName: 'ขนมปัง', name: 'ขนมปังแฟนซี', swatch: '#d97706' },
+  { id: 'ice_swan', shortName: 'หงส์คู่', name: 'น้ำแข็งหงส์คู่', swatch: '#0284c7' },
+  { id: 'peacock_royal', shortName: 'นกยูงทอง', name: 'นกยูงทองคำ', swatch: '#ca8a04' }
+] as const;
+
+// ไอเดียเริ่มต้น (แตะเลือกแล้วแต่งต่อได้ทุกชิ้น)
+const IDEA_PRESETS: IdeaPreset[] = [
+  {
+    id: 'classic',
+    label: 'คลาสสิก',
+    baseType: 'banana_leaf',
+    flowerType: 'lotus_flower',
+    candleColor: 'yellow',
+    accessories: [],
+    centerScale: 1
+  },
+  {
+    id: 'sweet_pink',
+    label: 'หวานชมพู',
+    baseType: 'lotus',
+    flowerType: 'lotus_flower',
+    candleColor: 'pink',
+    accessories: ['heart_sign'],
+    centerScale: 1.05
+  },
+  {
+    id: 'psu_pumpkin',
+    label: 'ตึกฟักทอง ม.อ.',
+    baseType: 'banana_gold',
+    flowerType: 'pumpkin',
+    candleColor: 'yellow',
+    accessories: ['sparkler'],
+    centerScale: 1.1
+  },
+  {
+    id: 'gold_fortune',
+    label: 'ทองมงคล',
+    baseType: 'peacock_royal',
+    flowerType: 'marigold',
+    candleColor: 'yellow',
+    accessories: ['lucky_coin', 'sky_lantern'],
+    centerScale: 1.1
+  },
+  {
+    id: 'eco_natural',
+    label: 'รักษ์โลก',
+    baseType: 'coconut',
+    flowerType: 'jasmine',
+    candleColor: 'emerald',
+    accessories: ['butterfly'],
+    centerScale: 1
+  },
+  {
+    id: 'swan_love',
+    label: 'หงส์คู่รัก',
+    baseType: 'ice_swan',
+    flowerType: 'crystal_heart',
+    candleColor: 'cyan',
+    accessories: ['butterfly'],
+    centerScale: 1.05
+  },
+  {
+    id: 'golden_peacock',
+    label: 'นกยูงทอง',
+    baseType: 'peacock_royal',
+    flowerType: 'gold_pagoda',
+    candleColor: 'yellow',
+    accessories: ['flag_thai'],
+    centerScale: 1
+  },
+  {
+    id: 'bread_fancy',
+    label: 'ขนมปังแฟนซี',
+    baseType: 'bread',
+    flowerType: 'mixed_garland',
+    candleColor: 'orange',
+    accessories: ['sparkler', 'butterfly'],
+    centerScale: 1
+  }
+];
+
+// 2. ดอกไม้ประดับ (8 ชนิด) และของตกแต่งใส่ตรงกลางกระทงแทนดอกไม้ (8 แบบ)
+const FLOWERS: {
+  id: string;
+  name: string;
+  color: string;
+  category: 'flower' | 'centerpiece';
+}[] = [
+  { id: 'lotus_flower', name: 'ดอกบัวชมพู', color: '#f43f5e', category: 'flower' },
+  { id: 'marigold', name: 'ดาวเรืองทอง', color: '#fbbf24', category: 'flower' },
+  { id: 'orchid', name: 'กล้วยไม้ม่วง', color: '#c084fc', category: 'flower' },
+  { id: 'jasmine', name: 'มะลิร้อยมาลัย', color: '#e2e8f0', category: 'flower' },
+  { id: 'rose', name: 'กุหลาบแดง', color: '#e11d48', category: 'flower' },
+  { id: 'dok_kem', name: 'ดอกเข็มส้ม', color: '#fb923c', category: 'flower' },
+  { id: 'anchan', name: 'อัญชันคราม', color: '#6366f1', category: 'flower' },
+  { id: 'mixed_garland', name: 'มาลัย 5 สี', color: '#10b981', category: 'flower' },
+  { id: 'pumpkin', name: 'ตึกฟักทอง ม.อ.', color: '#f59e0b', category: 'centerpiece' },
+  { id: 'noppamas_crown', name: 'ชฎาทองนพมาศ', color: '#fbbf24', category: 'centerpiece' },
+  { id: 'elephant_gold', name: 'ช้างเผือกมงคล', color: '#d97706', category: 'centerpiece' },
+  { id: 'golden_swan', name: 'หงส์ทองคู่บารมี', color: '#eab308', category: 'centerpiece' },
+  { id: 'lotus_lamp', name: 'โคมบัวแก้วทิพย์', color: '#ec4899', category: 'centerpiece' },
+  { id: 'gold_pagoda', name: 'เจดีย์ทองมงคล', color: '#ca8a04', category: 'centerpiece' },
+  { id: 'royal_barge', name: 'เรือสุพรรณหงส์', color: '#b45309', category: 'centerpiece' },
+  { id: 'crystal_heart', name: 'หัวใจเพชรคู่รัก', color: '#e11d48', category: 'centerpiece' }
+];
+
+// 3. แสงเทียนนำทาง 8 สี
+const CANDLES = [
+  { id: 'yellow', name: 'สีทอง (สำเร็จ)', hex: '#fde047' },
+  { id: 'red', name: 'สีแดง (โชคลาภ)', hex: '#f87171' },
+  { id: 'orange', name: 'สีส้ม (รุ่งเรือง)', hex: '#fb923c' },
+  { id: 'cyan', name: 'สีฟ้า (สงบสุข)', hex: '#38bdf8' },
+  { id: 'pink', name: 'สีชมพู (ความรัก)', hex: '#f472b6' },
+  { id: 'emerald', name: 'สีเขียว (สุขภาพ)', hex: '#34d399' },
+  { id: 'purple', name: 'สีม่วง (ปัญญา)', hex: '#c084fc' },
+  { id: 'rainbow', name: 'เทียนคู่สายรุ้ง', hex: '#ec4899' }
+] as const;
+
+// 4. ของตกแต่งเสริมพิเศษปักรอบกระทง 8 แบบ
+const ACCESSORIES = [
+  { id: 'sparkler', name: 'ไฟเย็นระยิบ' },
+  { id: 'sky_lantern', name: 'โคมลอยล้านนา' },
+  { id: 'heart_sign', name: 'หัวใจคู่รัก' },
+  { id: 'grad_cap', name: 'หมวกปริญญา A+' },
+  { id: 'lucky_coin', name: 'เหรียญทองนำโชค' },
+  { id: 'flag_thai', name: 'ธงราวงานวัด' },
+  { id: 'butterfly', name: 'ผีเสื้อแสงจันทร์' },
+  { id: 'none', name: 'ธูปเทียนปกติ' }
+] as const;
+
+const QUICK_WISHES = [
+  'ขอขมาพระแม่คงคา ขอให้เกรด 4.00 ทุกวิชา สมหวังทุกประการ',
+  'ขอให้สุขภาพแข็งแรง การงานก้าวหน้า เงินทองไหลมาเทมา',
+  'ขอให้เจอความรักที่ดี มีความสุขตลอดปีและตลอดไป',
+  'ขอให้ทุกข์โศกโรคภัยลอยไปกับสายน้ำ มีแต่รอยยิ้มและความสำเร็จ'
+] as const;
+
 export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
   onBackToRiver,
   onNavigateWishes,
@@ -74,160 +222,22 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
   const [selectedAccessories, setSelectedAccessories] = useState<string[]>([]);
   const [centerScale, setCenterScale] = useState<number>(1);
   const [accessoryScales, setAccessoryScales] = useState<Record<string, number>>({});
+  const [previewPulseNonce, setPreviewPulseNonce] = useState<number>(0);
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [showShareModal, setShowShareModal] = useState(false);
   const [isAudioPlaying, setIsAudioPlaying] = useState<boolean>(() => soundManager.isAudioEnabled());
 
+  const bodyScrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    bodyScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [wizardStep]);
+
   const handleToggleAudio = () => {
     setIsAudioPlaying(soundManager.toggleAudio());
   };
-
-  // 1. ฐานกระทง 8 รูปแบบ
-  const bases = [
-    { id: 'banana_leaf', shortName: 'ใบตอง', name: 'ใบตองดั้งเดิม', icon: '🍃', swatch: '#65a30d' },
-    { id: 'banana_gold', shortName: 'ยอดฉัตรทอง', name: 'ใบตองยอดฉัตรทอง', icon: '👑', swatch: '#047857' },
-    { id: 'lotus', shortName: 'ดอกบัว', name: 'บัวหลวงชมพู', icon: '🪷', swatch: '#f472b6' },
-    { id: 'lotus_crystal', shortName: 'บัวแก้ว', name: 'บัวแก้วคริสตัล', icon: '💎', swatch: '#38bdf8' },
-    { id: 'coconut', shortName: 'กะลา', name: 'กะลารักษ์โลก', icon: '🥥', swatch: '#78350f' },
-    { id: 'bread', shortName: 'ขนมปัง', name: 'ขนมปังแฟนซี', icon: '🍞', swatch: '#d97706' },
-    { id: 'ice_swan', shortName: 'หงส์คู่', name: 'น้ำแข็งหงส์คู่', icon: '🦢', swatch: '#7dd3fc' },
-    { id: 'peacock_royal', shortName: 'นกยูงทอง', name: 'นกยูงทองคำ', icon: '🦚', swatch: '#ca8a04' }
-  ];
-
-  // ไอเดียเริ่มต้น (แตะเลือกแล้วแต่งต่อได้ทุกชิ้น ตามภาพตัวอย่างที่ 4)
-  const ideaPresets: IdeaPreset[] = [
-    {
-      id: 'classic',
-      label: 'คลาสสิก',
-      baseType: 'banana_leaf',
-      flowerType: 'lotus_flower',
-      candleColor: 'yellow',
-      accessories: [],
-      centerScale: 1
-    },
-    {
-      id: 'sweet_pink',
-      label: 'หวานชมพู',
-      baseType: 'lotus',
-      flowerType: 'lotus_flower',
-      candleColor: 'pink',
-      accessories: ['heart_sign'],
-      centerScale: 1.05
-    },
-    {
-      id: 'psu_pumpkin',
-      label: 'ตึกฟักทอง ม.อ.',
-      baseType: 'banana_gold',
-      flowerType: 'pumpkin',
-      candleColor: 'yellow',
-      accessories: ['sparkler'],
-      centerScale: 1.1
-    },
-    {
-      id: 'gold_fortune',
-      label: 'ทองมงคล',
-      baseType: 'peacock_royal',
-      flowerType: 'marigold',
-      candleColor: 'yellow',
-      accessories: ['lucky_coin', 'sky_lantern'],
-      centerScale: 1.1
-    },
-    {
-      id: 'eco_natural',
-      label: 'รักษ์โลก',
-      baseType: 'coconut',
-      flowerType: 'jasmine',
-      candleColor: 'emerald',
-      accessories: ['butterfly'],
-      centerScale: 1
-    },
-    {
-      id: 'swan_love',
-      label: 'หงส์คู่รัก',
-      baseType: 'ice_swan',
-      flowerType: 'crystal_heart',
-      candleColor: 'cyan',
-      accessories: ['butterfly'],
-      centerScale: 1.05
-    },
-    {
-      id: 'golden_peacock',
-      label: 'นกยูงทอง',
-      baseType: 'peacock_royal',
-      flowerType: 'gold_pagoda',
-      candleColor: 'yellow',
-      accessories: ['flag_thai'],
-      centerScale: 1
-    },
-    {
-      id: 'bread_fancy',
-      label: 'ขนมปังแฟนซี',
-      baseType: 'bread',
-      flowerType: 'mixed_garland',
-      candleColor: 'orange',
-      accessories: ['sparkler', 'butterfly'],
-      centerScale: 1
-    }
-  ];
-
-  // 2. ดอกไม้ประดับ (8 ชนิด) และของตกแต่งใส่ตรงกลางกระทงแทนดอกไม้ (8 แบบ)
-  const flowers: {
-    id: string;
-    name: string;
-    color: string;
-    icon: string;
-    category: 'flower' | 'centerpiece';
-  }[] = [
-    { id: 'lotus_flower', name: 'ดอกบัวชมพู', color: '#f43f5e', icon: '🪷', category: 'flower' },
-    { id: 'marigold', name: 'ดาวเรืองทอง', color: '#fbbf24', icon: '🌼', category: 'flower' },
-    { id: 'orchid', name: 'กล้วยไม้ม่วง', color: '#c084fc', icon: '🌺', category: 'flower' },
-    { id: 'jasmine', name: 'มะลิร้อยมาลัย', color: '#e2e8f0', icon: '🤍', category: 'flower' },
-    { id: 'rose', name: 'กุหลาบแดง', color: '#e11d48', icon: '🌹', category: 'flower' },
-    { id: 'dok_kem', name: 'ดอกเข็มส้ม', color: '#fb923c', icon: '🏵️', category: 'flower' },
-    { id: 'anchan', name: 'อัญชันคราม', color: '#6366f1', icon: '🪻', category: 'flower' },
-    { id: 'mixed_garland', name: 'มาลัย 5 สี', color: '#10b981', icon: '💐', category: 'flower' },
-    { id: 'pumpkin', name: 'ตึกฟักทอง ม.อ.', color: '#f59e0b', icon: '🏛️', category: 'centerpiece' },
-    { id: 'noppamas_crown', name: 'ชฎาทองนพมาศ', color: '#fbbf24', icon: '👑', category: 'centerpiece' },
-    { id: 'elephant_gold', name: 'ช้างเผือกมงคล', color: '#fde68a', icon: '🐘', category: 'centerpiece' },
-    { id: 'golden_swan', name: 'หงส์ทองคู่บารมี', color: '#fde047', icon: '🦢', category: 'centerpiece' },
-    { id: 'lotus_lamp', name: 'โคมบัวแก้วทิพย์', color: '#f472b6', icon: '🪷', category: 'centerpiece' },
-    { id: 'gold_pagoda', name: 'เจดีย์ทองมงคล', color: '#eab308', icon: '🛕', category: 'centerpiece' },
-    { id: 'royal_barge', name: 'เรือสุพรรณหงส์', color: '#d97706', icon: '🛶', category: 'centerpiece' },
-    { id: 'crystal_heart', name: 'หัวใจเพชรคู่รัก', color: '#ec4899', icon: '💎', category: 'centerpiece' }
-  ];
-
-  // 3. แสงเทียนนำทาง 8 สี
-  const candles = [
-    { id: 'yellow', name: 'สีทอง (สำเร็จ)', hex: '#fde047' },
-    { id: 'red', name: 'สีแดง (โชคลาภ)', hex: '#f87171' },
-    { id: 'orange', name: 'สีส้ม (รุ่งเรือง)', hex: '#fb923c' },
-    { id: 'cyan', name: 'สีฟ้า (สงบสุข)', hex: '#38bdf8' },
-    { id: 'pink', name: 'สีชมพู (ความรัก)', hex: '#f472b6' },
-    { id: 'emerald', name: 'สีเขียว (สุขภาพ)', hex: '#34d399' },
-    { id: 'purple', name: 'สีม่วง (ปัญญา)', hex: '#c084fc' },
-    { id: 'rainbow', name: 'เทียนคู่สายรุ้ง', hex: '#ec4899' }
-  ];
-
-  // 4. ของตกแต่งเสริมพิเศษปักรอบกระทง 8 แบบ
-  const accessories = [
-    { id: 'sparkler', name: 'ไฟเย็นระยิบ', icon: '✨' },
-    { id: 'sky_lantern', name: 'โคมลอยล้านนา', icon: '🏮' },
-    { id: 'heart_sign', name: 'หัวใจคู่รัก', icon: '💖' },
-    { id: 'grad_cap', name: 'หมวกปริญญา A+', icon: '🎓' },
-    { id: 'lucky_coin', name: 'เหรียญทองนำโชค', icon: '🪙' },
-    { id: 'flag_thai', name: 'ธงราวงานวัด', icon: '🎏' },
-    { id: 'butterfly', name: 'ผีเสื้อแสงจันทร์', icon: '🦋' },
-    { id: 'none', name: 'ธูปเทียนปกติ', icon: '🕯️' }
-  ];
-
-  const quickWishes = [
-    'ขอขมาพระแม่คงคา ขอให้เกรด 4.00 ทุกวิชา สมหวังทุกประการ ✨',
-    'ขอให้สุขภาพแข็งแรง การงานก้าวหน้า เงินทองไหลมาเทมา 🌕',
-    'ขอให้เจอความรักที่ดี มีความสุขตลอดปีและตลอดไป 💖',
-    'ขอให้ทุกข์โศกโรคภัยลอยไปกับสายน้ำ มีแต่รอยยิ้มและความสำเร็จ 🪷'
-  ];
 
   const handleApplyIdeaPreset = (preset: IdeaPreset) => {
     setBaseType(preset.baseType);
@@ -236,6 +246,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
     setSelectedAccessories(preset.accessories);
     setCenterScale(preset.centerScale ?? 1);
     setAccessoryScales({});
+    setPreviewPulseNonce((n) => n + 1);
   };
 
   const handleToggleAccessory = (accId: string) => {
@@ -254,16 +265,17 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
   };
 
   const handleRandomizeDesign = () => {
-    setBaseType(bases[Math.floor(Math.random() * bases.length)].id);
-    setFlowerType(flowers[Math.floor(Math.random() * flowers.length)].id);
-    setCandleColor(candles[Math.floor(Math.random() * candles.length)].id);
+    setBaseType(BASES[Math.floor(Math.random() * BASES.length)].id);
+    setFlowerType(FLOWERS[Math.floor(Math.random() * FLOWERS.length)].id);
+    setCandleColor(CANDLES[Math.floor(Math.random() * CANDLES.length)].id);
     setCenterScale(1);
     setAccessoryScales({});
 
-    const decorPool = accessories.filter((a) => a.id !== 'none').map((a) => a.id);
+    const decorPool = ACCESSORIES.filter((a) => a.id !== 'none').map((a) => a.id);
     const shuffled = [...decorPool].sort(() => 0.5 - Math.random());
     const pickCount = Math.floor(Math.random() * 3) + 1;
     setSelectedAccessories(shuffled.slice(0, pickCount));
+    setPreviewPulseNonce((n) => n + 1);
   };
 
   const combinedCandleValue = encodeCandleConfig(
@@ -449,10 +461,11 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
           candleColor={combinedCandleValue}
           fullBleed
           paused={showShareModal || isOverlayOpen}
+          pulseNonce={previewPulseNonce}
         />
 
-        {/* มุมบนซ้าย: โลโก้ผู้จัดงาน + ชื่อเทศกาลแบบแคปซูลครีมอุ่น */}
-        <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-20 flex items-center gap-2 bg-[#fdfaf4]/92 backdrop-blur-sm px-2.5 sm:px-3 py-1.5 rounded-2xl border border-amber-900/15 shadow-md text-[#231912]">
+        {/* มุมบนซ้าย: โลโก้ผู้จัดงาน + ชื่อเทศกาลแบบแคปซูลครีมอุ่น (ไม่ใช้ backdrop-blur ทับ WebGL) */}
+        <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-20 flex items-center gap-2 bg-[#fdfaf4]/95 px-2.5 sm:px-3 py-1.5 rounded-2xl border border-amber-900/15 shadow-md text-[#231912]">
           <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#241911] flex items-center justify-center p-1 shrink-0">
             <img
               src="/logo-final-notext-white.png"
@@ -475,7 +488,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
           <button
             type="button"
             onClick={onBackToRiver}
-            className="px-2.5 py-1.5 rounded-full bg-[#fdfaf4]/92 hover:bg-white text-[#231912] border border-amber-900/15 shadow-md text-[11px] sm:text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
+            className="px-2.5 py-1.5 rounded-full bg-[#fdfaf4]/95 hover:bg-white text-[#231912] border border-amber-900/15 shadow-md text-[11px] sm:text-xs font-semibold flex items-center gap-1 transition-all duration-150 active:scale-95 cursor-pointer"
           >
             <Eye className="w-3.5 h-3.5 text-amber-700 shrink-0" />
             <span>สายน้ำ</span>
@@ -484,7 +497,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
           <button
             type="button"
             onClick={onNavigateWishes}
-            className="px-2.5 py-1.5 rounded-full bg-[#fdfaf4]/92 hover:bg-white text-[#231912] border border-amber-900/15 shadow-md text-[11px] sm:text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
+            className="px-2.5 py-1.5 rounded-full bg-[#fdfaf4]/95 hover:bg-white text-[#231912] border border-amber-900/15 shadow-md text-[11px] sm:text-xs font-semibold flex items-center gap-1 transition-all duration-150 active:scale-95 cursor-pointer"
           >
             <MessageSquareHeart className="w-3.5 h-3.5 text-amber-700 shrink-0" />
             <span className="hidden sm:inline">คำอวยพร</span>
@@ -495,10 +508,10 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
             onClick={handleToggleAudio}
             title={isAudioPlaying ? 'ปิดเสียงเพลงเปียโน' : 'เปิดเสียงเพลงลอยกระทง (เปียโน)'}
             aria-label={isAudioPlaying ? 'ปิดเสียงเพลงเปียโน' : 'เปิดเสียงเพลงลอยกระทง (เปียโน)'}
-            className={`px-2.5 py-1.5 rounded-full border shadow-md text-[11px] sm:text-xs font-semibold flex items-center gap-1 transition cursor-pointer ${
+            className={`px-2.5 py-1.5 rounded-full border shadow-md text-[11px] sm:text-xs font-semibold flex items-center gap-1 transition-all duration-150 active:scale-95 cursor-pointer ${
               isAudioPlaying
                 ? 'bg-amber-100 border-amber-500 text-[#231912]'
-                : 'bg-[#fdfaf4]/92 hover:bg-white border-amber-900/15 text-[#231912]'
+                : 'bg-[#fdfaf4]/95 hover:bg-white border-amber-900/15 text-[#231912]'
             }`}
           >
             {isAudioPlaying ? (
@@ -512,7 +525,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
           <button
             type="button"
             onClick={() => setShowShareModal(true)}
-            className="px-2.5 py-1.5 rounded-full bg-[#fdfaf4]/92 hover:bg-white text-[#231912] border border-amber-900/15 shadow-md text-[11px] sm:text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
+            className="px-2.5 py-1.5 rounded-full bg-[#fdfaf4]/95 hover:bg-white text-[#231912] border border-amber-900/15 shadow-md text-[11px] sm:text-xs font-semibold flex items-center gap-1 transition-all duration-150 active:scale-95 cursor-pointer"
           >
             <ImageIcon className="w-3.5 h-3.5 text-amber-700 shrink-0" />
             <span className="hidden sm:inline">การ์ด</span>
@@ -520,7 +533,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
         </div>
       </div>
 
-      {/* ฝั่งขวา (เดสก์ท็อป) / ด้านล่าง (มือถือ): แผงควบคุมครีมอุ่น 3 ขั้นตอนตามภาพตัวอย่างที่ 4 */}
+      {/* ฝั่งขวา (เดสก์ท็อป) / ด้านล่าง (มือถือ): แผงควบคุมครีมอุ่น 3 ขั้นตอน */}
       <div className="w-full flex-1 md:flex-none md:w-[395px] lg:w-[425px] md:h-full bg-[#fdfaf4] text-[#231912] rounded-t-3xl md:rounded-none -mt-3 md:mt-0 relative z-20 flex flex-col overflow-hidden shadow-2xl border-t md:border-t-0 md:border-l border-amber-900/15">
         {/* แถบ Progress Tabs 3 ขั้นตอนปักหมุดด้านบน */}
         <div className="px-4 pt-3.5 pb-2.5 border-b border-amber-900/10 bg-[#fdfaf4] shrink-0">
@@ -536,14 +549,14 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
                   key={step.id}
                   type="button"
                   onClick={() => setWizardStep(step.id as WizardStep)}
-                  className={`py-2 px-2 rounded-2xl border text-center transition cursor-pointer flex flex-col items-center justify-center ${
+                  className={`py-2 px-2 rounded-2xl border text-center transition-all duration-150 active:scale-95 cursor-pointer flex flex-col items-center justify-center ${
                     isActive
                       ? 'bg-[#241911] text-[#fffbeb] border-[#241911] shadow-sm'
-                      : 'bg-white text-[#574536] border-amber-900/12 hover:border-amber-600/40'
+                      : 'bg-white text-[#574536] border-amber-900/12 hover:border-amber-600/40 hover:bg-amber-50/40'
                   }`}
                 >
                   <span
-                    className={`w-5 h-5 rounded-full text-[11px] font-bold flex items-center justify-center mb-0.5 ${
+                    className={`w-5 h-5 rounded-full text-[11px] font-bold flex items-center justify-center mb-0.5 transition-colors ${
                       isActive ? 'bg-amber-400 text-[#241911]' : 'bg-[#f4ecdd] text-[#574536]'
                     }`}
                   >
@@ -558,16 +571,16 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
 
         {/* ฟอร์มเนื้อหาแบ่ง 3 ขั้นตอน (Scrollable Body + Sticky Action Footer) */}
         <form onSubmit={handleFloatSubmit} className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 space-y-5">
+          <div ref={bodyScrollRef} className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 space-y-5">
             {errorMsg && (
-              <div className="p-2.5 bg-rose-50 border border-rose-300 rounded-xl text-rose-700 text-xs font-semibold text-center">
+              <div className="p-2.5 bg-rose-50 border border-rose-300 rounded-xl text-rose-700 text-xs font-semibold text-center animate-ui-step">
                 {errorMsg}
               </div>
             )}
 
             {/* ---------------- STEP 1: เลือกฐาน + เริ่มจากไอเดีย + สุ่มให้หน่อย ---------------- */}
             {wizardStep === 'base' && (
-              <div className="space-y-5">
+              <div key="step-base" className="space-y-5 animate-ui-step">
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <h2 className="text-sm font-extrabold text-[#231912]">1. เลือกฐานกระทง (8 สไตล์)</h2>
@@ -577,29 +590,29 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
                   </p>
 
                   <div className="grid grid-cols-4 gap-2">
-                    {bases.map((b) => {
+                    {BASES.map((b) => {
                       const isSelected = baseType === b.id;
                       return (
                         <button
                           key={b.id}
                           type="button"
                           onClick={() => setBaseType(b.id)}
-                          className={`relative p-2 rounded-2xl border bg-white text-center transition flex flex-col items-center justify-center cursor-pointer ${
+                          className={`relative p-2 rounded-2xl border bg-white text-center transition-all duration-150 active:scale-95 flex flex-col items-center justify-center cursor-pointer ${
                             isSelected
-                              ? 'ring-2 ring-[#241911] border-[#241911] shadow-sm'
-                              : 'border-amber-900/12 hover:border-amber-600/45'
+                              ? 'ring-2 ring-[#241911] border-[#241911] shadow-sm bg-[#fffdf7]'
+                              : 'border-amber-900/12 hover:border-amber-600/45 hover:bg-amber-50/35'
                           }`}
                         >
                           {isSelected && (
-                            <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[#241911] text-[#fffbeb] flex items-center justify-center shadow">
+                            <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[#241911] text-[#fffbeb] flex items-center justify-center shadow animate-ui-fade">
                               <Check className="w-3 h-3" />
                             </span>
                           )}
                           <div
-                            className="w-10 h-10 rounded-xl flex items-center justify-center text-xl mb-1 border border-amber-900/10"
-                            style={{ backgroundColor: `${b.swatch}1a` }}
+                            className="w-10 h-10 rounded-xl flex items-center justify-center mb-1 border border-amber-900/10"
+                            style={{ backgroundColor: `${b.swatch}1a`, color: b.swatch }}
                           >
-                            {b.icon}
+                            <KrathongItemIcon id={b.id} className="w-5 h-5" />
                           </div>
                           <span className="text-[11px] font-bold text-[#2a1f16] leading-tight line-clamp-1">
                             {b.shortName}
@@ -610,13 +623,13 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
                   </div>
                 </div>
 
-                {/* เริ่มจากไอเดีย (8 Presets ตามภาพตัวอย่างที่ 4) */}
+                {/* เริ่มจากไอเดีย (8 Presets) */}
                 <div className="pt-2 border-t border-amber-900/10">
                   <h3 className="text-base font-extrabold text-[#231912]">เริ่มจากไอเดีย</h3>
                   <p className="text-[11px] text-[#7c5d3a] mb-3">แตะแล้วแต่งต่อได้ทุกชิ้น</p>
 
                   <div className="grid grid-cols-2 gap-2">
-                    {ideaPresets.map((preset) => {
+                    {IDEA_PRESETS.map((preset) => {
                       const isMatch =
                         baseType === preset.baseType &&
                         flowerType === preset.flowerType &&
@@ -626,7 +639,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
                           key={preset.id}
                           type="button"
                           onClick={() => handleApplyIdeaPreset(preset)}
-                          className={`py-2.5 px-3 rounded-xl border text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                          className={`py-2.5 px-3 rounded-xl border text-xs font-semibold transition-all duration-150 active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer ${
                             isMatch
                               ? 'bg-[#241911] text-[#fffbeb] border-[#241911] shadow-sm'
                               : 'bg-white hover:bg-amber-50/75 border-amber-900/12 text-[#2a1f16] shadow-2xs'
@@ -642,7 +655,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
                     <button
                       type="button"
                       onClick={handleRandomizeDesign}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white hover:bg-amber-50 border border-amber-900/20 text-xs font-semibold text-[#2a1f16] shadow-2xs transition active:scale-95 cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white hover:bg-amber-50 border border-amber-900/20 text-xs font-semibold text-[#2a1f16] shadow-2xs transition-all duration-150 active:scale-95 cursor-pointer"
                     >
                       <Dices className="w-3.5 h-3.5 text-amber-700" />
                       <span>สุ่มให้หน่อย</span>
@@ -654,70 +667,71 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
 
             {/* ---------------- STEP 2: แต่งดอกไม้ / ตึกฟักทอง / เทียน / ของเสริม + สไลเดอร์ขนาด ---------------- */}
             {wizardStep === 'decor' && (
-              <div className="space-y-5">
+              <div key="step-decor" className="space-y-5 animate-ui-step">
                 {/* ดอกไม้ประดับกลางกระทง */}
                 <div>
-                  <label className="block text-xs font-bold text-[#231912] mb-2">
-                    🌸 ดอกไม้ประดับกลางกระทง (8 ชนิด)
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-[#231912] mb-2">
+                    <Flower2 className="w-4 h-4 text-amber-700 shrink-0" />
+                    <span>ดอกไม้ประดับกลางกระทง (8 ชนิด)</span>
                   </label>
                   <div className="grid grid-cols-2 gap-1.5">
-                    {flowers
-                      .filter((fl) => fl.category === 'flower')
-                      .map((fl) => {
-                        const isSelected = flowerType === fl.id;
-                        return (
-                          <button
-                            key={fl.id}
-                            type="button"
-                            onClick={() => setFlowerType(fl.id)}
-                            className={`py-2 px-2.5 rounded-xl border text-xs font-semibold transition flex items-center gap-2 cursor-pointer ${
-                              isSelected
-                                ? 'bg-[#241911] text-[#fffbeb] border-[#241911] shadow-sm'
-                                : 'bg-white hover:bg-amber-50/70 border-amber-900/12 text-[#2a1f16]'
-                            }`}
-                          >
-                            <span
-                              className="w-3 h-3 rounded-full shrink-0 border border-black/15"
-                              style={{
-                                background:
-                                  fl.id === 'mixed_garland'
-                                    ? 'conic-gradient(#fbbf24, #f43f5e, #c084fc, #38bdf8, #34d399)'
-                                    : fl.color
-                              }}
-                            />
-                            <span className="truncate">{fl.name}</span>
-                          </button>
-                        );
-                      })}
+                    {FLOWERS.filter((fl) => fl.category === 'flower').map((fl) => {
+                      const isSelected = flowerType === fl.id;
+                      return (
+                        <button
+                          key={fl.id}
+                          type="button"
+                          onClick={() => setFlowerType(fl.id)}
+                          className={`py-2 px-2.5 rounded-xl border text-xs font-semibold transition-all duration-150 active:scale-95 flex items-center gap-2 cursor-pointer ${
+                            isSelected
+                              ? 'bg-[#241911] text-[#fffbeb] border-[#241911] shadow-sm'
+                              : 'bg-white hover:bg-amber-50/70 border-amber-900/12 text-[#2a1f16]'
+                          }`}
+                        >
+                          <span
+                            className="w-3 h-3 rounded-full shrink-0 border border-black/15"
+                            style={{
+                              background:
+                                fl.id === 'mixed_garland'
+                                  ? 'conic-gradient(#fbbf24, #f43f5e, #c084fc, #38bdf8, #34d399)'
+                                  : fl.color
+                            }}
+                          />
+                          <span className="truncate">{fl.name}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
                 {/* ของตกแต่งกลางกระทงแทนดอกไม้ (รวมตึกฟักทอง ม.อ.) */}
                 <div>
-                  <label className="block text-xs font-bold text-[#231912] mb-2">
-                    🏛️ ของตกแต่งใส่ตรงกลางกระทง แทนดอกไม้ (8 แบบ)
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-[#231912] mb-2">
+                    <PumpkinBuildingIcon className="w-4 h-4 text-amber-700 shrink-0" />
+                    <span>ของตกแต่งใส่ตรงกลางกระทง แทนดอกไม้ (8 แบบ)</span>
                   </label>
                   <div className="grid grid-cols-2 gap-1.5">
-                    {flowers
-                      .filter((fl) => fl.category === 'centerpiece')
-                      .map((fl) => {
-                        const isSelected = flowerType === fl.id;
-                        return (
-                          <button
-                            key={fl.id}
-                            type="button"
-                            onClick={() => setFlowerType(fl.id)}
-                            className={`py-2 px-2.5 rounded-xl border text-xs font-semibold transition flex items-center gap-2 cursor-pointer ${
-                              isSelected
-                                ? 'bg-[#241911] text-[#fffbeb] border-[#241911] shadow-sm'
-                                : 'bg-white hover:bg-amber-50/70 border-amber-900/12 text-[#2a1f16]'
-                            }`}
-                          >
-                            <span className="text-sm shrink-0">{fl.icon}</span>
-                            <span className="truncate">{fl.name}</span>
-                          </button>
-                        );
-                      })}
+                    {FLOWERS.filter((fl) => fl.category === 'centerpiece').map((fl) => {
+                      const isSelected = flowerType === fl.id;
+                      return (
+                        <button
+                          key={fl.id}
+                          type="button"
+                          onClick={() => setFlowerType(fl.id)}
+                          className={`py-2 px-2.5 rounded-xl border text-xs font-semibold transition-all duration-150 active:scale-95 flex items-center gap-2 cursor-pointer ${
+                            isSelected
+                              ? 'bg-[#241911] text-[#fffbeb] border-[#241911] shadow-sm'
+                              : 'bg-white hover:bg-amber-50/70 border-amber-900/12 text-[#2a1f16]'
+                          }`}
+                        >
+                          <KrathongItemIcon
+                            id={fl.id}
+                            className={`w-4 h-4 shrink-0 ${isSelected ? 'text-amber-300' : 'text-amber-700'}`}
+                          />
+                          <span className="truncate">{fl.name}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -735,7 +749,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
                         <button
                           type="button"
                           onClick={() => setCenterScale(1)}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white hover:bg-amber-50 border border-amber-900/20 text-[10px] font-semibold text-[#2a1f16] cursor-pointer"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white hover:bg-amber-50 border border-amber-900/20 text-[10px] font-semibold text-[#2a1f16] transition active:scale-95 cursor-pointer"
                         >
                           <RotateCcw className="w-2.5 h-2.5" />
                           <span>รีเซ็ต</span>
@@ -762,18 +776,19 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
 
                 {/* แสงเทียนนำทาง */}
                 <div>
-                  <label className="block text-xs font-bold text-[#231912] mb-2">
-                    🕯️ แสงเทียนนำทาง (8 สีมงคล)
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-[#231912] mb-2">
+                    <Flame className="w-4 h-4 text-amber-700 shrink-0" />
+                    <span>แสงเทียนนำทาง (8 สีมงคล)</span>
                   </label>
                   <div className="grid grid-cols-2 gap-1.5">
-                    {candles.map((cd) => {
+                    {CANDLES.map((cd) => {
                       const isSelected = candleColor === cd.id;
                       return (
                         <button
                           key={cd.id}
                           type="button"
                           onClick={() => setCandleColor(cd.id)}
-                          className={`py-2 px-2.5 rounded-xl border text-xs font-semibold transition flex items-center gap-2 cursor-pointer ${
+                          className={`py-2 px-2.5 rounded-xl border text-xs font-semibold transition-all duration-150 active:scale-95 flex items-center gap-2 cursor-pointer ${
                             isSelected
                               ? 'bg-[#241911] text-[#fffbeb] border-[#241911] shadow-sm'
                               : 'bg-white hover:bg-amber-50/70 border-amber-900/12 text-[#2a1f16]'
@@ -798,8 +813,12 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
                 {/* ของตกแต่งเสริมพิเศษปักรอบกระทง */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-xs font-bold text-[#231912]">
-                      ✨ ของตกแต่งเสริมรอบกระทง <span className="font-normal text-[#7c5d3a]">(เลือกได้หลายชิ้น)</span>
+                    <label className="flex items-center gap-1.5 text-xs font-bold text-[#231912]">
+                      <Sparkles className="w-4 h-4 text-amber-700 shrink-0" />
+                      <span>
+                        ของตกแต่งเสริมรอบกระทง{' '}
+                        <span className="font-normal text-[#7c5d3a]">(เลือกได้หลายชิ้น)</span>
+                      </span>
                     </label>
                     {selectedAccessories.length > 0 && (
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-400/50 font-bold">
@@ -808,7 +827,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
                     )}
                   </div>
                   <div className="grid grid-cols-2 gap-1.5">
-                    {accessories.map((acc) => {
+                    {ACCESSORIES.map((acc) => {
                       const isSelected =
                         acc.id === 'none'
                           ? selectedAccessories.length === 0
@@ -818,13 +837,16 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
                           key={acc.id}
                           type="button"
                           onClick={() => handleToggleAccessory(acc.id)}
-                          className={`py-2 px-2.5 rounded-xl border text-xs font-semibold transition flex items-center gap-2 cursor-pointer ${
+                          className={`py-2 px-2.5 rounded-xl border text-xs font-semibold transition-all duration-150 active:scale-95 flex items-center gap-2 cursor-pointer ${
                             isSelected
                               ? 'bg-[#241911] text-[#fffbeb] border-[#241911] shadow-sm'
                               : 'bg-white hover:bg-amber-50/70 border-amber-900/12 text-[#2a1f16]'
                           }`}
                         >
-                          <span className="text-sm">{acc.icon}</span>
+                          <KrathongItemIcon
+                            id={acc.id}
+                            className={`w-4 h-4 shrink-0 ${isSelected ? 'text-amber-300' : 'text-amber-700'}`}
+                          />
                           <span className="truncate">{acc.name}</span>
                         </button>
                       );
@@ -833,7 +855,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
 
                   {/* ตัวปรับขนาดของตกแต่งเสริมแต่ละชิ้นแยกกัน (60%-160%) */}
                   {selectedAccessories.length > 0 && (
-                    <div className="mt-3 p-3 rounded-2xl bg-[#f4ecdd] border border-amber-900/12 space-y-2.5">
+                    <div className="mt-3 p-3 rounded-2xl bg-[#f4ecdd] border border-amber-900/12 space-y-2.5 animate-ui-step">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-bold text-[#2a1f16]">
                           ปรับขนาดของตกแต่งเสริมรายชิ้น:
@@ -841,7 +863,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
                         <button
                           type="button"
                           onClick={() => setAccessoryScales({})}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white hover:bg-amber-50 border border-amber-900/20 text-[10px] font-semibold text-[#2a1f16] cursor-pointer"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white hover:bg-amber-50 border border-amber-900/20 text-[10px] font-semibold text-[#2a1f16] transition active:scale-95 cursor-pointer"
                         >
                           <RotateCcw className="w-2.5 h-2.5" />
                           <span>รีเซ็ตทั้งหมด</span>
@@ -849,13 +871,14 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
                       </div>
                       <div className="space-y-2">
                         {selectedAccessories.map((accId) => {
-                          const info = accessories.find((a) => a.id === accId);
+                          const info = ACCESSORIES.find((a) => a.id === accId);
                           const currentScale = accessoryScales[accId] ?? 1;
                           return (
                             <div key={accId} className="space-y-1">
                               <div className="flex items-center justify-between text-[11px]">
-                                <span className="text-[#231912] font-semibold">
-                                  {info?.icon || '✨'} {info?.name || accId}
+                                <span className="inline-flex items-center gap-1.5 text-[#231912] font-semibold">
+                                  <KrathongItemIcon id={accId} className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                                  <span>{info?.name || accId}</span>
                                 </span>
                                 <div className="flex items-center gap-2">
                                   <span className="font-extrabold text-amber-800 tabular-nums">
@@ -896,7 +919,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
 
             {/* ---------------- STEP 3: เขียนชื่อ คำอวยพร & ปล่อยกระทง ---------------- */}
             {wizardStep === 'float' && (
-              <div className="space-y-4">
+              <div key="step-float" className="space-y-4 animate-ui-step">
                 <div>
                   <h2 className="text-sm font-extrabold text-[#231912] mb-1">
                     3. เขียนคำอธิษฐานและปล่อยกระทง
@@ -921,7 +944,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
                         key={type.id}
                         type="button"
                         onClick={() => setUserType(type.id as UserType)}
-                        className={`py-2 px-1 text-xs font-semibold rounded-xl border transition text-center truncate cursor-pointer ${
+                        className={`py-2 px-1 text-xs font-semibold rounded-xl border transition-all duration-150 active:scale-95 text-center truncate cursor-pointer ${
                           userType === type.id
                             ? 'bg-[#241911] border-[#241911] text-[#fffbeb] shadow-sm'
                             : 'bg-white border-amber-900/15 text-[#574536] hover:border-amber-600/45'
@@ -967,14 +990,15 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
 
                   {/* คำอธิษฐานด่วน */}
                   <div className="flex flex-wrap gap-1.5">
-                    {quickWishes.map((w, idx) => (
+                    {QUICK_WISHES.map((w, idx) => (
                       <button
                         key={idx}
                         type="button"
                         onClick={() => setWishMessage(w)}
-                        className="text-[10px] px-2.5 py-1 rounded-full bg-white hover:bg-amber-50 text-[#574536] border border-amber-900/15 transition truncate max-w-full cursor-pointer"
+                        className="inline-flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full bg-white hover:bg-amber-50 text-[#574536] border border-amber-900/15 transition active:scale-95 truncate max-w-full cursor-pointer"
                       >
-                        💬 {w.slice(0, 32)}...
+                        <MessageCircle className="w-3 h-3 text-amber-700 shrink-0" />
+                        <span className="truncate">{w.slice(0, 32)}...</span>
                       </button>
                     ))}
                   </div>
@@ -986,24 +1010,29 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
                     {ownerName || 'ชื่อของคุณจะปรากฏที่นี่'}
                   </p>
                   <p className="text-xs text-stone-800 italic break-words line-clamp-2">
-                    "{wishMessage || 'คำขอขมาพระแม่คงคาหรือคำอธิษฐาน...'}"
+                    &ldquo;{wishMessage || 'คำขอขมาพระแม่คงคาหรือคำอธิษฐาน...'}&rdquo;
                   </p>
                   <div className="flex flex-wrap items-center justify-center gap-1 pt-1">
-                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-900 border border-amber-300/70 font-semibold">
-                      {bases.find((b) => b.id === baseType)?.icon} {bases.find((b) => b.id === baseType)?.shortName}
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-900 border border-amber-300/70 font-semibold">
+                      <KrathongItemIcon id={baseType} className="w-3 h-3 text-amber-800 shrink-0" />
+                      <span>{BASES.find((b) => b.id === baseType)?.shortName}</span>
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-900 border border-amber-300/70 font-semibold">
-                      {flowers.find((f) => f.id === flowerType)?.icon || '🌸'} {flowers.find((f) => f.id === flowerType)?.name}
-                      {Math.abs(centerScale - 1) >= 0.01 ? ` ${Math.round(centerScale * 100)}%` : ''}
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-900 border border-amber-300/70 font-semibold">
+                      <KrathongItemIcon id={flowerType} className="w-3 h-3 text-amber-800 shrink-0" />
+                      <span>
+                        {FLOWERS.find((f) => f.id === flowerType)?.name}
+                        {Math.abs(centerScale - 1) >= 0.01 ? ` ${Math.round(centerScale * 100)}%` : ''}
+                      </span>
                     </span>
                     {selectedAccessories.map((accId) => {
-                      const info = accessories.find((a) => a.id === accId);
+                      const info = ACCESSORIES.find((a) => a.id === accId);
                       return info ? (
                         <span
                           key={accId}
-                          className="px-2 py-0.5 rounded-full text-[10px] bg-amber-50 text-amber-800 border border-amber-300/60"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-amber-50 text-amber-800 border border-amber-300/60"
                         >
-                          {info.icon} {info.name}
+                          <KrathongItemIcon id={accId} className="w-3 h-3 text-amber-700 shrink-0" />
+                          <span>{info.name}</span>
                         </span>
                       ) : null;
                     })}
@@ -1019,7 +1048,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
               <button
                 type="button"
                 onClick={() => setWizardStep('decor')}
-                className="w-full py-3 rounded-2xl bg-[#241911] hover:bg-[#38271a] text-[#fffbeb] font-bold text-sm flex items-center justify-center gap-2 shadow-md transition active:scale-[0.99] cursor-pointer"
+                className="w-full py-3 rounded-2xl bg-[#241911] hover:bg-[#38271a] text-[#fffbeb] font-bold text-sm flex items-center justify-center gap-2 shadow-md transition-all duration-150 active:scale-[0.98] cursor-pointer"
               >
                 <span>ต่อไป: แต่งกระทง</span>
                 <ArrowRight className="w-4 h-4" />
@@ -1031,7 +1060,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
                 <button
                   type="button"
                   onClick={() => setWizardStep('base')}
-                  className="px-4 py-3 rounded-2xl bg-white hover:bg-amber-50 border border-amber-900/20 text-[#3e2e22] font-semibold text-xs sm:text-sm flex items-center gap-1 transition cursor-pointer shrink-0"
+                  className="px-4 py-3 rounded-2xl bg-white hover:bg-amber-50 border border-amber-900/20 text-[#3e2e22] font-semibold text-xs sm:text-sm flex items-center gap-1 transition-all duration-150 active:scale-[0.98] cursor-pointer shrink-0"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span>ย้อนกลับ</span>
@@ -1039,7 +1068,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
                 <button
                   type="button"
                   onClick={() => setWizardStep('float')}
-                  className="flex-1 py-3 rounded-2xl bg-[#241911] hover:bg-[#38271a] text-[#fffbeb] font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md transition active:scale-[0.99] cursor-pointer"
+                  className="flex-1 py-3 rounded-2xl bg-[#241911] hover:bg-[#38271a] text-[#fffbeb] font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md transition-all duration-150 active:scale-[0.98] cursor-pointer"
                 >
                   <span>ต่อไป: เขียนคำอธิษฐาน & ลอย</span>
                   <ArrowRight className="w-4 h-4" />
@@ -1052,7 +1081,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
                 <button
                   type="button"
                   onClick={() => setWizardStep('decor')}
-                  className="px-4 py-3 rounded-2xl bg-white hover:bg-amber-50 border border-amber-900/20 text-[#3e2e22] font-semibold text-xs sm:text-sm flex items-center gap-1 transition cursor-pointer shrink-0"
+                  className="px-4 py-3 rounded-2xl bg-white hover:bg-amber-50 border border-amber-900/20 text-[#3e2e22] font-semibold text-xs sm:text-sm flex items-center gap-1 transition-all duration-150 active:scale-[0.98] cursor-pointer shrink-0"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span>ย้อนกลับ</span>
@@ -1060,10 +1089,10 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-stone-950 font-extrabold text-sm flex items-center justify-center gap-2 shadow-md border border-amber-300/70 transition active:scale-[0.99] cursor-pointer disabled:opacity-60"
+                  className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-[#231912] font-extrabold text-sm flex items-center justify-center gap-2 shadow-md border border-amber-600/25 transition-all duration-150 active:scale-[0.98] cursor-pointer disabled:opacity-60"
                 >
-                  <Sparkles className="w-4 h-4 text-stone-900" />
-                  <span>{loading ? 'กำลังส่งข้อมูล...' : 'ปล่อยกระทงลงน้ำ 🌊'}</span>
+                  <Sparkles className="w-4 h-4 text-[#231912]" />
+                  <span>{loading ? 'กำลังส่งข้อมูล...' : 'ปล่อยกระทงลงน้ำ'}</span>
                 </button>
               </div>
             )}

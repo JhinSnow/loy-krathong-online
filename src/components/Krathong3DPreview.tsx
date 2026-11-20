@@ -25,6 +25,7 @@ interface Krathong3DPreviewProps {
   compact?: boolean;
   fullBleed?: boolean;
   paused?: boolean;
+  pulseNonce?: number;
 }
 
 type CameraPreset = 'angled' | 'top';
@@ -57,7 +58,8 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
   candleColor,
   compact = false,
   fullBleed = false,
-  paused = false
+  paused = false,
+  pulseNonce = 0
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [webglReady] = useState<boolean>(() => isWebGLAvailable());
@@ -83,6 +85,8 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
   const pausedRef = useRef<boolean>(paused);
   const reflectionDirtyRef = useRef<boolean>(true);
   const resumeLoopRef = useRef<(() => void) | null>(null);
+  const pulseStartRef = useRef<number | null>(null);
+  const prevPulseNonceRef = useRef<number>(pulseNonce);
 
   // ตั้งค่า Three.js Scene + Rippling Water + Floating Leaves/Blooms + OrbitControls
   useEffect(() => {
@@ -275,6 +279,19 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
         kGroup.position.y = Math.sin(elapsedSec * 2.0) * 0.018;
         kGroup.rotation.z = Math.sin(elapsedSec * 1.4) * 0.016;
         kGroup.rotation.x = Math.cos(elapsedSec * 1.6) * 0.012;
+
+        if (pulseStartRef.current !== null) {
+          const t = Math.min(1, (now - pulseStartRef.current) / 520);
+          const easeOut = 1 - (1 - t) ** 3;
+          kGroup.rotation.y = Math.PI * 0.55 * easeOut * (1 - t * 0.15) * (t < 1 ? Math.sin(t * Math.PI) : 0);
+          const pulseScale = 1 + Math.sin(t * Math.PI) * 0.065;
+          kGroup.scale.setScalar(pulseScale);
+          if (t >= 1) {
+            pulseStartRef.current = null;
+            kGroup.rotation.y = 0;
+            kGroup.scale.setScalar(1);
+          }
+        }
       }
 
       for (let i = 0; i < leafPositions.length; i++) {
@@ -422,6 +439,16 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
     reflectionDirtyRef.current = true;
   }, [parsedCandle]);
 
+  // แอนิเมชันตอบสนองแบบหมุนนุ่ม+เด้งเบาๆ เมื่อเลือกไอเดียหรือสุ่มกระทงใหม่
+  useEffect(() => {
+    if (pulseNonce > 0 && pulseNonce !== prevPulseNonceRef.current) {
+      pulseStartRef.current = performance.now();
+      reflectionDirtyRef.current = true;
+      resumeLoopRef.current?.();
+    }
+    prevPulseNonceRef.current = pulseNonce;
+  }, [pulseNonce]);
+
   const handleToggleCameraView = () => {
     const nextMode: CameraPreset = viewMode === 'angled' ? 'top' : 'angled';
     setViewMode(nextMode);
@@ -457,7 +484,7 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
       {/* แคปซูลแนะนำการหมุนตรงกลางล่าง (ตามภาพตัวอย่างที่ 4) */}
       {!compact && (
         <span
-          className={`pointer-events-none px-3.5 py-1.5 rounded-full text-[11px] font-medium bg-[#fdfaf4]/92 text-[#2a1f16] border border-amber-900/15 shadow-md z-10 whitespace-nowrap ${
+          className={`pointer-events-none px-3.5 py-1.5 rounded-full text-[11px] font-medium bg-[#fdfaf4]/95 text-[#2a1f16] border border-amber-900/15 shadow-md z-10 whitespace-nowrap ${
             fullBleed
               ? 'hidden sm:inline-flex absolute bottom-4 left-1/2 -translate-x-1/2'
               : 'absolute bottom-2 left-2.5'
@@ -478,7 +505,7 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
             : fullBleed
               ? 'bottom-4 right-3 sm:right-4 px-3 py-1.5 text-[11px] font-semibold'
               : 'bottom-2 right-2 px-2.5 py-1 text-[11px]'
-        } flex items-center space-x-1.5 rounded-full bg-[#fdfaf4]/92 hover:bg-white text-[#2a1f16] border border-amber-900/15 shadow-md transition cursor-pointer z-10`}
+        } flex items-center space-x-1.5 rounded-full bg-[#fdfaf4]/95 hover:bg-white text-[#2a1f16] border border-amber-900/15 shadow-md transition-all duration-150 active:scale-95 cursor-pointer z-10`}
       >
         <Rotate3D className={compact ? 'w-2.5 h-2.5 text-amber-700' : 'w-3.5 h-3.5 text-amber-700'} />
         <span>{compact ? (viewMode === 'angled' ? 'บน' : '3D') : viewMode === 'angled' ? 'มุมตรงด้านบน' : 'มุมเอียง 3D'}</span>

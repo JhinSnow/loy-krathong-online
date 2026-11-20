@@ -19,7 +19,8 @@ import {
   Image as ImageIcon,
   Leaf,
   Download,
-  MessageSquareHeart
+  MessageSquareHeart,
+  X
 } from 'lucide-react';
 import { supabase } from '../utils/supabase';
 import { containsProfanity, sanitizeInputText } from '../utils/security';
@@ -131,6 +132,14 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
     justFloatedRef.current = justFloated;
   }, [justFloated]);
 
+  const myKrathongIdRef = useRef<string | null | undefined>(myKrathongId);
+  useEffect(() => {
+    myKrathongIdRef.current = myKrathongId;
+  }, [myKrathongId]);
+
+  const overlayPausedRef = useRef<boolean>(false);
+  const resumeLoopRef = useRef<(() => void) | null>(null);
+
   const boundsRef = useRef<RiverBounds>({
     zHorizon: -18,
     zFar: -11,
@@ -183,6 +192,13 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
     return () => window.clearTimeout(timer);
   }, [launchNoticeKrathong]);
 
+  useEffect(() => {
+    overlayPausedRef.current = Boolean(selectedKrathong || shareCardKrathong);
+    if (!overlayPausedRef.current) {
+      resumeLoopRef.current?.();
+    }
+  }, [selectedKrathong, shareCardKrathong]);
+
   // จุดพลุโทนทอง-อุ่นบนท้องฟ้าเหนือแนวตึกฟักทอง
   const spawnFireworkBurst = useCallback((customX?: number, customY?: number) => {
     const winW = typeof window !== 'undefined' ? window.innerWidth : 1200;
@@ -222,21 +238,21 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
     const sampleBots = [
       {
         name: 'น้องฟ้า',
-        wish: 'ขอให้ปีนี้สมหวังทุกประการ และครอบครัวมีแต่ความสุขค่ะ 🌸',
+        wish: 'ขอให้ปีนี้สมหวังทุกประการ และครอบครัวมีแต่ความสุขค่ะ',
         base: 'lotus',
         flower: 'lotus_flower',
         candle: 'pink|sparkler'
       },
       {
         name: 'พี่โชคดี',
-        wish: 'ขอขมาพระแม่คงคา กิจการรุ่งเรือง สุขภาพแข็งแรง 🌕',
+        wish: 'ขอขมาพระแม่คงคา กิจการรุ่งเรือง สุขภาพแข็งแรง',
         base: 'banana_leaf',
         flower: 'lotus_flower',
         candle: 'yellow'
       },
       {
         name: 'ชมรมอนุรักษ์',
-        wish: 'สืบสานประเพณีไทย รักษ์สายน้ำ Zero-Waste 100% 🪷',
+        wish: 'สืบสานประเพณีไทย รักษ์สายน้ำ Zero-Waste 100%',
         base: 'banana_gold',
         flower: 'pumpkin',
         candle: 'emerald|flag_thai,butterfly'
@@ -615,11 +631,59 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
     let w = Math.max(1, window.innerWidth);
     let h = Math.max(1, window.innerHeight);
 
+    let cachedSkyGrad: CanvasGradient | null = null;
+    let cachedHaloGrad: CanvasGradient | null = null;
+    let cachedMoonX = 0;
+    let cachedMoonY = 0;
+    let cachedMoonR = 0;
+
+    // Pre-render offscreen sky lantern sprite once so renderLoop uses fast drawImage instead of per-frame radial gradients
+    const lanternSprite = typeof document !== 'undefined' ? document.createElement('canvas') : null;
+    if (lanternSprite) {
+      lanternSprite.width = 64;
+      lanternSprite.height = 64;
+      const lCtx = lanternSprite.getContext('2d');
+      if (lCtx) {
+        const lg = lCtx.createRadialGradient(32, 32, 2, 32, 32, 30);
+        lg.addColorStop(0, '#fffbeb');
+        lg.addColorStop(0.45, '#f59e0b');
+        lg.addColorStop(1, 'rgba(245, 158, 11, 0)');
+        lCtx.fillStyle = lg;
+        lCtx.beginPath();
+        lCtx.arc(32, 32, 30, 0, Math.PI * 2);
+        lCtx.fill();
+
+        lCtx.fillStyle = '#f97316';
+        lCtx.fillRect(26.5, 24.5, 11, 13.5);
+      }
+    }
+
     const syncSkyCanvasSize = () => {
-      if (!skyCanvas) return;
+      if (!skyCanvas || !skyCtx) return;
       const skyH = Math.max(120, Math.ceil(h * 0.39));
       skyCanvas.width = w;
       skyCanvas.height = skyH;
+
+      cachedSkyGrad = skyCtx.createLinearGradient(0, 0, 0, skyH);
+      cachedSkyGrad.addColorStop(0.0, '#120b06');
+      cachedSkyGrad.addColorStop(0.48, '#24160b');
+      cachedSkyGrad.addColorStop(0.84, '#362312');
+      cachedSkyGrad.addColorStop(1.0, '#221810');
+
+      cachedMoonX = w * 0.82;
+      cachedMoonY = skyH * 0.34;
+      cachedMoonR = Math.min(w, h) * 0.045;
+      cachedHaloGrad = skyCtx.createRadialGradient(
+        cachedMoonX,
+        cachedMoonY,
+        cachedMoonR * 0.4,
+        cachedMoonX,
+        cachedMoonY,
+        cachedMoonR * 3.6
+      );
+      cachedHaloGrad.addColorStop(0, 'rgba(254, 240, 138, 0.55)');
+      cachedHaloGrad.addColorStop(0.45, 'rgba(245, 158, 11, 0.20)');
+      cachedHaloGrad.addColorStop(1, 'rgba(245, 158, 11, 0)');
     };
 
     if (renderer && mount) {
@@ -693,10 +757,16 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       return cam.position.z + rayDir.z * t;
     };
 
+    let isDisposed = false;
+    let isRunning = false;
+    let frameCount = 0;
+    let reflectionDirty = true;
+
     const updateLayoutAndCamera = () => {
       w = Math.max(1, window.innerWidth);
       h = Math.max(1, window.innerHeight);
       syncSkyCanvasSize();
+      reflectionDirty = true;
 
       if (!renderer || !camera || !water) return;
 
@@ -782,7 +852,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
     const addKrathongEntryToScene = (item: KrathongItem) => {
       if (!krathongContainer) return;
       if (sceneEntriesRef.current.some((e) => e.item.id === item.id)) return;
-      const isMine = Boolean(item.isMine || item.id === myKrathongId);
+      const isMine = Boolean(item.isMine || item.id === myKrathongIdRef.current);
       const { group, anim } = buildKrathong3D({
         baseType: item.base_type,
         flowerType: item.flower_type,
@@ -834,16 +904,12 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       const sh = skyCanvas.height;
 
       // ท้องฟ้ายามค่ำคืนโทนอุ่นสีน้ำตาลทองนวล (กลมกลืนไร้แถบน้ำตาลขอบล่าง)
-      const skyGrad = skyCtx.createLinearGradient(0, 0, 0, sh);
-      skyGrad.addColorStop(0.0, '#120b06');
-      skyGrad.addColorStop(0.48, '#24160b');
-      skyGrad.addColorStop(0.84, '#362312');
-      skyGrad.addColorStop(1.0, '#221810');
-      skyCtx.fillStyle = skyGrad;
+      skyCtx.fillStyle = cachedSkyGrad || '#120b06';
       skyCtx.fillRect(0, 0, sw, sh);
 
-      // ดวงดาวระยิบระยับสีทองนวล
+      // ดวงดาวระยิบระยับสีทองนวล (ใช้ fillStyle คงที่และปรับ globalAlpha แทนการสร้างสตริงใหม่ทุกเฟรม)
       const stars = starsRef.current;
+      skyCtx.fillStyle = '#fef3c7';
       for (let i = 0; i < stars.length; i++) {
         const s = stars[i];
         s.alpha += s.delta * dtNorm;
@@ -854,59 +920,47 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
           s.alpha = 0.2;
           s.delta = Math.abs(s.delta);
         }
-        skyCtx.fillStyle = `rgba(254, 243, 199, ${s.alpha.toFixed(2)})`;
+        skyCtx.globalAlpha = s.alpha;
         skyCtx.beginPath();
         skyCtx.arc(s.xFrac * sw, s.yFrac * sh, s.size, 0, Math.PI * 2);
         skyCtx.fill();
       }
+      skyCtx.globalAlpha = 1;
 
-      // พระจันทร์วันเพ็ญสีเหลืองทองนวล + แสงรัศมีอุ่น
-      const moonX = sw * 0.82;
-      const moonY = sh * 0.34;
-      const moonR = Math.min(sw, h) * 0.045;
-      const haloGrad = skyCtx.createRadialGradient(moonX, moonY, moonR * 0.4, moonX, moonY, moonR * 3.6);
-      haloGrad.addColorStop(0, 'rgba(254, 240, 138, 0.55)');
-      haloGrad.addColorStop(0.45, 'rgba(245, 158, 11, 0.20)');
-      haloGrad.addColorStop(1, 'rgba(245, 158, 11, 0)');
-      skyCtx.fillStyle = haloGrad;
-      skyCtx.beginPath();
-      skyCtx.arc(moonX, moonY, moonR * 3.6, 0, Math.PI * 2);
-      skyCtx.fill();
+      // พระจันทร์วันเพ็ญสีเหลืองทองนวล + แสงรัศมีอุ่น (Cached Gradient)
+      if (cachedHaloGrad) {
+        skyCtx.fillStyle = cachedHaloGrad;
+        skyCtx.beginPath();
+        skyCtx.arc(cachedMoonX, cachedMoonY, cachedMoonR * 3.6, 0, Math.PI * 2);
+        skyCtx.fill();
+      }
 
       skyCtx.fillStyle = '#fef3c7';
       skyCtx.beginPath();
-      skyCtx.arc(moonX, moonY, moonR, 0, Math.PI * 2);
+      skyCtx.arc(cachedMoonX, cachedMoonY, cachedMoonR, 0, Math.PI * 2);
       skyCtx.fill();
 
-      // โคมลอยสีทองอุ่นบนท้องฟ้า
+      // โคมลอยสีทองอุ่นบนท้องฟ้า (วาดจาก Offscreen Sprite ลด save/restore & createRadialGradient)
       const lanterns = lanternsRef.current;
-      for (let i = 0; i < lanterns.length; i++) {
-        const l = lanterns[i];
-        l.yFrac -= l.speedY * 0.016 * dtNorm;
-        l.xFrac += l.driftX * 0.016 * dtNorm;
-        if (l.yFrac < -0.1) {
-          l.yFrac = 1.05;
-          l.xFrac = Math.random();
+      if (lanternSprite) {
+        for (let i = 0; i < lanterns.length; i++) {
+          const l = lanterns[i];
+          l.yFrac -= l.speedY * 0.016 * dtNorm;
+          l.xFrac += l.driftX * 0.016 * dtNorm;
+          if (l.yFrac < -0.1) {
+            l.yFrac = 1.05;
+            l.xFrac = Math.random();
+          }
+          const lx = l.xFrac * sw;
+          const ly = l.yFrac * sh;
+          const drawSize = l.size * 2.4;
+          skyCtx.globalAlpha = l.alpha;
+          skyCtx.drawImage(lanternSprite, lx - drawSize * 0.5, ly - drawSize * 0.5, drawSize, drawSize);
         }
-        const lx = l.xFrac * sw;
-        const ly = l.yFrac * sh;
-        skyCtx.save();
-        skyCtx.globalAlpha = l.alpha;
-        const lg = skyCtx.createRadialGradient(lx, ly, 1, lx, ly, l.size * 1.15);
-        lg.addColorStop(0, '#fffbeb');
-        lg.addColorStop(0.45, '#f59e0b');
-        lg.addColorStop(1, 'rgba(245, 158, 11, 0)');
-        skyCtx.fillStyle = lg;
-        skyCtx.beginPath();
-        skyCtx.arc(lx, ly, l.size * 1.15, 0, Math.PI * 2);
-        skyCtx.fill();
-
-        skyCtx.fillStyle = '#f97316';
-        skyCtx.fillRect(lx - l.size * 0.22, ly - l.size * 0.3, l.size * 0.44, l.size * 0.52);
-        skyCtx.restore();
+        skyCtx.globalAlpha = 1;
       }
 
-      // พลุโทนเหลืองทอง-ส้ม-ชมพูบนท้องฟ้า
+      // พลุโทนเหลืองทอง-ส้ม-ชมพูบนท้องฟ้า (ไม่เรียก save/restore ต่ออนุภาค)
       const fws = fireworksRef.current;
       let fwWrite = 0;
       for (let i = 0; i < fws.length; i++) {
@@ -917,14 +971,13 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         p.alpha -= p.decay * dtNorm;
         if (p.alpha <= 0.02 || p.y > sh * 1.1) continue;
         fws[fwWrite++] = p;
-        skyCtx.save();
         skyCtx.globalAlpha = p.alpha;
         skyCtx.fillStyle = p.color;
         skyCtx.beginPath();
         skyCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         skyCtx.fill();
-        skyCtx.restore();
       }
+      skyCtx.globalAlpha = 1;
       fws.length = fwWrite;
     };
 
@@ -935,12 +988,15 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
     let autoFwCooldown = 2.6;
     const projVec = new THREE.Vector3();
 
-    const handleVisibilityChange = () => {
-      if (!document.hidden) lastTime = performance.now();
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    const shouldPause = () => isDisposed || document.hidden || overlayPausedRef.current;
 
     const renderLoop = (now: number) => {
+      if (shouldPause()) {
+        isRunning = false;
+        animId = 0;
+        return;
+      }
+
       const rawDt = Math.min(0.08, Math.max(0.001, (now - lastTime) / 1000));
       const dtNorm = rawDt * 60;
       lastTime = now;
@@ -1013,7 +1069,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
           petalInst.instanceMatrix.needsUpdate = true;
         }
 
-        // 4. อัปเดตกระทง 3D และป้ายคำอวยพรโปร่งแสงโทนอุ่น
+        // 4. อัปเดตกระทง 3D และป้ายคำอวยพร
         const bounds = boundsRef.current;
         const entries = sceneEntriesRef.current;
         let writeIdx = 0;
@@ -1084,22 +1140,46 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         entries.length = writeIdx;
 
         if (labelListDirty) {
+          reflectionDirty = true;
           syncLabelItems();
         }
 
-        // 5. อัปเดต Shader ผิวน้ำ + เรนเดอร์ Planar Reflection + เรนเดอร์ฉาก
+        // 5. อัปเดต Shader ผิวน้ำ + เรนเดอร์ Planar Reflection ที่ 30Hz (ลดภาระ GPU ลงครึ่งหนึ่ง)
         water.update(elapsedSec);
-        water.renderReflection(renderer, scene, camera);
+        if (frameCount === 0 || reflectionDirty || frameCount % 2 === 0) {
+          water.renderReflection(renderer, scene, camera);
+          reflectionDirty = false;
+        }
+        frameCount++;
         renderer.render(scene, camera);
       }
 
       animId = requestAnimationFrame(renderLoop);
     };
 
-    animId = requestAnimationFrame(renderLoop);
+    const resumeLoop = () => {
+      if (isRunning || shouldPause()) return;
+      isRunning = true;
+      lastTime = performance.now();
+      animId = requestAnimationFrame(renderLoop);
+    };
+    resumeLoopRef.current = resumeLoop;
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        reflectionDirty = true;
+        resumeLoop();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    resumeLoop();
 
     return () => {
-      cancelAnimationFrame(animId);
+      isDisposed = true;
+      isRunning = false;
+      resumeLoopRef.current = null;
+      if (animId) cancelAnimationFrame(animId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('resize', updateLayoutAndCamera);
       clickTarget?.removeEventListener('click', handleSceneClick);
@@ -1122,7 +1202,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         mount.removeChild(renderer.domElement);
       }
     };
-  }, [webglReady, myKrathongId, spawnBot, spawnFireworkBurst]);
+  }, [webglReady, spawnBot, spawnFireworkBurst]);
 
   const handleFindMyKrathong = () => {
     const mine =
@@ -1177,7 +1257,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       {/* ลายกนกมุมจอและกอบัวริมตลิ่ง */}
       <DecorativeScreenBorders />
 
-      {/* Layer 4: ป้ายชื่อและคำอวยพรโปร่งแสงโทนอุ่นลอยตามกระทง 3D */}
+      {/* Layer 4: ป้ายชื่อและคำอวยพรโทนครีมอุ่นลอยตามกระทง 3D */}
       {showWishLabels && (
         <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
           {labelItems.map((item) => (
@@ -1193,16 +1273,17 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
               }}
               onClick={() => setSelectedKrathong(item)}
               style={{ opacity: 0, willChange: 'transform, opacity' }}
-              className={`absolute top-0 left-0 max-w-[146px] sm:max-w-[205px] px-2.5 py-1 rounded-xl backdrop-blur-[2px] border text-left shadow-md transition-colors cursor-pointer ${
+              className={`absolute top-0 left-0 max-w-[150px] sm:max-w-[210px] px-2.5 py-1.5 rounded-xl border text-left shadow-md transition-colors cursor-pointer ${
                 item.isMine
-                  ? 'bg-[#332110]/88 border-amber-300/85 text-amber-100 ring-1 ring-amber-300/45'
-                  : 'bg-[#1f140b]/80 hover:bg-[#2b1c10]/90 border-amber-400/45 text-amber-50'
+                  ? 'bg-[#fffbeb]/98 border-amber-500 text-[#231912] ring-2 ring-amber-400/55'
+                  : 'bg-[#fdfaf4]/95 hover:bg-white border-amber-900/18 text-[#231912]'
               }`}
             >
-              <p className="text-[10px] sm:text-[11px] font-bold text-amber-300 truncate leading-tight">
-                {item.isMine ? `✨ ${item.owner_name}` : item.owner_name}
+              <p className="text-[10px] sm:text-[11px] font-bold text-amber-800 truncate leading-tight flex items-center gap-1">
+                {item.isMine && <Sparkles className="w-3 h-3 text-amber-600 shrink-0" />}
+                <span className="truncate">{item.owner_name}</span>
               </p>
-              <p className="text-[9px] sm:text-[10px] text-amber-50/90 truncate leading-snug">
+              <p className="text-[9px] sm:text-[10px] text-[#574536] truncate leading-snug">
                 {item.wish_message}
               </p>
             </button>
@@ -1223,8 +1304,8 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       {showControls && (
         <div className="hidden md:block absolute top-5 left-5 z-30 transition-all duration-300 ease-in-out">
           {isQrExpanded ? (
-            <div className="relative flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-3.5 p-3 sm:p-3.5 bg-[#1f150d]/92 rounded-2xl border border-amber-500/35 text-amber-50 shadow-xl transition-all">
-              <div className="w-28 h-28 sm:w-32 sm:h-32 bg-[#fffbeb] rounded-xl flex items-center justify-center p-1.5 shrink-0 border border-amber-300/80 shadow-md">
+            <div className="relative flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-3.5 p-3 sm:p-3.5 bg-[#fdfaf4]/95 rounded-2xl border border-amber-900/15 text-[#231912] shadow-xl animate-ui-step">
+              <div className="w-28 h-28 sm:w-32 sm:h-32 bg-[#fffbeb] rounded-xl flex items-center justify-center p-1.5 shrink-0 border border-amber-900/15 shadow-sm">
                 <img
                   src="/qr-create.svg"
                   alt="Scan to Float Krathong"
@@ -1236,27 +1317,27 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
                 <div className="flex items-center justify-center sm:justify-start space-x-1.5">
                   <span
                     className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                      enableRealtime ? 'bg-emerald-400' : 'bg-amber-400'
+                      enableRealtime ? 'bg-emerald-500' : 'bg-amber-500'
                     }`}
                   ></span>
-                  <p className="font-bold text-sm tracking-wide text-amber-200 whitespace-nowrap">สแกนร่วมลอยกระทง</p>
+                  <p className="font-extrabold text-sm tracking-wide text-[#231912] whitespace-nowrap">สแกนร่วมลอยกระทง</p>
                 </div>
-                <p className="text-[11px] text-amber-100/85 mt-0.5 font-medium whitespace-nowrap">
+                <p className="text-[11px] text-[#574536] mt-0.5 font-medium whitespace-nowrap">
                   เปิดหน้าสร้างกระทง 3D บนมือถือทันที
                 </p>
-                <p className="text-[10px] text-amber-300 font-mono mt-1.5 px-2 py-0.5 rounded-lg bg-[#140e09]/85 inline-block border border-amber-500/40 shadow-inner">
+                <p className="text-[10px] text-[#231912] font-mono mt-1.5 px-2 py-0.5 rounded-lg bg-[#f4ecdd] inline-block border border-amber-900/15">
                   {window.location.hostname === 'localhost'
                     ? 'loykrathong-online.pages.dev/?mode=create'
                     : `${window.location.host}/?mode=create`}
                 </p>
                 <div className="mt-1.5 flex items-center justify-center sm:justify-start gap-2">
-                  <span className="text-[10px] text-amber-200/75 whitespace-nowrap">
+                  <span className="text-[10px] text-[#7c5d3a] whitespace-nowrap">
                     {enableRealtime ? 'โหมดจอเวที (Realtime 3D)' : 'โหมดผู้ร่วมงาน'}
                   </span>
                   <a
                     href="/qr-create.png"
                     download="QR-LoyKrathong-Create.png"
-                    className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md bg-amber-500/20 hover:bg-amber-500/35 text-amber-200 border border-amber-400/40 transition whitespace-nowrap"
+                    className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md bg-[#241911] hover:bg-[#38271a] text-[#fffbeb] font-semibold transition whitespace-nowrap"
                   >
                     <Download className="w-3 h-3" />
                     <span>โหลด QR แปะป้าย</span>
@@ -1268,7 +1349,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
                 onClick={() => setIsQrExpanded(false)}
                 title="พับเก็บกล่อง QR Code"
                 aria-label="พับเก็บกล่อง QR Code"
-                className="absolute top-2.5 right-2.5 z-20 w-7 h-7 flex items-center justify-center rounded-lg bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 hover:text-amber-100 border border-amber-500/40 transition shadow cursor-pointer active:scale-95"
+                className="absolute top-2.5 right-2.5 z-20 w-7 h-7 flex items-center justify-center rounded-lg bg-white hover:bg-amber-50 text-[#574536] hover:text-[#231912] border border-amber-900/15 transition-all duration-150 shadow-2xs cursor-pointer active:scale-95"
               >
                 <ChevronUp className="w-4 h-4" />
               </button>
@@ -1277,13 +1358,13 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
             <button
               onClick={() => setIsQrExpanded(true)}
               title="คลิกเพื่อขยาย QR Code สำหรับสแกนลอยกระทง"
-              className="group flex items-center space-x-2 px-3 py-2 bg-[#1f150d]/95 hover:bg-[#2a1c10] rounded-xl border border-amber-500/45 hover:border-amber-400 text-amber-200 hover:text-amber-100 shadow-lg transition-all active:scale-95 cursor-pointer"
+              className="group flex items-center space-x-2 px-3 py-2 bg-[#fdfaf4]/95 hover:bg-white rounded-xl border border-amber-900/15 text-[#231912] shadow-lg transition-all duration-150 active:scale-95 cursor-pointer"
             >
-              <div className="p-1 rounded-lg bg-amber-500/20 text-amber-300 group-hover:bg-amber-500/30">
+              <div className="p-1 rounded-lg bg-amber-100 text-amber-800 group-hover:bg-amber-200/70">
                 <QrCode className="w-4 h-4" />
               </div>
-              <span className="text-xs font-semibold tracking-wide">สแกนร่วมงาน</span>
-              <ChevronDown className="w-3.5 h-3.5 text-amber-400/80 group-hover:translate-y-0.5 transition-transform" />
+              <span className="text-xs font-bold tracking-wide">สแกนร่วมงาน</span>
+              <ChevronDown className="w-3.5 h-3.5 text-amber-700 group-hover:translate-y-0.5 transition-transform" />
             </button>
           )}
         </div>
@@ -1299,23 +1380,23 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
             <p className="text-[10px] sm:text-sm text-amber-200/90 tracking-[0.2em] sm:tracking-[0.25em] uppercase mt-1 sm:mt-1.5 font-semibold drop-shadow whitespace-nowrap pl-[0.2em] sm:pl-[0.25em]">
               Loy Krathong River of Lights 3D
             </p>
-            <div className="mt-2 inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-[#1f150d]/90 border border-amber-400/35 text-[10px] sm:text-xs text-amber-100 shadow-md">
-              <Leaf className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <div className="mt-2 inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-[#fdfaf4]/95 border border-amber-900/15 text-[10px] sm:text-xs text-[#231912] shadow-md">
+              <Leaf className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
               <span>
-                ร่วมลอยแล้ว <strong className="text-amber-300 font-bold">{totalFloatedCount.toLocaleString()}</strong> ใบ
+                ร่วมลอยแล้ว <strong className="text-amber-800 font-extrabold">{totalFloatedCount.toLocaleString()}</strong> ใบ
               </span>
             </div>
 
             {launchNoticeKrathong && (
-              <div className="mt-2.5 pointer-events-auto inline-flex flex-wrap items-center justify-center gap-2 px-3.5 py-2 rounded-2xl bg-[#1f150d]/95 border border-amber-400/50 text-xs text-amber-100 shadow-lg max-w-[92vw]">
-                <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+              <div className="mt-2.5 pointer-events-auto inline-flex flex-wrap items-center justify-center gap-2 px-3.5 py-2 rounded-2xl bg-[#fdfaf4]/95 border border-amber-900/15 text-xs text-[#231912] shadow-lg max-w-[92vw] animate-ui-step">
+                <Sparkles className="w-3.5 h-3.5 text-amber-700 shrink-0" />
                 <span>
-                  กระทง 3D ของ <strong className="text-amber-300">{launchNoticeKrathong.owner_name}</strong> กำลังลอยลงสู่สายน้ำแล้ว!
+                  กระทง 3D ของ <strong className="text-amber-800">{launchNoticeKrathong.owner_name}</strong> กำลังลอยลงสู่สายน้ำแล้ว
                 </span>
                 <button
                   type="button"
                   onClick={() => setShareCardKrathong(launchNoticeKrathong)}
-                  className="px-2 py-0.5 rounded-lg bg-amber-400/20 hover:bg-amber-400/35 border border-amber-300/60 text-amber-200 font-semibold transition cursor-pointer"
+                  className="px-2.5 py-0.5 rounded-lg bg-[#241911] hover:bg-[#38271a] text-[#fffbeb] font-semibold transition active:scale-95 cursor-pointer"
                 >
                   การ์ด E-Card
                 </button>
@@ -1323,9 +1404,9 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
                   type="button"
                   onClick={() => setLaunchNoticeKrathong(null)}
                   aria-label="ปิดข้อความแจ้งเตือน"
-                  className="px-1.5 py-0.5 text-amber-300/70 hover:text-amber-100 cursor-pointer"
+                  className="p-1 rounded-lg text-[#7c5d3a] hover:text-[#231912] hover:bg-amber-50 transition cursor-pointer"
                 >
-                  ✕
+                  <X className="w-3.5 h-3.5" />
                 </button>
               </div>
             )}
@@ -1334,21 +1415,21 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       )}
 
       {/* Bottom Floating Control Bar */}
-      <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 flex items-center space-x-1.5 sm:space-x-2.5 bg-[#1f150d]/92 px-3 sm:px-5 py-2.5 sm:py-3 rounded-full border border-amber-500/35 shadow-xl z-30 max-w-[95vw]">
+      <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 flex items-center space-x-1.5 sm:space-x-2 bg-[#fdfaf4]/95 px-3 sm:px-4 py-2 sm:py-2.5 rounded-full border border-amber-900/15 shadow-2xl z-30 max-w-[95vw]">
         <button
           onClick={onNavigateCustomize}
-          className="flex items-center space-x-1.5 sm:space-x-2 px-3.5 sm:px-5 py-2 sm:py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-full shadow-md border border-amber-300/60 transition active:scale-95 whitespace-nowrap cursor-pointer text-xs sm:text-sm"
+          className="flex items-center space-x-1.5 sm:space-x-2 px-3.5 sm:px-5 py-2 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-amber-400 text-[#231912] font-extrabold rounded-full shadow-sm border border-amber-600/25 transition-all duration-150 active:scale-95 whitespace-nowrap cursor-pointer text-xs sm:text-sm"
         >
-          <Sparkles className="w-4 h-4 text-stone-950 shrink-0" />
+          <Sparkles className="w-4 h-4 text-[#231912] shrink-0" />
           <span>สร้างกระทงของคุณ</span>
         </button>
 
         <button
           onClick={onNavigateWishes}
           title="อ่านคำอวยพรของทุกคน"
-          className="flex items-center space-x-1.5 px-3 sm:px-3.5 py-2 sm:py-2.5 bg-[#2a1c10] hover:bg-[#382617] text-amber-200 border border-amber-400/45 rounded-full text-xs sm:text-sm font-semibold shadow-sm transition whitespace-nowrap cursor-pointer"
+          className="flex items-center space-x-1.5 px-3 sm:px-3.5 py-2 bg-white hover:bg-amber-50 text-[#231912] border border-amber-900/15 rounded-full text-xs sm:text-sm font-semibold shadow-2xs transition-all duration-150 active:scale-95 whitespace-nowrap cursor-pointer"
         >
-          <MessageSquareHeart className="w-4 h-4 text-amber-300 shrink-0" />
+          <MessageSquareHeart className="w-4 h-4 text-amber-700 shrink-0" />
           <span className="hidden sm:inline">รวมคำอวยพร</span>
           <span className="sm:hidden">คำอวยพร</span>
         </button>
@@ -1357,9 +1438,9 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
           <button
             onClick={handleFindMyKrathong}
             title="ดูกระทงของฉัน"
-            className="flex items-center space-x-1.5 px-2.5 sm:px-3.5 py-2 sm:py-2.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-400/50 rounded-full text-xs sm:text-sm font-semibold shadow-sm transition whitespace-nowrap cursor-pointer"
+            className="flex items-center space-x-1.5 px-2.5 sm:px-3.5 py-2 bg-amber-100 hover:bg-amber-200/75 text-amber-950 border border-amber-400/60 rounded-full text-xs sm:text-sm font-semibold shadow-2xs transition-all duration-150 active:scale-95 whitespace-nowrap cursor-pointer"
           >
-            <Eye className="w-4 h-4 text-amber-300 shrink-0" />
+            <Eye className="w-4 h-4 text-amber-800 shrink-0" />
             <span className="hidden sm:inline">ดูกระทงของฉัน</span>
           </button>
         )}
@@ -1367,16 +1448,16 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         <button
           onClick={handleToggleAudio}
           title={isAudioPlaying ? 'ปิดเสียงเพลงเปียโนและสายน้ำ' : 'เปิดเสียงเพลงลอยกระทง (เปียโน) และสายน้ำ'}
-          className={`flex items-center space-x-1.5 px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-full border text-xs font-semibold transition cursor-pointer whitespace-nowrap ${
+          className={`flex items-center space-x-1.5 px-2.5 sm:px-3 py-2 rounded-full border text-xs font-semibold transition-all duration-150 active:scale-95 cursor-pointer whitespace-nowrap ${
             isAudioPlaying
-              ? 'bg-amber-500/20 border-amber-400 text-amber-100 shadow-sm'
-              : 'bg-[#17100a]/85 hover:bg-[#2a1c10] text-amber-200/80 border-amber-500/30 hover:border-amber-400'
+              ? 'bg-amber-100 border-amber-500 text-[#231912] shadow-2xs'
+              : 'bg-white hover:bg-amber-50 text-[#574536] border-amber-900/15'
           }`}
         >
           {isAudioPlaying ? (
-            <Volume2 className="w-4 h-4 text-amber-300 shrink-0" />
+            <Volume2 className="w-4 h-4 text-amber-700 shrink-0" />
           ) : (
-            <VolumeX className="w-4 h-4 shrink-0" />
+            <VolumeX className="w-4 h-4 text-[#7c5d3a] shrink-0" />
           )}
           <span className="hidden md:inline">{isAudioPlaying ? 'เพลงเปียโน: เปิด' : 'เปิดเพลงเปียโน'}</span>
         </button>
@@ -1384,20 +1465,20 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         <button
           onClick={() => setShowWishLabels((prev) => !prev)}
           title={showWishLabels ? 'ซ่อนป้ายคำอวยพรเหนือกระทง' : 'แสดงป้ายคำอวยพรเหนือกระทง'}
-          className={`hidden sm:inline-flex items-center space-x-1 px-3 py-2 rounded-full border text-xs whitespace-nowrap cursor-pointer transition ${
+          className={`hidden sm:inline-flex items-center space-x-1 px-3 py-2 rounded-full border text-xs font-semibold whitespace-nowrap cursor-pointer transition-all duration-150 active:scale-95 ${
             showWishLabels
-              ? 'bg-[#17100a]/85 border-amber-500/35 text-amber-200 hover:border-amber-400'
-              : 'bg-[#17100a]/60 border-amber-900/40 text-amber-200/50 hover:text-amber-200'
+              ? 'bg-white border-amber-900/15 text-[#231912] hover:bg-amber-50'
+              : 'bg-[#f4ecdd] border-amber-900/15 text-[#7c5d3a] hover:text-[#231912]'
           }`}
         >
-          {showWishLabels ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+          {showWishLabels ? <Eye className="w-3.5 h-3.5 text-amber-700" /> : <EyeOff className="w-3.5 h-3.5" />}
           <span>ป้ายคำอวยพร</span>
         </button>
 
         <button
           onClick={toggleFullscreen}
           title="เปิด/ปิด โหมดเต็มจอสำหรับขึ้นจอใหญ่"
-          className="hidden sm:inline-flex p-2.5 bg-[#17100a]/85 hover:bg-[#2a1c10] text-amber-200 rounded-full border border-amber-500/30 hover:border-amber-400 transition cursor-pointer shrink-0"
+          className="hidden sm:inline-flex p-2 bg-white hover:bg-amber-50 text-[#231912] rounded-full border border-amber-900/15 transition-all duration-150 active:scale-95 cursor-pointer shrink-0"
         >
           {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
         </button>
@@ -1405,7 +1486,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         <button
           onClick={() => setShowControls(!showControls)}
           title="ซ่อนแถบควบคุมสำหรับฉายโปรเจกเตอร์"
-          className="hidden sm:inline-flex px-3 py-2 bg-[#17100a]/85 hover:bg-[#2a1c10] text-amber-200/80 text-xs rounded-full border border-amber-500/30 hover:border-amber-400 whitespace-nowrap cursor-pointer"
+          className="hidden sm:inline-flex px-3 py-2 bg-white hover:bg-amber-50 text-[#574536] font-semibold text-xs rounded-full border border-amber-900/15 whitespace-nowrap transition-all duration-150 active:scale-95 cursor-pointer"
         >
           {showControls ? 'ซ่อน UI' : 'แสดง UI'}
         </button>
@@ -1413,7 +1494,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         <button
           onClick={onNavigateAdmin}
           title="เข้าสู่แผงควบคุมผู้ดูแล"
-          className="p-2 sm:p-2.5 bg-[#26190e] hover:bg-[#362415] text-amber-200/75 hover:text-amber-200 rounded-full border border-amber-500/30 transition cursor-pointer shrink-0"
+          className="p-2 bg-white hover:bg-amber-50 text-[#574536] hover:text-[#231912] rounded-full border border-amber-900/15 transition-all duration-150 active:scale-95 cursor-pointer shrink-0"
         >
           <ShieldAlert className="w-4 h-4" />
         </button>
@@ -1421,26 +1502,29 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
 
       {/* Selected Krathong Details Modal */}
       {selectedKrathong && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-          <div className="bg-[#1f150d] border border-amber-500/35 rounded-3xl p-6 max-w-sm w-full text-center relative shadow-2xl animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-center mb-2">
-              <KrathongThumb3D
-                baseType={selectedKrathong.base_type}
-                flowerType={selectedKrathong.flower_type}
-                candleColor={selectedKrathong.candle_color}
-                size="sm"
-              />
+        <div className="fixed inset-0 bg-[#1c140d]/70 flex items-center justify-center p-4 z-50 animate-ui-fade">
+          <div className="bg-[#fdfaf4] border border-amber-900/15 text-[#231912] rounded-3xl p-6 max-w-sm w-full text-center relative shadow-2xl animate-ui-modal">
+            <div className="flex items-center justify-center mb-3">
+              <div className="w-28 h-28 rounded-2xl bg-[radial-gradient(circle_at_50%_60%,#332417_0%,#1c140e_85%)] border border-amber-900/20 flex items-center justify-center overflow-hidden shadow-inner">
+                <KrathongThumb3D
+                  baseType={selectedKrathong.base_type}
+                  flowerType={selectedKrathong.flower_type}
+                  candleColor={selectedKrathong.candle_color}
+                  size="sm"
+                />
+              </div>
             </div>
-            <h3 className="text-xl font-bold text-amber-200">{selectedKrathong.owner_name}</h3>
-            <p className="text-xs text-amber-200/70 mt-0.5">
+            <h3 className="text-xl font-extrabold text-[#231912]">{selectedKrathong.owner_name}</h3>
+            <p className="text-xs text-[#7c5d3a] mt-0.5 font-medium">
               ประเภท: {selectedKrathong.user_type === 'student' ? 'นักศึกษา' : selectedKrathong.user_type === 'staff' ? 'บุคลากร' : 'บุคคลทั่วไป'}
             </p>
-            <div className="my-4 p-4 bg-[#140e09]/85 border border-amber-500/20 rounded-2xl text-amber-50 text-sm italic">
-              "{selectedKrathong.wish_message}"
+            <div className="my-4 p-4 bg-[#fffbeb] border border-amber-300/80 rounded-2xl text-[#2a1f16] text-sm italic leading-relaxed">
+              &ldquo;{selectedKrathong.wish_message}&rdquo;
             </div>
             {selectedKrathong.isMine && (
-              <span className="inline-block px-3 py-1 bg-amber-400/20 text-amber-300 border border-amber-400/40 rounded-full text-xs font-semibold mb-4">
-                ✨ นี่คือกระทงของคุณ
+              <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#241911] text-[#fffbeb] rounded-full text-xs font-semibold mb-4">
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <span>นี่คือกระทงของคุณ</span>
               </span>
             )}
             <div className="space-y-2.5">
@@ -1448,14 +1532,14 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
                 onClick={() => {
                   setShareCardKrathong(selectedKrathong);
                 }}
-                className="w-full flex items-center justify-center space-x-2 py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-xl shadow-md transition cursor-pointer text-sm"
+                className="w-full flex items-center justify-center space-x-2 py-2.5 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-amber-400 text-[#231912] font-extrabold rounded-xl border border-amber-600/25 shadow-sm transition-all duration-150 active:scale-[0.98] cursor-pointer text-sm"
               >
                 <ImageIcon className="w-4 h-4" />
-                <span>📸 ดาวน์โหลดการ์ดที่ระลึก (E-Card)</span>
+                <span>ดาวน์โหลดการ์ดที่ระลึก (E-Card)</span>
               </button>
               <button
                 onClick={() => setSelectedKrathong(null)}
-                className="w-full py-2.5 bg-[#2b1d12] hover:bg-[#3b2819] text-amber-100 rounded-xl font-medium transition cursor-pointer text-sm"
+                className="w-full py-2.5 bg-white hover:bg-amber-50 text-[#231912] border border-amber-900/18 rounded-xl font-semibold transition-all duration-150 active:scale-[0.98] cursor-pointer text-sm"
               >
                 ปิดหน้าต่าง
               </button>

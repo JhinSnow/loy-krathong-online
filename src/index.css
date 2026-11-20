@@ -7,18 +7,16 @@
 
 @layer base {
   :root {
-    --bg-night-top: #140e09;
-    --bg-night-mid: #24170c;
-    --bg-river-deep: #171310;
-    --bg-river-surface: #2b221a;
+    --bg-cream: #fdfaf4;
+    --bg-cream-soft: #fffbeb;
+    --bg-cream-inset: #f4ecdd;
+    --ink-espresso: #231912;
+    --ink-muted: #7c5d3a;
     --gold-bright: #fde047;
     --gold-warm: #fbbf24;
     --gold-primary: #f59e0b;
     --gold-deep: #d97706;
-    --gold-border: rgba(251, 191, 36, 0.35);
-    --gold-glow: rgba(245, 158, 11, 0.12);
-    --text-creamy: #fffbeb;
-    --text-gold-soft: #fde68a;
+    --gold-border: rgba(120, 53, 15, 0.14);
   }
 
   body, button, input, textarea, select {
@@ -26,41 +24,70 @@
   }
 
   body {
-    background-color: var(--bg-night-top);
-    color: var(--text-creamy);
+    background-color: var(--bg-cream);
+    color: var(--ink-espresso);
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
   }
 }
 
-/* Animations */
+/* GPU-Accelerated Animations (transform & opacity only) */
 @keyframes floatSlow {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  50% { transform: translateY(-7px) rotate(1deg); }
-}
-
-@keyframes warmPulse {
-  0%, 100% {
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35), 0 0 6px rgba(245, 158, 11, 0.12);
-  }
-  50% {
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4), 0 0 10px rgba(245, 158, 11, 0.18);
-  }
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50% { transform: translate3d(0, -7px, 0) rotate(1deg); }
 }
 
 @keyframes flameFlicker {
-  0%, 100% { transform: scale(1) translateY(0); opacity: 0.95; }
-  50% { transform: scale(1.08, 0.94) translateY(-1px); opacity: 1; }
-}
-
-@keyframes goldenShimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0%, 100% { transform: scale(1) translate3d(0, 0, 0); opacity: 0.95; }
+  50% { transform: scale(1.08, 0.94) translate3d(0, -1px, 0); opacity: 1; }
 }
 
 @keyframes swaySlow {
   0% { transform: rotate(-2.5deg); }
   100% { transform: rotate(2.5deg); }
+}
+
+@keyframes uiFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes uiModalPop {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes uiStepEnter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes uiCardEnter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes uiSkeletonPulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.95; }
 }
 
 .animate-float {
@@ -71,50 +98,31 @@
   animation: flameFlicker 1.8s ease-in-out infinite;
 }
 
-/* Reusable Utility Classes for Warm Festive Gold Theme */
-.btn-gold-primary {
-  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 55%, #d97706 100%);
-  color: #1c1917;
-  font-weight: 700;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(254, 240, 138, 0.45);
-  transition: all 0.25s ease-in-out;
+.animate-ui-fade {
+  animation: uiFadeIn 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.btn-gold-primary:hover {
-  background: linear-gradient(135deg, #fde047 0%, #fbbf24 55%, #b45309 100%);
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4);
-  transform: translateY(-1px);
+.animate-ui-modal {
+  animation: uiModalPop 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.btn-gold-primary:active {
-  transform: scale(0.98);
+.animate-ui-step {
+  animation: uiStepEnter 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.btn-gold-outline {
-  background: rgba(38, 26, 15, 0.88);
-  color: #fde68a;
-  border: 1px solid rgba(245, 158, 11, 0.35);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-  transition: all 0.2s ease-in-out;
+.animate-ui-card {
+  animation: uiCardEnter 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.btn-gold-outline:hover {
-  background: rgba(245, 158, 11, 0.14);
-  border-color: #fbbf24;
-  color: #fffbeb;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+.animate-ui-skeleton {
+  animation: uiSkeletonPulse 1.6s ease-in-out infinite;
 }
 
-.glass-gold-card {
-  background: linear-gradient(180deg, rgba(38, 25, 14, 0.94) 0%, rgba(20, 14, 9, 0.97) 100%);
-  border: 1px solid rgba(251, 191, 36, 0.28);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
-}
-
-.gold-glow-bubble {
-  background: linear-gradient(180deg, rgba(255, 251, 235, 0.98) 0%, rgba(254, 243, 199, 0.95) 100%);
-  border: 1.5px solid rgba(217, 119, 6, 0.55);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  color: #1e1b4b;
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

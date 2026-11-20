@@ -2,6 +2,7 @@
 import React, { useRef, useState } from 'react';
 import { toPng } from 'html-to-image';
 import { KrathongThumb3D } from './KrathongThumb3D';
+import { LotusIcon } from './KrathongIcons';
 import { Download, X, Share2, Check } from 'lucide-react';
 
 interface ShareCardModalProps {
@@ -56,18 +57,23 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-[#1f150d] border border-amber-500/35 rounded-3xl p-6 max-w-sm w-full text-center relative shadow-2xl">
+    <div className="fixed inset-0 bg-[#1c140d]/75 flex items-center justify-center p-4 z-50 overflow-y-auto animate-ui-fade">
+      <div className="bg-[#fdfaf4] border border-amber-900/15 text-[#231912] rounded-3xl p-6 max-w-sm w-full text-center relative shadow-2xl animate-ui-modal">
         <button
+          type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-amber-200/70 hover:text-amber-100 rounded-full bg-[#2a1d11]/85 cursor-pointer"
+          aria-label="ปิดหน้าต่าง"
+          className="absolute top-4 right-4 p-2 text-[#574536] hover:text-[#231912] rounded-full bg-white hover:bg-amber-50 border border-amber-900/12 transition active:scale-95 cursor-pointer"
         >
           <X className="w-4 h-4" />
         </button>
 
-        <h3 className="text-lg font-bold text-amber-200 mb-4">การ์ดกระทงของคุณ 🪷</h3>
+        <h3 className="text-lg font-extrabold text-[#231912] mb-4 inline-flex items-center justify-center gap-1.5">
+          <LotusIcon className="w-5 h-5 text-amber-600 shrink-0" />
+          <span>การ์ดกระทงของคุณ</span>
+        </h3>
 
-        {/* --- Exportable Card Target --- */}
+        {/* --- Exportable Card Target (คงพื้นหลังค่ำคืนทองอุ่นให้กระทง 3 มิติส่องสว่างเด่น) --- */}
         <div
           ref={cardRef}
           className="bg-gradient-to-b from-[#24160b] via-[#362210] to-[#140c06] p-6 rounded-2xl border border-amber-500/45 text-center shadow-inner relative overflow-hidden"
@@ -90,15 +96,15 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
             />
           </div>
 
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/10 mt-2">
+          <div className="bg-[#1a1109]/75 rounded-xl p-3 border border-amber-300/25 mt-2">
             <p className="text-xs font-semibold text-amber-200">{ownerName}</p>
-            <p className="text-[10px] text-slate-300">({userTypeMap[userType] || userType})</p>
-            <p className="text-xs text-slate-100 italic mt-2 leading-relaxed">
-              "{wishMessage}"
+            <p className="text-[10px] text-amber-200/75">({userTypeMap[userType] || userType})</p>
+            <p className="text-xs text-amber-50 italic mt-2 leading-relaxed">
+              &ldquo;{wishMessage}&rdquo;
             </p>
           </div>
 
-          <p className="text-[9px] text-amber-200/50 mt-4 tracking-wider">
+          <p className="text-[9px] text-amber-200/60 mt-4 tracking-wider">
             ร่วมสืบสานประเพณีและขอขมาพระแม่คงคา
           </p>
         </div>
@@ -106,19 +112,21 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
         {/* Action Buttons */}
         <div className="mt-5 space-y-2.5">
           <button
+            type="button"
             onClick={handleDownload}
             disabled={downloading}
-            className="w-full flex items-center justify-center space-x-2 py-3 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-bold rounded-xl shadow-lg transition"
+            className="w-full flex items-center justify-center space-x-2 py-3 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-[#231912] font-bold rounded-xl border border-amber-600/25 shadow-md transition-all duration-150 active:scale-[0.98] cursor-pointer disabled:opacity-60"
           >
             <Download className="w-4 h-4" />
             <span>{downloading ? 'กำลังสร้างรูปภาพ...' : 'บันทึกภาพลงเครื่อง (Save Card)'}</span>
           </button>
 
           <button
+            type="button"
             onClick={handleCopyLink}
-            className="w-full flex items-center justify-center space-x-2 py-2.5 bg-[#2b1d12] hover:bg-[#3b2819] text-amber-100 rounded-xl text-sm transition cursor-pointer"
+            className="w-full flex items-center justify-center space-x-2 py-2.5 bg-white hover:bg-amber-50 text-[#231912] border border-amber-900/18 rounded-xl text-sm font-semibold transition-all duration-150 active:scale-[0.98] cursor-pointer"
           >
-            {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4" />}
+            {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4 text-amber-700" />}
             <span>{copied ? 'คัดลอกลิงก์แล้ว!' : 'แชร์ชวนเพื่อนมาลอยด้วยกัน'}</span>
           </button>
         </div>

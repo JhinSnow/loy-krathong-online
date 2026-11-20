@@ -1,6 +1,14 @@
 // src/components/EvaluationModal.tsx
 import React, { useState, useMemo } from 'react';
-import { Star, CheckCircle2, Sparkles, UserCheck, Image as ImageIcon } from 'lucide-react';
+import {
+  Star,
+  CheckCircle2,
+  Sparkles,
+  UserCheck,
+  Image as ImageIcon,
+  GraduationCap,
+  ArrowRight
+} from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { supabase } from '../utils/supabase';
 import {
@@ -196,7 +204,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
             })
           });
           if (apiRes.status === 409) {
-            const errBody = await apiRes.json().catch(() => ({})) as any;
+            const errBody = (await apiRes.json().catch(() => ({}))) as any;
             setShowSkipEscape(true);
             setErrorMsg(
               errBody.error || `รหัสนักศึกษา ${cleanStudentId} ได้ลงทะเบียนบันทึกชั่วโมงกิจกรรมไปแล้ว`
@@ -245,30 +253,30 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-[#0f0a06]/90 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
-      <div className="bg-gradient-to-b from-[#281b10] to-[#160f09] border border-amber-400/35 rounded-3xl p-4 sm:p-6 max-w-2xl w-full relative shadow-2xl my-auto max-h-[94vh] flex flex-col">
+    <div className="fixed inset-0 bg-[#1c140d]/75 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto animate-ui-fade">
+      <div className="bg-[#fdfaf4] border border-amber-900/15 text-[#231912] rounded-3xl p-4 sm:p-6 max-w-2xl w-full relative shadow-2xl my-auto max-h-[94vh] flex flex-col animate-ui-modal">
         {/* Header */}
-        <div className="text-center pb-3 border-b border-amber-500/20 shrink-0">
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-1.5">
-            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-amber-400/15 border border-amber-400/30 text-amber-200 text-xs font-semibold">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>ปล่อยกระทงลงสู่สายน้ำสำเร็จแล้ว!</span>
+        <div className="text-center pb-3 border-b border-amber-900/12 shrink-0">
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-2">
+            <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-amber-100 border border-amber-400/60 text-amber-900 text-xs font-semibold">
+              <Sparkles className="w-3.5 h-3.5 text-amber-700" />
+              <span>ปล่อยกระทงลงสู่สายน้ำสำเร็จแล้ว</span>
             </div>
             {myKrathongRecord && (
               <button
                 type="button"
                 onClick={() => setShowShareModal(true)}
-                className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-amber-500/20 hover:bg-amber-500/35 border border-amber-400/50 text-amber-100 text-xs font-bold shadow-sm transition cursor-pointer"
+                className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-white hover:bg-amber-50 border border-amber-900/20 text-[#231912] text-xs font-bold shadow-2xs transition active:scale-95 cursor-pointer"
               >
-                <ImageIcon className="w-3.5 h-3.5 text-amber-300" />
-                <span>📸 ดาวน์โหลดการ์ดที่ระลึก (E-Card)</span>
+                <ImageIcon className="w-3.5 h-3.5 text-amber-700" />
+                <span>ดาวน์โหลดการ์ดที่ระลึก (E-Card)</span>
               </button>
             )}
           </div>
-          <h3 className="text-lg sm:text-xl font-bold text-amber-100">
+          <h3 className="text-lg sm:text-xl font-extrabold text-[#231912]">
             แบบประเมินความพึงพอใจโครงการเทศกาลลอยกระทง
           </h3>
-          <p className="text-[11px] sm:text-xs text-amber-100/75 mt-0.5">
+          <p className="text-[11px] sm:text-xs text-[#7c5d3a] mt-0.5">
             ข้อมูลของท่านจะถูกนำไปสรุปผลสัมฤทธิ์โครงการและพัฒนาการจัดงานในปีถัดไป
           </p>
         </div>
@@ -276,16 +284,16 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
         {/* Scrollable Form Body */}
         <div className="overflow-y-auto pr-1 py-3 space-y-4 flex-1">
           {/* ส่วนที่ 1: ข้อมูลทั่วไปของผู้ตอบ */}
-          <div className="bg-[#17100a]/85 border border-amber-500/25 rounded-2xl p-3.5 sm:p-4 space-y-3">
-            <div className="flex items-center space-x-1.5 text-xs font-bold text-amber-200">
-              <UserCheck className="w-4 h-4 text-amber-400" />
+          <div className="bg-white border border-amber-900/12 rounded-2xl p-3.5 sm:p-4 space-y-3 shadow-2xs">
+            <div className="flex items-center space-x-1.5 text-xs font-bold text-[#231912]">
+              <UserCheck className="w-4 h-4 text-amber-700" />
               <span>ส่วนที่ 1: ข้อมูลทั่วไปของผู้เข้าร่วมกิจกรรม</span>
             </div>
 
             {/* ประเภทผู้เข้าร่วม */}
             <div>
-              <label className="block text-[11px] font-medium text-amber-100/85 mb-1">
-                ประเภทผู้เข้าร่วม <span className="text-amber-400">*</span>
+              <label className="block text-[11px] font-semibold text-[#574536] mb-1">
+                ประเภทผู้เข้าร่วม <span className="text-amber-700">*</span>
               </label>
               <div className="grid grid-cols-3 gap-1.5">
                 {[
@@ -300,10 +308,10 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                       setSelectedUserType(t.id);
                       setErrorMsg('');
                     }}
-                    className={`py-2 px-2 rounded-xl text-[11px] font-semibold border transition cursor-pointer ${
+                    className={`py-2 px-2 rounded-xl text-[11px] font-semibold border transition-all duration-150 active:scale-[0.98] cursor-pointer ${
                       selectedUserType === t.id
-                        ? 'bg-amber-500/20 border-amber-400 text-amber-100 shadow-sm'
-                        : 'bg-[#1f150d]/90 border-amber-500/25 text-amber-100/75 hover:border-amber-400/50'
+                        ? 'bg-[#241911] border-[#241911] text-[#fffbeb] shadow-sm'
+                        : 'bg-[#fdfaf4] border-amber-900/15 text-[#574536] hover:bg-amber-50 hover:border-amber-600/40'
                     }`}
                   >
                     {t.label}
@@ -314,21 +322,22 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
 
             {/* ช่องกรอกบังคับเฉพาะกลุ่มนักศึกษาเพื่อบันทึก Transcript (เก็บเฉพาะรหัสนักศึกษา) */}
             {selectedUserType === 'student' && (
-              <div className="pt-2 border-t border-amber-500/20 space-y-2">
-                <div className="flex flex-wrap items-center justify-between gap-1">
-                  <p className="text-[11px] font-semibold text-amber-300">
-                    🎓 กรอกรหัสนักศึกษาสำหรับบันทึกชั่วโมงกิจกรรม (Activity Transcript)
+              <div className="pt-2.5 border-t border-amber-900/10 space-y-2 animate-ui-step">
+                <div className="flex flex-wrap items-center justify-between gap-1.5">
+                  <p className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#231912]">
+                    <GraduationCap className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                    <span>กรอกรหัสนักศึกษาสำหรับบันทึกชั่วโมงกิจกรรม (Activity Transcript)</span>
                   </p>
                   {boundStudentIdOnDevice && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-200">
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 border border-amber-400/50 text-amber-900 font-semibold">
                       เครื่องนี้ผูกสิทธิ์รหัส {boundStudentIdOnDevice}
                     </span>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-medium text-amber-100/85 mb-1">
-                    รหัสนักศึกษา <span className="text-rose-400">*</span>
+                  <label className="block text-[11px] font-semibold text-[#574536] mb-1">
+                    รหัสนักศึกษา <span className="text-rose-600">*</span>
                   </label>
                   <input
                     type="text"
@@ -338,11 +347,11 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                     placeholder="กรอกรหัสนักศึกษา 8–13 หลัก เช่น 6610110245"
                     maxLength={13}
                     required
-                    className="w-full bg-[#140e09] border border-amber-500/35 focus:border-amber-400 rounded-xl px-3 py-2 text-base sm:text-sm text-amber-50 placeholder-amber-200/40 focus:outline-none"
+                    className="w-full bg-[#fffdf9] border border-amber-900/20 focus:border-amber-700 focus:ring-1 focus:ring-amber-600 rounded-xl px-3 py-2 text-base sm:text-sm text-[#231912] placeholder-[#9c8671] focus:outline-none"
                   />
                 </div>
 
-                <p className="text-[10px] text-amber-100/65">
+                <p className="text-[10px] text-[#7c5d3a]">
                   * ระบบจำแนกคณะและตัดรหัสซ้ำอัตโนมัติ พร้อมสงวนสิทธิ์ 1 อุปกรณ์ ต่อ 1 รหัสนักศึกษา
                 </p>
               </div>
@@ -350,27 +359,27 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
           </div>
 
           {/* ส่วนที่ 2: หัวข้อประเมินความพึงพอใจ 10 ด้าน */}
-          <div className="bg-[#17100a]/85 border border-amber-500/25 rounded-2xl p-3.5 sm:p-4 space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-amber-500/20">
+          <div className="bg-white border border-amber-900/12 rounded-2xl p-3.5 sm:p-4 space-y-3 shadow-2xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-amber-900/10">
               <div>
-                <h4 className="text-xs font-bold text-amber-200 flex items-center gap-1.5">
-                  <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                <h4 className="text-xs font-bold text-[#231912] flex items-center gap-1.5">
+                  <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
                   <span>ส่วนที่ 2: ประเมินความพึงพอใจ 10 ด้าน (ระดับ 1 - 5)</span>
                 </h4>
-                <p className="text-[10px] text-slate-400 mt-0.5">
+                <p className="text-[10px] text-[#7c5d3a] mt-0.5">
                   เกณฑ์: 5 = มากที่สุด | 4 = มาก | 3 = ปานกลาง | 2 = น้อย | 1 = น้อยที่สุด
                 </p>
               </div>
 
               {/* ปุ่มลัดให้คะแนนทุกข้อพร้อมกัน */}
               <div className="flex items-center gap-1.5 self-start sm:self-auto">
-                <span className="text-[10px] text-amber-200/70">ตั้งค่าด่วน:</span>
+                <span className="text-[10px] text-[#7c5d3a]">ตั้งค่าด่วน:</span>
                 {[5, 4, 3].map((lvl) => (
                   <button
                     key={lvl}
                     type="button"
                     onClick={() => handleSetAllScores(lvl)}
-                    className="px-2 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/30 border border-amber-400/40 text-amber-200 text-[10px] font-semibold transition cursor-pointer"
+                    className="px-2 py-1 rounded-lg bg-[#fffbeb] hover:bg-amber-100 border border-amber-400/50 text-amber-900 text-[10px] font-semibold transition active:scale-95 cursor-pointer"
                   >
                     ให้ {lvl} ทุกข้อ
                   </button>
@@ -385,13 +394,13 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                 return (
                   <div
                     key={q.id}
-                    className="p-2.5 sm:p-3 rounded-xl bg-[#1f150d]/85 border border-amber-500/20 hover:border-amber-400/40 transition flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                    className="p-2.5 sm:p-3 rounded-xl bg-[#fdfaf4] border border-amber-900/10 hover:border-amber-600/35 transition flex flex-col sm:flex-row sm:items-center justify-between gap-2"
                   >
                     <div className="text-left flex-1 pr-2">
-                      <span className="text-[11px] sm:text-xs font-semibold text-amber-50 leading-snug">
+                      <span className="text-[11px] sm:text-xs font-semibold text-[#231912] leading-snug">
                         {q.id}. {q.title}
                       </span>
-                      <span className="ml-2 inline-block text-[10px] text-amber-300/90 font-medium">
+                      <span className="ml-2 inline-block text-[10px] text-amber-800 font-semibold">
                         ({RATING_LABELS[currentVal]})
                       </span>
                     </div>
@@ -406,10 +415,10 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                             type="button"
                             onClick={() => handleScoreChange(idx, scoreNum)}
                             title={`${scoreNum} - ${RATING_LABELS[scoreNum]}`}
-                            className={`w-8 h-8 sm:w-9 sm:h-8 rounded-lg text-xs font-bold border transition flex items-center justify-center cursor-pointer ${
+                            className={`w-8 h-8 sm:w-9 sm:h-8 rounded-lg text-xs font-bold border transition-all duration-150 active:scale-90 flex items-center justify-center cursor-pointer ${
                               isSelected
-                                ? 'bg-amber-400 text-stone-950 border-amber-300 shadow-sm scale-105'
-                                : 'bg-[#140e09] text-amber-200/65 border-amber-500/25 hover:border-amber-400/55 hover:text-amber-200'
+                                ? 'bg-[#241911] text-[#fffbeb] border-[#241911] shadow-sm scale-105'
+                                : 'bg-white text-[#574536] border-amber-900/15 hover:bg-amber-50 hover:border-amber-600/45 hover:text-[#231912]'
                             }`}
                           >
                             {scoreNum}
@@ -424,16 +433,16 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
 
             {/* สรุปคะแนนเฉลี่ยปัจจุบัน */}
             <div className="flex items-center justify-between pt-2 px-1 text-xs">
-              <span className="text-amber-200/70">ค่าเฉลี่ยความพึงพอใจของคุณ (x̄):</span>
-              <span className="font-extrabold text-amber-300 text-sm">
+              <span className="text-[#7c5d3a] font-medium">ค่าเฉลี่ยความพึงพอใจของคุณ (x̄):</span>
+              <span className="font-extrabold text-amber-800 text-sm">
                 {currentAverage} / 5.00 ({RATING_LABELS[Math.round(Number(currentAverage))]})
               </span>
             </div>
           </div>
 
           {/* ส่วนที่ 3: ข้อเสนอแนะเพิ่มเติม */}
-          <div className="bg-[#17100a]/85 border border-amber-500/25 rounded-2xl p-3.5 sm:p-4 text-left">
-            <label className="block text-xs font-bold text-amber-200 mb-1.5">
+          <div className="bg-white border border-amber-900/12 rounded-2xl p-3.5 sm:p-4 text-left shadow-2xs">
+            <label className="block text-xs font-bold text-[#231912] mb-1.5">
               ส่วนที่ 3: ข้อเสนอแนะเพิ่มเติมเพื่อการพัฒนา (ถ้ามี)
             </label>
             <textarea
@@ -442,33 +451,35 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
               placeholder="ความคิดเห็น ข้อเสนอแนะ หรือความประทับใจจากงานลอยกระทง..."
               maxLength={140}
               rows={2}
-              className="w-full bg-[#140e09] border border-amber-500/35 rounded-xl p-2.5 text-xs text-amber-50 placeholder-amber-200/40 focus:outline-none focus:border-amber-400 resize-none"
+              className="w-full bg-[#fffdf9] border border-amber-900/20 rounded-xl p-2.5 text-xs text-[#231912] placeholder-[#9c8671] focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-600 resize-none"
             />
           </div>
         </div>
 
         {/* Footer Action Buttons */}
-        <div className="pt-3 border-t border-amber-500/25 shrink-0 flex flex-col items-center gap-2">
+        <div className="pt-3 border-t border-amber-900/12 shrink-0 flex flex-col items-center gap-2">
           {errorMsg && (
-            <p className="w-full px-3 py-2 rounded-xl bg-rose-500/15 border border-rose-500/40 text-xs text-rose-300 font-semibold text-center">
+            <p className="w-full px-3 py-2 rounded-xl bg-rose-50 border border-rose-300 text-xs text-rose-700 font-semibold text-center animate-ui-step">
               {errorMsg}
             </p>
           )}
           <button
+            type="button"
             onClick={handleSubmit}
             disabled={submitting}
-            className="w-full flex items-center justify-center space-x-2 py-3 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-xl shadow-md border border-amber-300/60 transition cursor-pointer text-xs sm:text-sm"
+            className="w-full flex items-center justify-center space-x-2 py-3 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-[#231912] font-extrabold rounded-xl shadow-md border border-amber-600/25 transition-all duration-150 active:scale-[0.98] cursor-pointer text-xs sm:text-sm disabled:opacity-60"
           >
-            <CheckCircle2 className="w-4 h-4 text-stone-950" />
+            <CheckCircle2 className="w-4 h-4 text-[#231912]" />
             <span>{submitting ? 'กำลังบันทึกผลประเมิน & ปล่อยกระทง...' : 'ส่งแบบประเมิน 10 ข้อ & ลอยกระทงสู่สายน้ำ'}</span>
           </button>
           {showSkipEscape && (
             <button
               type="button"
               onClick={onFinish}
-              className="w-full py-2.5 bg-[#2a1d11] hover:bg-[#3a2818] text-amber-200 font-semibold rounded-xl border border-amber-400/40 transition cursor-pointer text-xs sm:text-sm"
+              className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-[#f5eedf] hover:bg-amber-100 text-[#231912] font-semibold rounded-xl border border-amber-900/20 transition-all duration-150 active:scale-[0.98] cursor-pointer text-xs sm:text-sm"
             >
-              เคยลงทะเบียนแล้ว — ข้ามไปชมกระทงบนสายน้ำ →
+              <span>เคยลงทะเบียนแล้ว — ข้ามไปชมกระทงบนสายน้ำ</span>
+              <ArrowRight className="w-4 h-4 shrink-0" />
             </button>
           )}
         </div>

@@ -1,9 +1,9 @@
 // src/components/DecorativeScreenBorders.tsx
 import React from 'react';
 
-export const DecorativeScreenBorders: React.FC = () => {
+const DecorativeScreenBordersBase: React.FC = () => {
   return (
-    <div className="absolute inset-0 pointer-events-none select-none overflow-hidden z-[18] will-change-transform transform-gpu">
+    <div className="absolute inset-0 pointer-events-none select-none overflow-hidden z-[18]">
       {/* ---------------- 1. ลายประดับมุมบนซ้ายและมุมบนขวา (Thai Golden Corner Accents) ---------------- */}
       {/* มุมบนซ้าย (Top-Left Thai Kranok Pattern) */}
       <div className="absolute top-0 left-0 w-20 h-20 opacity-30 sm:w-48 sm:h-48 sm:opacity-45">
@@ -181,3 +181,5 @@ export const DecorativeScreenBorders: React.FC = () => {
     </div>
   );
 };
+
+export const DecorativeScreenBorders = React.memo(DecorativeScreenBordersBase);
