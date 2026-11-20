@@ -1,11 +1,15 @@
 // src/components/RiverCanvas.tsx
+// หน้าแม่น้ำเทศกาลลอยกระทง 3 มิติ (Three.js + Realistic Rippling Water + Planar Reflections + 3D PSU Skyline + Translucent Wish Labels)
+
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import * as THREE from 'three';
 import type { KrathongItem } from '../types';
 import {
   Sparkles,
   Maximize2,
   Minimize2,
   Eye,
+  EyeOff,
   ShieldAlert,
   QrCode,
   ChevronUp,
@@ -22,9 +26,18 @@ import { containsProfanity, sanitizeInputText } from '../utils/security';
 import { getLocalKrathongRecords, getModerationOverrides, mergeModerationOverrides } from '../utils/evaluationHelpers';
 import { ThaiArchitectureSkyline } from './ThaiArchitectureSkyline';
 import { DecorativeScreenBorders } from './DecorativeScreenBorders';
-import { KrathongVisual } from './KrathongVisual';
+import { KrathongThumb3D } from './KrathongThumb3D';
 import { ShareCardModal } from './ShareCardModal';
 import { soundManager } from '../utils/soundEffects';
+import {
+  buildKrathong3D,
+  animateKrathong3D,
+  disposeKrathong3D,
+  type KrathongAnimHandles
+} from '../three/krathongBuilder';
+import { createRealisticRiverWater, type WaterSystem } from '../three/waterShader';
+import { buildFestivalSkyline3D, type Skyline3DSystem } from '../three/skyline3D';
+import { isWebGLAvailable } from '../three/krathongThumbnail';
 
 interface RiverCanvasProps {
   myKrathongId?: string | null;
@@ -35,16 +48,33 @@ interface RiverCanvasProps {
   onNavigateAdmin: () => void;
 }
 
-function getRiverKrathongY(winW: number, winH: number, slot?: number): number {
+interface FloatingKrathong3DEntry {
+  item: KrathongItem;
+  group: THREE.Group;
+  anim: KrathongAnimHandles;
+  worldX: number;
+  worldZ: number;
+  worldSpeed: number;
+  age: number;
+  maxLife: number;
+  opacity: number;
+  scale: number;
+  phase: number;
+  justLaunched: boolean;
+}
+
+function getLaneZ(winW: number, slot?: number): number {
   const isMobile = winW < 640;
   if (typeof slot === 'number') {
-    return isMobile
-      ? winH * 0.48 + ((Math.abs(slot) % 3) * 0.08 + Math.random() * 0.08) * winH
-      : winH * 0.52 + ((Math.abs(slot) % 3) * 0.12 + Math.random() * 0.08) * winH;
+    const laneIdx = Math.abs(slot) % 3;
+    return isMobile ? -1.4 + laneIdx * 1.9 : -3.4 + laneIdx * 2.8;
   }
-  return isMobile
-    ? winH * 0.48 + Math.random() * (winH * 0.26)
-    : winH * 0.5 + Math.random() * (winH * 0.36);
+  return isMobile ? -2.2 + Math.random() * 5.2 : -4.4 + Math.random() * 7.8;
+}
+
+function getLaneHalfWidth(winW: number, winH: number): number {
+  const aspect = winW / Math.max(1, winH);
+  return Math.max(5.8, Math.min(12.2, 9.6 * Math.max(0.65, aspect * 0.72)));
 }
 
 export const RiverCanvas: React.FC<RiverCanvasProps> = ({
@@ -55,26 +85,33 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
   onNavigateWishes,
   onNavigateAdmin
 }) => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const mountRef = useRef<HTMLDivElement | null>(null);
+  const [webglReady] = useState<boolean>(() => isWebGLAvailable());
+
   const justFloatedRef = useRef<boolean>(justFloated);
   useEffect(() => {
     justFloatedRef.current = justFloated;
   }, [justFloated]);
+
   const krathongsRef = useRef<KrathongItem[]>([]);
   const pendingQueueRef = useRef<KrathongItem[]>([]);
   const initialLoadedRef = useRef<boolean>(false);
   const botSlotRef = useRef<number>(0);
-  const starsRef = useRef<{ x: number; y: number; size: number; alpha: number; delta: number }[]>([]);
-  const lanternsRef = useRef<{ x: number; y: number; speedY: number; speedX: number; size: number; alpha: number }[]>([]);
-  const fireworksRef = useRef<
-    { x: number; y: number; vx: number; vy: number; color: string; alpha: number; size: number; decay: number }[]
-  >([]);
+
+  // Synced list of currently visible krathongs for projected DOM labels (updates ONLY when items enter/leave)
+  const [labelItems, setLabelItems] = useState<KrathongItem[]>([]);
+  const labelDomMapRef = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const sceneEntriesRef = useRef<FloatingKrathong3DEntry[]>([]);
+  const sceneAddQueueRef = useRef<KrathongItem[]>([]);
+  const removedIdsRef = useRef<Set<string>>(new Set());
+  const skylineRef = useRef<Skyline3DSystem | null>(null);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectedKrathong, setSelectedKrathong] = useState<KrathongItem | null>(null);
   const [shareCardKrathong, setShareCardKrathong] = useState<KrathongItem | null>(null);
   const [launchNoticeKrathong, setLaunchNoticeKrathong] = useState<KrathongItem | null>(null);
   const [showControls, setShowControls] = useState(true);
+  const [showWishLabels, setShowWishLabels] = useState(true);
   const [isQrExpanded, setIsQrExpanded] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.innerWidth >= 768 : true
   );
@@ -96,61 +133,37 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
     return () => window.clearTimeout(timer);
   }, [launchNoticeKrathong]);
 
-  // จุดพลุดอกไม้ไฟเฉลิมฉลองบนท้องฟ้าเหนือตึกฟักทอง
   const spawnFireworkBurst = useCallback((customX?: number, customY?: number) => {
     const winW = typeof window !== 'undefined' ? window.innerWidth : 1200;
     const winH = typeof window !== 'undefined' ? window.innerHeight : 800;
-    const fx = customX ?? winW * (0.2 + Math.random() * 0.6);
-    const fy = customY ?? winH * (0.09 + Math.random() * 0.17);
-    const palettes = [
-      ['#fde047', '#f59e0b', '#fffbeb'],
-      ['#fb7185', '#f43f5e', '#fde047'],
-      ['#38bdf8', '#fde047', '#e0f2fe'],
-      ['#c084fc', '#f472b6', '#fef08a'],
-      ['#34d399', '#fde047', '#a7f3d0']
-    ];
-    const palette = palettes[Math.floor(Math.random() * palettes.length)];
-    const count = 34;
-    for (let i = 0; i < count; i++) {
-      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.12;
-      const speed = 1.2 + Math.random() * 2.8;
-      fireworksRef.current.push({
-        x: fx,
-        y: fy,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        color: palette[i % palette.length],
-        alpha: 1,
-        size: 1.6 + Math.random() * 1.6,
-        decay: 0.012 + Math.random() * 0.01
-      });
-    }
+    const fx = customX !== undefined ? ((customX / winW) - 0.5) * 18 : undefined;
+    const fy = customY !== undefined ? Math.max(4.5, 11 - (customY / winH) * 10) : undefined;
+    skylineRef.current?.spawnFirework(fx, fy);
     soundManager.playFireworkSparkle();
   }, []);
 
-  // กระทงตัวอย่าง 3 แบบสำหรับแสดงผลเริ่มต้นบนสายน้ำ
   const spawnBot = useCallback((slotIndex?: number): KrathongItem => {
     const sampleBots = [
       {
-        name: "น้องฟ้า",
-        wish: "ขอให้ปีนี้สมหวังทุกประการ และครอบครัวมีแต่ความสุขค่ะ 🌸",
-        base: "lotus",
-        flower: "lotus_flower",
-        candle: "pink|sparkler"
+        name: 'น้องฟ้า',
+        wish: 'ขอให้ปีนี้สมหวังทุกประการ และครอบครัวมีแต่ความสุขค่ะ 🌸',
+        base: 'lotus',
+        flower: 'lotus_flower',
+        candle: 'pink|sparkler'
       },
       {
-        name: "พี่โชคดี",
-        wish: "ขอขมาพระแม่คงคา กิจการรุ่งเรือง สุขภาพแข็งแรง 🌕",
-        base: "banana_gold",
-        flower: "pumpkin",
-        candle: "yellow"
+        name: 'พี่โชคดี',
+        wish: 'ขอขมาพระแม่คงคา กิจการรุ่งเรือง สุขภาพแข็งแรง 🌕',
+        base: 'banana_gold',
+        flower: 'pumpkin',
+        candle: 'yellow'
       },
       {
-        name: "ชมรมอนุรักษ์",
-        wish: "สืบสานประเพณีไทย รักษ์สายน้ำ Zero-Waste 100% 🪷",
-        base: "peacock_royal",
-        flower: "mixed_garland",
-        candle: "emerald|flag_thai,butterfly"
+        name: 'ชมรมอนุรักษ์',
+        wish: 'สืบสานประเพณีไทย รักษ์สายน้ำ Zero-Waste 100% 🪷',
+        base: 'peacock_royal',
+        flower: 'mixed_garland',
+        candle: 'emerald|flag_thai,butterfly'
       }
     ];
 
@@ -158,6 +171,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
     const pick = sampleBots[Math.abs(slot) % sampleBots.length];
     const winW = typeof window !== 'undefined' ? window.innerWidth : 1200;
     const winH = typeof window !== 'undefined' ? window.innerHeight : 800;
+    const halfW = getLaneHalfWidth(winW, winH);
 
     return {
       id: `bot-${Date.now()}-${slot}-${Math.floor(Math.random() * 1000)}`,
@@ -167,24 +181,29 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       base_type: pick.base,
       flower_type: pick.flower,
       candle_color: pick.candle,
-      x: -55,
-      y: getRiverKrathongY(winW, winH, slot),
-      speed: 1.55 + (Math.abs(slot) % 3) * 0.18,
+      x: -halfW - 1.2,
+      y: getLaneZ(winW, slot),
+      speed: 0.65 + (Math.abs(slot) % 3) * 0.1,
       opacity: 1,
       age: 0,
-      maxLife: 60,
+      maxLife: 45,
       isMine: false
     };
   }, []);
 
-  // 1. Listen for new krathongs (LocalStorage + Supabase Realtime + SSE Fallback)
+  // 1. ดึงประวัติกระทงและฟัง Realtime (Supabase + SSE Fallback + LocalStorage)
   useEffect(() => {
     initialLoadedRef.current = false;
-    // 1.1 ดึงประวัติกระทงล่าสุดจากทั้ง LocalStorage และ Supabase
+    krathongsRef.current = [];
+    pendingQueueRef.current = [];
+    sceneAddQueueRef.current = [];
+    removedIdsRef.current.clear();
+
     const fetchRecentKrathongs = async () => {
       try {
-        const winH = window.innerHeight;
         const winW = window.innerWidth;
+        const winH = window.innerHeight;
+        const halfW = getLaneHalfWidth(winW, winH);
 
         let overrides = getModerationOverrides();
         try {
@@ -237,56 +256,62 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         setTotalFloatedCount(Math.max(supaTotalCount, combinedMap.size));
 
         const mergedList = Array.from(combinedMap.values()).slice(0, 12);
-        krathongsRef.current = [];
-        pendingQueueRef.current = [];
         botSlotRef.current = 0;
 
-        const speedScale = winW < 640 ? 0.72 : 1;
         let launchedItem: KrathongItem | null = null;
+        const initialBatch: KrathongItem[] = [];
 
         mergedList.forEach((item, index) => {
           if (containsProfanity(item.owner_name) || containsProfanity(item.wish_message)) return;
           const isMyItem = Boolean(myKrathongId && item.id === myKrathongId);
+          const span = halfW * 1.65;
+          const worldX = isMyItem
+            ? justFloatedRef.current
+              ? -halfW * 0.85
+              : -halfW * 0.45
+            : -halfW * 0.82 + (index / Math.max(1, mergedList.length)) * span + (Math.random() - 0.5) * 1.4;
+
           const krathongObj: KrathongItem = {
             ...item,
             owner_name: sanitizeInputText(item.owner_name, 40),
             wish_message: sanitizeInputText(item.wish_message, 150),
-            // หากเพิ่งปล่อยกระทง ให้ลอยออกมาจากริมตลิ่งฝั่งซ้ายอย่างนุ่มนวล
-            x: isMyItem ? (justFloatedRef.current ? -20 : 85) : 110 + index * 165 + Math.random() * 40,
-            y: isMyItem ? winH * (winW < 640 ? 0.6 : 0.62) : getRiverKrathongY(winW, winH),
-            speed: (isMyItem ? 1.45 : 1.45 + Math.random() * 0.65) * speedScale,
+            x: worldX,
+            y: isMyItem ? (winW < 640 ? 1.8 : 2.1) : getLaneZ(winW, index),
+            speed: isMyItem ? 0.62 : 0.58 + Math.random() * 0.25,
             opacity: 1,
             age: 0,
-            maxLife: 60,
+            maxLife: 45,
             isMine: isMyItem
           };
-          krathongsRef.current.push(krathongObj);
+          initialBatch.push(krathongObj);
           if (isMyItem && justFloatedRef.current) {
             launchedItem = krathongObj;
           }
         });
 
-        // เติมกระทงตัวอย่างให้รวมบนผิวน้ำไม่เกิน 3 ใบเริ่มต้น
-        while (krathongsRef.current.length < 3) {
-          const idx = krathongsRef.current.length;
+        while (initialBatch.length < 3) {
+          const idx = initialBatch.length;
           const bot = spawnBot(idx);
-          bot.x = Math.max(80, winW * (0.14 + idx * 0.28));
-          bot.speed = (bot.speed || 1.55) * speedScale;
-          krathongsRef.current.push(bot);
+          bot.x = -halfW * 0.72 + idx * (halfW * 0.72);
+          initialBatch.push(bot);
           botSlotRef.current = idx + 1;
         }
+
+        initialBatch.forEach((k) => {
+          krathongsRef.current.push(k);
+          sceneAddQueueRef.current.push(k);
+        });
         initialLoadedRef.current = true;
 
         if (launchedItem) {
           setLaunchNoticeKrathong(launchedItem);
         }
 
-        // จุดพลุฉลองต้อนรับหากผู้ใช้เพิ่งปล่อยกระทงเสร็จ
         if (myKrathongId) {
-          spawnFireworkBurst(winW * 0.35, winH * 0.16);
-          setTimeout(() => spawnFireworkBurst(winW * 0.65, winH * 0.14), 450);
+          skylineRef.current?.spawnFirework(-4.5, 7.2, -13);
+          setTimeout(() => skylineRef.current?.spawnFirework(4.5, 7.8, -14), 450);
           if (justFloatedRef.current) {
-            setTimeout(() => spawnFireworkBurst(winW * 0.5, winH * 0.2), 900);
+            setTimeout(() => skylineRef.current?.spawnFirework(0, 8.2, -12.5), 900);
           }
         }
       } catch (err) {
@@ -297,13 +322,16 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
     };
     fetchRecentKrathongs();
 
-    // ซิงก์สถานะการซ่อน/ลบ/อนุมัติจาก LocalStorage เมื่อแอดมินจัดการในอีกแท็บ
     const handleStorageModerationSync = () => {
       const overrides = getModerationOverrides();
       krathongsRef.current = krathongsRef.current.filter((k) => {
         if (k.id.startsWith('bot-')) return true;
         const status = overrides[k.id];
-        return status !== 'rejected' && status !== 'deleted';
+        if (status === 'rejected' || status === 'deleted') {
+          removedIdsRef.current.add(k.id);
+          return false;
+        }
+        return true;
       });
       const localApproved = getLocalKrathongRecords().filter(
         (item) => (overrides[item.id] || item.status || 'approved') === 'approved'
@@ -312,158 +340,109 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
     };
     window.addEventListener('storage', handleStorageModerationSync);
 
-    // 1.2 ฟัง Realtime Broadcast เฉพาะโหมดจอเวที (Stage/Projector Mode) เพื่อไม่ให้เกินโควตา WebSocket บนแผน Free
+    const pushIncomingKrathong = (data: KrathongItem) => {
+      const exists =
+        krathongsRef.current.some((k) => k.id === data.id) ||
+        pendingQueueRef.current.some((k) => k.id === data.id);
+      if (exists) return;
+
+      const winW = window.innerWidth;
+      const winH = window.innerHeight;
+      const halfW = getLaneHalfWidth(winW, winH);
+
+      const incomingItem: KrathongItem = {
+        ...data,
+        owner_name: sanitizeInputText(data.owner_name, 40),
+        wish_message: sanitizeInputText(data.wish_message, 150),
+        x: -halfW - 1.2,
+        y: getLaneZ(winW),
+        speed: 0.62 + Math.random() * 0.25,
+        opacity: 1,
+        age: 0,
+        maxLife: 45,
+        isMine: data.id === myKrathongId
+      };
+
+      if (krathongsRef.current.length >= 12) {
+        if (incomingItem.isMine) {
+          pendingQueueRef.current.unshift(incomingItem);
+          if (pendingQueueRef.current.length > 60) pendingQueueRef.current.length = 60;
+        } else if (pendingQueueRef.current.length < 60) {
+          pendingQueueRef.current.push(incomingItem);
+        }
+      } else {
+        krathongsRef.current.push(incomingItem);
+        sceneAddQueueRef.current.push(incomingItem);
+      }
+      setTotalFloatedCount((prev) => prev + 1);
+      skylineRef.current?.spawnFirework();
+      soundManager.playFireworkSparkle();
+    };
+
     const channel = enableRealtime
       ? supabase
           .channel('realtime_krathongs')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'krathongs' },
-        (payload) => {
-          const data = payload.new as KrathongItem;
-          if (
-            data &&
-            (data.status === 'approved' || !data.status) &&
-            !containsProfanity(data.owner_name) &&
-            !containsProfanity(data.wish_message)
-          ) {
-            const exists =
-              krathongsRef.current.some((k) => k.id === data.id) ||
-              pendingQueueRef.current.some((k) => k.id === data.id);
-            if (exists) return;
-            const winW = window.innerWidth;
-            const winH = window.innerHeight;
-            const incomingItem: KrathongItem = {
-              ...data,
-              owner_name: sanitizeInputText(data.owner_name, 40),
-              wish_message: sanitizeInputText(data.wish_message, 150),
-              x: -55,
-              y: getRiverKrathongY(winW, winH),
-              speed: 1.5 + Math.random() * 0.7,
-              opacity: 1,
-              age: 0,
-              maxLife: 60,
-              isMine: data.id === myKrathongId
-            };
-            if (krathongsRef.current.length >= 12) {
-              if (incomingItem.isMine) {
-                pendingQueueRef.current.unshift(incomingItem);
-                if (pendingQueueRef.current.length > 60) pendingQueueRef.current.length = 60;
-              } else if (pendingQueueRef.current.length < 60) {
-                pendingQueueRef.current.push(incomingItem);
+          .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'krathongs' },
+            (payload) => {
+              const data = payload.new as KrathongItem;
+              if (
+                data &&
+                (data.status === 'approved' || !data.status) &&
+                !containsProfanity(data.owner_name) &&
+                !containsProfanity(data.wish_message)
+              ) {
+                pushIncomingKrathong(data);
               }
-            } else {
-              krathongsRef.current.push(incomingItem);
             }
-            setTotalFloatedCount((prev) => prev + 1);
-            spawnFireworkBurst();
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'krathongs' },
-        (payload) => {
-          const data = payload.new as KrathongItem;
-          if (!data) return;
-          if (data.status === 'rejected' || data.status === 'pending') {
-            // หากแอดมินกดซ่อน ให้ลบออกจากแม่น้ำทันที
-            krathongsRef.current = krathongsRef.current.filter((k) => k.id !== data.id);
-            pendingQueueRef.current = pendingQueueRef.current.filter((k) => k.id !== data.id);
-            setTotalFloatedCount((prev) => Math.max(0, prev - 1));
-          } else if (
-            data.status === 'approved' &&
-            !containsProfanity(data.owner_name) &&
-            !containsProfanity(data.wish_message)
-          ) {
-            // หากแอดมินกดอนุมัติกระทงที่ค้างอยู่ ให้ปล่อยลงแม่น้ำทันที
-            const exists =
-              krathongsRef.current.some((k) => k.id === data.id) ||
-              pendingQueueRef.current.some((k) => k.id === data.id);
-            if (!exists) {
-              const winW = window.innerWidth;
-              const winH = window.innerHeight;
-              const approvedItem: KrathongItem = {
-                ...data,
-                owner_name: sanitizeInputText(data.owner_name, 40),
-                wish_message: sanitizeInputText(data.wish_message, 150),
-                x: -55,
-                y: getRiverKrathongY(winW, winH),
-                speed: 1.5 + Math.random() * 0.7,
-                opacity: 1,
-                age: 0,
-                maxLife: 60,
-                isMine: data.id === myKrathongId
-              };
-              if (krathongsRef.current.length >= 12) {
-                if (approvedItem.isMine) {
-                  pendingQueueRef.current.unshift(approvedItem);
-                  if (pendingQueueRef.current.length > 60) pendingQueueRef.current.length = 60;
-                } else if (pendingQueueRef.current.length < 60) {
-                  pendingQueueRef.current.push(approvedItem);
-                }
-              } else {
-                krathongsRef.current.push(approvedItem);
+          )
+          .on(
+            'postgres_changes',
+            { event: 'UPDATE', schema: 'public', table: 'krathongs' },
+            (payload) => {
+              const data = payload.new as KrathongItem;
+              if (!data) return;
+              if (data.status === 'rejected' || data.status === 'pending') {
+                removedIdsRef.current.add(data.id);
+                krathongsRef.current = krathongsRef.current.filter((k) => k.id !== data.id);
+                pendingQueueRef.current = pendingQueueRef.current.filter((k) => k.id !== data.id);
+                setTotalFloatedCount((prev) => Math.max(0, prev - 1));
+              } else if (
+                data.status === 'approved' &&
+                !containsProfanity(data.owner_name) &&
+                !containsProfanity(data.wish_message)
+              ) {
+                pushIncomingKrathong(data);
               }
-              setTotalFloatedCount((prev) => prev + 1);
-              spawnFireworkBurst();
             }
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'krathongs' },
-        (payload) => {
-          const oldRow = payload.old as { id?: string };
-          if (oldRow?.id) {
-            krathongsRef.current = krathongsRef.current.filter((k) => k.id !== oldRow.id);
-            pendingQueueRef.current = pendingQueueRef.current.filter((k) => k.id !== oldRow.id);
-            setTotalFloatedCount((prev) => Math.max(0, prev - 1));
-          }
-        }
-      )
-      .subscribe()
+          )
+          .on(
+            'postgres_changes',
+            { event: 'DELETE', schema: 'public', table: 'krathongs' },
+            (payload) => {
+              const oldRow = payload.old as { id?: string };
+              if (oldRow?.id) {
+                removedIdsRef.current.add(oldRow.id);
+                krathongsRef.current = krathongsRef.current.filter((k) => k.id !== oldRow.id);
+                pendingQueueRef.current = pendingQueueRef.current.filter((k) => k.id !== oldRow.id);
+                setTotalFloatedCount((prev) => Math.max(0, prev - 1));
+              }
+            }
+          )
+          .subscribe()
       : null;
 
-    // เปิด SSE /api/krathongs/stream เฉพาะโหมดจอเวที + Fallback ที่ไม่ได้ใช้ Supabase เพื่อไม่ให้ยิง D1 ซ้ำซ้อน 1,000+ connections
     const hasSupabaseConfig = Boolean(import.meta.env.VITE_SUPABASE_ANON_KEY);
     let eventSource: EventSource | null = null;
     if (enableRealtime && !hasSupabaseConfig) {
       try {
         eventSource = new EventSource('/api/krathongs/stream');
         eventSource.addEventListener('new_krathong', (e) => {
-          const data = JSON.parse(e.data);
-          const exists =
-            krathongsRef.current.some((k) => k.id === data.id) ||
-            pendingQueueRef.current.some((k) => k.id === data.id);
-          if (exists) return;
-          const winW = window.innerWidth;
-          const winH = window.innerHeight;
-          const newK: KrathongItem = {
-            ...data,
-            x: -55,
-            y: getRiverKrathongY(winW, winH),
-            speed: 1.5 + Math.random() * 0.7,
-            opacity: 1,
-            age: 0,
-            maxLife: 60,
-            isMine: data.id === myKrathongId
-          };
-          if (krathongsRef.current.length >= 12) {
-            if (newK.isMine) {
-              pendingQueueRef.current.unshift(newK);
-              if (pendingQueueRef.current.length > 60) pendingQueueRef.current.length = 60;
-            } else if (pendingQueueRef.current.length < 60) {
-              pendingQueueRef.current.push(newK);
-            }
-          } else {
-            krathongsRef.current.push(newK);
-          }
-          setTotalFloatedCount((prev) => prev + 1);
-          spawnFireworkBurst();
+          const data = JSON.parse(e.data) as KrathongItem;
+          pushIncomingKrathong(data);
         });
-      } catch (_) {}
+      } catch {}
     }
 
     return () => {
@@ -473,1229 +452,320 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       }
       if (eventSource) eventSource.close();
     };
-  }, [myKrathongId, enableRealtime, spawnBot, spawnFireworkBurst]);
+  }, [myKrathongId, enableRealtime, spawnBot]);
 
-  // 2. Initialize Stars & Floating Sky Lanterns (โคมลอย)
+  // 2. Three.js 3D River Render Loop + Planar Water Reflections + Projected Labels
   useEffect(() => {
-    const stars = [];
-    for (let i = 0; i < 70; i++) {
-      stars.push({
-        x: Math.random() * window.innerWidth,
-        y: Math.random() * (window.innerHeight * 0.45),
-        size: Math.random() * 1.8 + 0.5,
-        alpha: Math.random() * 0.8 + 0.2,
-        delta: (Math.random() * 0.02 + 0.005) * (Math.random() > 0.5 ? 1 : -1)
+    const mount = mountRef.current;
+    if (!mount || !webglReady) return;
+
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        antialias: window.innerWidth >= 768,
+        alpha: false,
+        powerPreference: 'high-performance'
       });
-    }
-    starsRef.current = stars;
-
-    const lanterns = [];
-    for (let i = 0; i < 14; i++) {
-      lanterns.push({
-        x: Math.random() * window.innerWidth,
-        y: Math.random() * window.innerHeight,
-        speedY: 0.3 + Math.random() * 0.4,
-        speedX: 0.15 + Math.random() * 0.2,
-        size: 14 + Math.random() * 18,
-        alpha: 0.4 + Math.random() * 0.5
-      });
-    }
-    lanternsRef.current = lanterns;
-  }, []);
-
-  // 3. Canvas Render Loop (60/120 FPS Smooth Delta-Time + Offscreen Sprite Caching)
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d', { alpha: false });
-    if (!ctx) return;
-
-    const BASE_COLORS: Record<string, { dark: string; main: string; petal: string; rim: string; baseCup: string }> = {
-      banana_leaf: { dark: '#0f291e', main: '#1b4332', petal: '#2d6a4f', rim: '#74c69d', baseCup: '#143628' },
-      banana_gold: { dark: '#042f2e', main: '#064e3b', petal: '#047857', rim: '#fbbf24', baseCup: '#064e3b' },
-      lotus: { dark: '#831843', main: '#be185d', petal: '#f472b6', rim: '#fbcfe8', baseCup: '#9d174d' },
-      lotus_crystal: { dark: '#0c4a6e', main: '#0284c7', petal: '#38bdf8', rim: '#e0f2fe', baseCup: '#0369a1' },
-      coconut: { dark: '#2b1810', main: '#432818', petal: '#99582a', rim: '#fde68a', baseCup: '#3b2112' },
-      bread: { dark: '#78350f', main: '#b45309', petal: '#f59e0b', rim: '#fef3c7', baseCup: '#92400e' },
-      ice_swan: { dark: '#075985', main: '#0284c7', petal: '#7dd3fc', rim: '#ffffff', baseCup: '#0369a1' },
-      peacock_royal: { dark: '#713f12', main: '#a16207', petal: '#eab308', rim: '#fde047', baseCup: '#854d0e' }
-    };
-
-    const FLOWER_PALETTES: Record<string, { outer: string; core: string }> = {
-      marigold: { outer: '#f59e0b', core: '#fef08a' },
-      lotus_flower: { outer: '#f43f5e', core: '#fbcfe8' },
-      orchid: { outer: '#a855f7', core: '#f3e8ff' },
-      jasmine: { outer: '#e2e8f0', core: '#fef9c3' },
-      rose: { outer: '#e11d48', core: '#fda4af' },
-      dok_kem: { outer: '#ea580c', core: '#fed7aa' },
-      anchan: { outer: '#4f46e5', core: '#c7d2fe' },
-      mixed_garland: { outer: '#f59e0b', core: '#fef08a' }
-    };
-
-    const GARLAND_PALETTE = [
-      { outer: '#f59e0b', core: '#fef08a' },
-      { outer: '#f43f5e', core: '#ffe4e6' },
-      { outer: '#a855f7', core: '#f3e8ff' },
-      { outer: '#38bdf8', core: '#e0f2fe' },
-      { outer: '#10b981', core: '#d1fae5' }
-    ];
-
-    const CANDLE_COLORS: Record<string, string> = {
-      yellow: '#fde047',
-      red: '#f87171',
-      orange: '#fb923c',
-      cyan: '#38bdf8',
-      pink: '#f472b6',
-      emerald: '#34d399',
-      purple: '#c084fc',
-      rainbow: '#fde047'
-    };
-
-    const INCENSE_ANGLES = [-0.14, 0, 0.14];
-
-    // Sprite-sheet dimensions (logical CSS px)
-    const SPRITE_W = 264;
-    const SPRITE_OX = 132;
-    const BODY_H = 152;
-    const BODY_OY = 68;
-    const BUBBLE_PAD_TOP = 14;
-    const BUBBLE_H = 60;
-
-    const drawFoldedPetal = (
-      targetCtx: CanvasRenderingContext2D,
-      px: number,
-      py: number,
-      pw: number,
-      ph: number,
-      tilt: number,
-      fill: string,
-      rim: string
-    ) => {
-      targetCtx.save();
-      targetCtx.translate(px, py);
-      targetCtx.rotate(tilt);
-      targetCtx.beginPath();
-      targetCtx.moveTo(0, -ph);
-      targetCtx.quadraticCurveTo(pw, -ph * 0.25, pw * 0.72, ph * 0.45);
-      targetCtx.quadraticCurveTo(0, ph * 0.7, -pw * 0.72, ph * 0.45);
-      targetCtx.quadraticCurveTo(-pw, -ph * 0.25, 0, -ph);
-      targetCtx.closePath();
-      targetCtx.fillStyle = fill;
-      targetCtx.fill();
-      targetCtx.strokeStyle = rim;
-      targetCtx.lineWidth = 1;
-      targetCtx.stroke();
-
-      // เส้นพับสันกลีบตรงกลางเพิ่มมิติ
-      targetCtx.beginPath();
-      targetCtx.moveTo(0, -ph * 0.85);
-      targetCtx.lineTo(0, ph * 0.45);
-      targetCtx.strokeStyle = 'rgba(255,255,255,0.28)';
-      targetCtx.lineWidth = 0.8;
-      targetCtx.stroke();
-      targetCtx.restore();
-    };
-
-    const drawMiniBlossom = (
-      targetCtx: CanvasRenderingContext2D,
-      bx: number,
-      by: number,
-      radius: number,
-      outerColor: string,
-      coreColor: string
-    ) => {
-      targetCtx.fillStyle = outerColor;
-      for (let pet = 0; pet < 6; pet++) {
-        const ang = (pet * Math.PI) / 3;
-        targetCtx.beginPath();
-        targetCtx.arc(bx + Math.cos(ang) * (radius * 0.55), by + Math.sin(ang) * (radius * 0.55), radius * 0.55, 0, Math.PI * 2);
-        targetCtx.fill();
-      }
-      targetCtx.fillStyle = coreColor;
-      targetCtx.beginPath();
-      targetCtx.arc(bx, by, radius * 0.48, 0, Math.PI * 2);
-      targetCtx.fill();
-    };
-
-    const renderStaticBackground = (targetCtx: CanvasRenderingContext2D, width: number, height: number) => {
-      // --- Background: Sky & Full Moon ---
-      const skyGrad = targetCtx.createLinearGradient(0, 0, 0, height * 0.42);
-      skyGrad.addColorStop(0, '#020617');
-      skyGrad.addColorStop(0.7, '#0f172a');
-      skyGrad.addColorStop(1, '#1e1b4b');
-      targetCtx.fillStyle = skyGrad;
-      targetCtx.fillRect(0, 0, width, height * 0.42);
-
-      // Full Moon (พระจันทร์วันเพ็ญสีทองสว่าง)
-      const moonX = width * 0.82;
-      const moonY = height * 0.18;
-      const moonR = 48;
-
-      const moonGlow = targetCtx.createRadialGradient(moonX, moonY, moonR * 0.85, moonX, moonY, moonR * 1.8);
-      moonGlow.addColorStop(0, 'rgba(254, 240, 138, 0.18)');
-      moonGlow.addColorStop(0.5, 'rgba(253, 224, 71, 0.05)');
-      moonGlow.addColorStop(1, 'rgba(253, 224, 71, 0)');
-      targetCtx.fillStyle = moonGlow;
-      targetCtx.beginPath();
-      targetCtx.arc(moonX, moonY, moonR * 1.8, 0, Math.PI * 2);
-      targetCtx.fill();
-
-      targetCtx.fillStyle = '#fef08a';
-      targetCtx.beginPath();
-      targetCtx.arc(moonX, moonY, moonR, 0, Math.PI * 2);
-      targetCtx.fill();
-
-      // --- River (แม่น้ำเจ้าพระยาจำลอง) ---
-      const riverTop = height * 0.38;
-      const riverGrad = targetCtx.createLinearGradient(0, riverTop, 0, height);
-      riverGrad.addColorStop(0, '#0b132b');
-      riverGrad.addColorStop(0.25, '#1c2541');
-      riverGrad.addColorStop(0.65, '#0a1128');
-      riverGrad.addColorStop(1, '#050a16');
-      targetCtx.fillStyle = riverGrad;
-      targetCtx.fillRect(0, riverTop, width, height - riverTop);
-
-      // แสงจันทร์และประกายเทียนสีทองสะท้อนผิวน้ำ
-      const refGrad = targetCtx.createLinearGradient(moonX - 120, riverTop, moonX + 120, riverTop);
-      refGrad.addColorStop(0, 'rgba(245, 158, 11, 0)');
-      refGrad.addColorStop(0.3, 'rgba(251, 191, 36, 0.04)');
-      refGrad.addColorStop(0.5, 'rgba(254, 240, 138, 0.12)');
-      refGrad.addColorStop(0.7, 'rgba(251, 191, 36, 0.04)');
-      refGrad.addColorStop(1, 'rgba(245, 158, 11, 0)');
-      targetCtx.fillStyle = refGrad;
-      targetCtx.fillRect(moonX - 150, riverTop, 300, height - riverTop);
-    };
-
-    interface CachedSprite {
-      sig: string;
-      canvas: HTMLCanvasElement;
-      sw: number;
-      bodySh: number;
-      bubbleSh: number;
-      flameColor: string;
-      hasSparkler: boolean;
-    }
-
-    const spriteCache = new Map<string, CachedSprite>();
-    let fontsCancelled = false;
-    if (typeof document !== 'undefined' && document.fonts?.ready) {
-      document.fonts.ready.then(() => {
-        if (!fontsCancelled) {
-          spriteCache.clear();
-        }
-      });
+    } catch {
+      return;
     }
 
     let w = Math.max(1, window.innerWidth);
     let h = Math.max(1, window.innerHeight);
-    let dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const getMobileAwareDpr = () => Math.min(window.devicePixelRatio || 1, w < 768 ? 1.5 : 2);
 
-    const bgCanvas = document.createElement('canvas');
-    const bgCtx = bgCanvas.getContext('2d', { alpha: false });
+    renderer.setPixelRatio(getMobileAwareDpr());
+    renderer.setSize(w, h);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.1;
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
+    renderer.domElement.style.display = 'block';
+    mount.appendChild(renderer.domElement);
 
-    const createKrathongSprite = (k: KrathongItem, currentDpr: number): CachedSprite => {
-      const [rawCandleColor, rawAccessory] = (k.candle_color || 'yellow').split('|');
-      const flameColor = CANDLE_COLORS[rawCandleColor] || '#fde047';
-      const accList = (rawAccessory || '').split(',').filter(Boolean);
-      const hasAcc = (id: string) => accList.includes(id);
-      const hasSparkler = hasAcc('sparkler');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x03081a);
+    scene.fog = new THREE.FogExp2(0x091128, 0.014);
 
-      const sw = Math.ceil(SPRITE_W * currentDpr);
-      const bodySh = Math.ceil(BODY_H * currentDpr);
-      const bubbleSh = Math.ceil(BUBBLE_H * currentDpr);
+    // แสงบรรยากาศกลางคืน + แสงจันทร์ + แสงอุ่นจากแนวตลิ่ง
+    const hemi = new THREE.HemisphereLight(0x93c5fd, 0x0b132b, 0.85);
+    scene.add(hemi);
 
-      const sheet = document.createElement('canvas');
-      sheet.width = sw;
-      sheet.height = bodySh + bubbleSh;
+    const moonLight = new THREE.DirectionalLight(0xfef08a, 1.35);
+    moonLight.position.set(16, 14, -22);
+    scene.add(moonLight);
 
-      const sCtx = sheet.getContext('2d');
-      if (sCtx) {
-        sCtx.setTransform(currentDpr, 0, 0, currentDpr, 0, 0);
+    const frontFillLight = new THREE.DirectionalLight(0xfbbf24, 0.72);
+    frontFillLight.position.set(-8, 8, 12);
+    scene.add(frontFillLight);
 
-        // --- Part 1: Static Krathong Body ---
-        sCtx.save();
-        sCtx.beginPath();
-        sCtx.rect(0, 0, SPRITE_W, BODY_H);
-        sCtx.clip();
-
-        const kx = SPRITE_OX;
-        const cy = BODY_OY;
-
-        if (k.isMine) {
-          sCtx.beginPath();
-          sCtx.arc(kx, cy + 10, 68, 0, Math.PI * 2);
-          sCtx.fillStyle = 'rgba(234, 179, 8, 0.12)';
-          sCtx.fill();
-          sCtx.strokeStyle = '#eab308';
-          sCtx.lineWidth = 2.5;
-          sCtx.setLineDash([6, 4]);
-          sCtx.stroke();
-          sCtx.setLineDash([]);
-        }
-
-        // เงาสะท้อนสีทองใต้กระทง (Static base shadow)
-        sCtx.save();
-        sCtx.globalAlpha = 0.16;
-        sCtx.fillStyle = '#f59e0b';
-        sCtx.beginPath();
-        sCtx.ellipse(kx, cy + 26, 36, 7, 0, 0, Math.PI * 2);
-        sCtx.fill();
-        sCtx.restore();
-
-        const bStyle = BASE_COLORS[k.base_type] || BASE_COLORS.banana_leaf;
-
-        // แพนหางนกยูง
-        if (k.base_type === 'peacock_royal') {
-          for (let f = -3; f <= 3; f++) {
-            const fx = kx + f * 9.5;
-            const fy = cy - 7 - (3 - Math.abs(f)) * 2.5;
-            drawFoldedPetal(sCtx, fx, fy, 6, 15, f * 0.18, '#065f46', '#fbbf24');
-            sCtx.fillStyle = '#38bdf8';
-            sCtx.beginPath();
-            sCtx.arc(fx + f * 1.2, fy - 5, 2.5, 0, Math.PI * 2);
-            sCtx.fill();
-            sCtx.fillStyle = '#fde047';
-            sCtx.beginPath();
-            sCtx.arc(fx + f * 1.2, fy - 5, 1.2, 0, Math.PI * 2);
-            sCtx.fill();
-          }
-        }
-
-        // กลีบชั้นหลัง (7 กลีบ)
-        for (let p = -3; p <= 3; p++) {
-          drawFoldedPetal(sCtx, kx + p * 10.5, cy + 1 + Math.abs(p) * 0.8, 8.5, 14, p * 0.11, bStyle.dark, bStyle.rim);
-        }
-
-        // กลีบชั้นกลาง (6 กลีบ)
-        for (let p = 0; p < 6; p++) {
-          const offset = p - 2.5;
-          drawFoldedPetal(sCtx, kx + offset * 11.5, cy + 5 + Math.abs(offset) * 0.7, 9, 13, offset * 0.1, bStyle.main, bStyle.rim);
-        }
-
-        // ฐานรองกระทงทรงถ้วย
-        sCtx.beginPath();
-        sCtx.moveTo(kx - 40, cy + 10);
-        sCtx.quadraticCurveTo(kx, cy + 18, kx + 40, cy + 10);
-        sCtx.lineTo(kx + 32, cy + 21);
-        sCtx.quadraticCurveTo(kx, cy + 27, kx - 32, cy + 21);
-        sCtx.closePath();
-        sCtx.fillStyle = bStyle.baseCup;
-        sCtx.fill();
-        sCtx.strokeStyle = bStyle.rim;
-        sCtx.lineWidth = 1.3;
-        sCtx.stroke();
-
-        // แถบคาดดิ้นทอง
-        sCtx.beginPath();
-        sCtx.moveTo(kx - 35, cy + 16);
-        sCtx.quadraticCurveTo(kx, cy + 23, kx + 35, cy + 16);
-        sCtx.strokeStyle = '#fbbf24';
-        sCtx.lineWidth = 1.2;
-        sCtx.stroke();
-
-        // กลีบชั้นหน้า (5 กลีบ)
-        for (let p = -2; p <= 2; p++) {
-          drawFoldedPetal(sCtx, kx + p * 12.5, cy + 8 + Math.abs(p) * 0.6, 9.5, 11.5, p * 0.08, bStyle.petal, bStyle.rim);
-        }
-
-        // เอกลักษณ์พิเศษหงส์น้ำแข็ง / นกยูง
-        if (k.base_type === 'ice_swan') {
-          sCtx.strokeStyle = '#f0f9ff';
-          sCtx.lineWidth = 3;
-          sCtx.lineCap = 'round';
-          sCtx.beginPath();
-          sCtx.moveTo(kx - 28, cy + 8);
-          sCtx.bezierCurveTo(kx - 42, cy - 2, kx - 38, cy - 16, kx - 27, cy - 14);
-          sCtx.stroke();
-          sCtx.beginPath();
-          sCtx.moveTo(kx + 28, cy + 8);
-          sCtx.bezierCurveTo(kx + 42, cy - 2, kx + 38, cy - 16, kx + 27, cy - 14);
-          sCtx.stroke();
-          sCtx.fillStyle = '#fbbf24';
-          sCtx.beginPath();
-          sCtx.arc(kx - 25, cy - 13, 2, 0, Math.PI * 2);
-          sCtx.arc(kx + 25, cy - 13, 2, 0, Math.PI * 2);
-          sCtx.fill();
-        } else if (k.base_type === 'peacock_royal') {
-          sCtx.strokeStyle = '#fde047';
-          sCtx.lineWidth = 3;
-          sCtx.beginPath();
-          sCtx.moveTo(kx - 24, cy + 8);
-          sCtx.quadraticCurveTo(kx - 34, cy - 6, kx - 24, cy - 15);
-          sCtx.stroke();
-          sCtx.fillStyle = '#eab308';
-          sCtx.beginPath();
-          sCtx.arc(kx - 24, cy - 15, 3, 0, Math.PI * 2);
-          sCtx.fill();
-        }
-
-        const isCenterpiece = [
-          'pumpkin',
-          'noppamas_crown',
-          'elephant_gold',
-          'golden_swan',
-          'lotus_lamp',
-          'gold_pagoda',
-          'royal_barge',
-          'crystal_heart'
-        ].includes(k.flower_type);
-
-        // ฟังก์ชันช่วยวาดธูปและเทียน (วาดก่อนโมเดลเมื่อเป็นของตกแต่งกลางกระทง)
-        const drawIncenseAndCandle = () => {
-          INCENSE_ANGLES.forEach((ang, idx) => {
-            const ix = kx + (idx - 1) * 3.5;
-            const iyTop = cy - 24;
-            sCtx.strokeStyle = '#a16207';
-            sCtx.lineWidth = 1.1;
-            sCtx.beginPath();
-            sCtx.moveTo(ix, cy);
-            sCtx.lineTo(ix + ang * 18, iyTop);
-            sCtx.stroke();
-
-            sCtx.fillStyle = '#ef4444';
-            sCtx.beginPath();
-            sCtx.arc(ix + ang * 18, iyTop, 1.3, 0, Math.PI * 2);
-            sCtx.fill();
-          });
-
-          if (rawCandleColor === 'rainbow') {
-            sCtx.fillStyle = '#f472b6';
-            sCtx.fillRect(kx - 5.5, cy - 19, 4.2, 18);
-            sCtx.fillStyle = '#38bdf8';
-            sCtx.fillRect(kx + 1.5, cy - 18, 4.2, 17);
-          } else {
-            sCtx.fillStyle = flameColor;
-            sCtx.fillRect(kx - 2.5, cy - 20, 5.5, 19);
-            sCtx.strokeStyle = 'rgba(255,255,255,0.55)';
-            sCtx.lineWidth = 1;
-            sCtx.beginPath();
-            sCtx.moveTo(kx - 2.5, cy - 14);
-            sCtx.lineTo(kx + 3, cy - 11);
-            sCtx.moveTo(kx - 2.5, cy - 8);
-            sCtx.lineTo(kx + 3, cy - 5);
-            sCtx.stroke();
-          }
-        };
-
-        if (isCenterpiece) {
-          // วาดเทียน/ธูปด้านหลัง แล้วตามด้วยใบตองรองและโมเดลกลางกระทง
-          drawIncenseAndCandle();
-
-          sCtx.fillStyle = '#14532d';
-          sCtx.beginPath();
-          sCtx.ellipse(kx, cy + 4, 24, 5.5, 0, 0, Math.PI * 2);
-          sCtx.fill();
-
-          if (k.flower_type === 'pumpkin') {
-            // ตึกฟักทอง ม.อ. กลางกระทง
-            sCtx.fillStyle = '#78350f';
-            sCtx.fillRect(kx - 20, cy + 2, 40, 4);
-            sCtx.fillStyle = '#fde68a';
-            sCtx.fillRect(kx - 17, cy, 34, 2.5);
-            sCtx.fillStyle = '#d97706';
-            sCtx.strokeStyle = '#78350f';
-            sCtx.lineWidth = 1;
-            sCtx.beginPath();
-            sCtx.moveTo(kx - 18, cy);
-            sCtx.bezierCurveTo(kx - 18, cy - 12, kx - 10, cy - 17, kx, cy - 17);
-            sCtx.bezierCurveTo(kx + 10, cy - 17, kx + 18, cy - 12, kx + 18, cy);
-            sCtx.closePath();
-            sCtx.fill();
-            sCtx.stroke();
-            // กลีบกลางสว่าง + ยอดจั่ว
-            sCtx.fillStyle = '#fde68a';
-            sCtx.beginPath();
-            sCtx.moveTo(kx - 5, cy);
-            sCtx.quadraticCurveTo(kx, cy - 16.5, kx + 5, cy);
-            sCtx.closePath();
-            sCtx.fill();
-            sCtx.strokeStyle = '#92400e';
-            sCtx.lineWidth = 0.8;
-            sCtx.beginPath();
-            sCtx.moveTo(kx, cy - 19);
-            sCtx.lineTo(kx, cy);
-            sCtx.stroke();
-            // ซุ้มโค้งฐานตึก 5 ช่องโทนเดียวกับพื้นหลัง
-            sCtx.fillStyle = '#0b132b';
-            sCtx.strokeStyle = '#fde047';
-            sCtx.lineWidth = 0.6;
-            for (const ax of [kx - 13, kx - 7.5, kx - 1.5, kx + 5, kx + 10.5]) {
-              sCtx.beginPath();
-              sCtx.roundRect(ax, cy - 5.5, 2.6, 5.2, [1.3, 1.3, 0, 0]);
-              sCtx.fill();
-              sCtx.stroke();
-            }
-          } else if (k.flower_type === 'noppamas_crown') {
-            // ชฎาทองนพมาศบนพาน
-            sCtx.fillStyle = '#b45309';
-            sCtx.strokeStyle = '#fde047';
-            sCtx.lineWidth = 1;
-            sCtx.beginPath();
-            sCtx.moveTo(kx - 13, cy + 5);
-            sCtx.lineTo(kx - 9, cy);
-            sCtx.lineTo(kx + 9, cy);
-            sCtx.lineTo(kx + 13, cy + 5);
-            sCtx.closePath();
-            sCtx.fill();
-            sCtx.stroke();
-            sCtx.fillStyle = '#fbbf24';
-            sCtx.strokeStyle = '#78350f';
-            sCtx.beginPath();
-            sCtx.moveTo(kx - 10, cy);
-            sCtx.lineTo(kx, cy - 18);
-            sCtx.lineTo(kx + 10, cy);
-            sCtx.closePath();
-            sCtx.fill();
-            sCtx.stroke();
-            sCtx.fillStyle = '#ef4444';
-            sCtx.beginPath();
-            sCtx.arc(kx, cy - 3.5, 2, 0, Math.PI * 2);
-            sCtx.fill();
-          } else if (k.flower_type === 'elephant_gold') {
-            // ช้างเผือกมงคลบนแท่นบัว
-            sCtx.fillStyle = '#92400e';
-            sCtx.fillRect(kx - 16, cy + 2, 32, 3.5);
-            sCtx.fillStyle = '#fffbeb';
-            sCtx.strokeStyle = '#92400e';
-            sCtx.lineWidth = 1;
-            sCtx.beginPath();
-            sCtx.roundRect(kx - 11, cy - 13, 21, 15, 4);
-            sCtx.fill();
-            sCtx.stroke();
-            sCtx.fillStyle = '#dc2626';
-            sCtx.fillRect(kx - 7, cy - 13, 12, 8);
-            sCtx.strokeStyle = '#fffbeb';
-            sCtx.lineWidth = 2.4;
-            sCtx.beginPath();
-            sCtx.moveTo(kx + 10, cy - 7);
-            sCtx.quadraticCurveTo(kx + 18, cy - 7, kx + 16, cy - 15);
-            sCtx.stroke();
-          } else if (k.flower_type === 'golden_swan') {
-            // หงส์ทองคู่บารมี
-            sCtx.fillStyle = '#92400e';
-            sCtx.beginPath();
-            sCtx.ellipse(kx, cy + 3.5, 18, 3.5, 0, 0, Math.PI * 2);
-            sCtx.fill();
-            sCtx.strokeStyle = '#fbbf24';
-            sCtx.lineWidth = 2.6;
-            sCtx.lineCap = 'round';
-            sCtx.beginPath();
-            sCtx.moveTo(kx - 15, cy + 2);
-            sCtx.bezierCurveTo(kx - 20, cy - 9, kx - 11, cy - 16, kx - 5, cy - 13);
-            sCtx.moveTo(kx + 15, cy + 2);
-            sCtx.bezierCurveTo(kx + 20, cy - 9, kx + 11, cy - 16, kx + 5, cy - 13);
-            sCtx.stroke();
-            sCtx.fillStyle = '#fef08a';
-            sCtx.beginPath();
-            sCtx.arc(kx, cy - 5, 4, 0, Math.PI * 2);
-            sCtx.fill();
-          } else if (k.flower_type === 'lotus_lamp') {
-            // โคมบัวแก้วทิพย์
-            sCtx.fillStyle = '#0f766e';
-            sCtx.beginPath();
-            sCtx.ellipse(kx, cy + 3.5, 18, 3.5, 0, 0, Math.PI * 2);
-            sCtx.fill();
-            sCtx.fillStyle = '#ec4899';
-            sCtx.strokeStyle = '#fbcfe8';
-            sCtx.lineWidth = 0.9;
-            for (const ang of [-0.45, 0, 0.45]) {
-              sCtx.save();
-              sCtx.translate(kx, cy + 2);
-              sCtx.rotate(ang);
-              sCtx.beginPath();
-              sCtx.moveTo(-6, 0);
-              sCtx.quadraticCurveTo(0, -18, 6, 0);
-              sCtx.closePath();
-              sCtx.fill();
-              sCtx.stroke();
-              sCtx.restore();
-            }
-            sCtx.fillStyle = '#fef08a';
-            sCtx.beginPath();
-            sCtx.arc(kx, cy - 6, 3.8, 0, Math.PI * 2);
-            sCtx.fill();
-          } else if (k.flower_type === 'gold_pagoda') {
-            // เจดีย์ทองมงคลพร้อมฉัตร
-            sCtx.fillStyle = '#92400e';
-            sCtx.fillRect(kx - 16, cy + 2, 32, 3.5);
-            sCtx.fillStyle = '#fbbf24';
-            sCtx.strokeStyle = '#92400e';
-            sCtx.lineWidth = 0.9;
-            sCtx.beginPath();
-            sCtx.moveTo(kx - 10, cy + 2);
-            sCtx.quadraticCurveTo(kx, cy - 10, kx + 10, cy + 2);
-            sCtx.closePath();
-            sCtx.fill();
-            sCtx.stroke();
-            sCtx.beginPath();
-            sCtx.moveTo(kx - 3, cy - 4);
-            sCtx.lineTo(kx, cy - 18);
-            sCtx.lineTo(kx + 3, cy - 4);
-            sCtx.closePath();
-            sCtx.fill();
-            sCtx.strokeStyle = '#fde047';
-            sCtx.lineWidth = 1.2;
-            sCtx.beginPath();
-            sCtx.moveTo(kx - 14, cy + 2);
-            sCtx.lineTo(kx - 14, cy - 11);
-            sCtx.moveTo(kx + 14, cy + 2);
-            sCtx.lineTo(kx + 14, cy - 11);
-            sCtx.stroke();
-          } else if (k.flower_type === 'royal_barge') {
-            // เรือสุพรรณหงส์
-            sCtx.fillStyle = '#d97706';
-            sCtx.strokeStyle = '#fde047';
-            sCtx.lineWidth = 1;
-            sCtx.beginPath();
-            sCtx.moveTo(kx - 22, cy - 3);
-            sCtx.quadraticCurveTo(kx, cy + 8, kx + 22, cy - 2);
-            sCtx.quadraticCurveTo(kx, cy + 10, kx - 22, cy - 3);
-            sCtx.fill();
-            sCtx.stroke();
-            sCtx.strokeStyle = '#fbbf24';
-            sCtx.lineWidth = 2.4;
-            sCtx.beginPath();
-            sCtx.moveTo(kx - 18, cy);
-            sCtx.quadraticCurveTo(kx - 24, cy - 12, kx - 18, cy - 16);
-            sCtx.stroke();
-            sCtx.fillStyle = '#991b1b';
-            sCtx.fillRect(kx - 6, cy - 6, 12, 8);
-            sCtx.fillStyle = '#fbbf24';
-            sCtx.beginPath();
-            sCtx.moveTo(kx - 8, cy - 6);
-            sCtx.lineTo(kx, cy - 15);
-            sCtx.lineTo(kx + 8, cy - 6);
-            sCtx.closePath();
-            sCtx.fill();
-          } else if (k.flower_type === 'crystal_heart') {
-            // หัวใจเพชรคู่รัก
-            sCtx.fillStyle = '#9d174d';
-            sCtx.beginPath();
-            sCtx.ellipse(kx, cy + 3, 15, 4, 0, 0, Math.PI * 2);
-            sCtx.fill();
-            sCtx.fillStyle = '#ec4899';
-            sCtx.strokeStyle = '#fce7f3';
-            sCtx.lineWidth = 1.2;
-            sCtx.beginPath();
-            sCtx.moveTo(kx, cy - 10);
-            sCtx.bezierCurveTo(kx, cy - 18, kx - 14, cy - 18, kx - 12, cy - 7);
-            sCtx.bezierCurveTo(kx - 10, cy, kx, cy + 4, kx, cy + 5);
-            sCtx.bezierCurveTo(kx, cy + 4, kx + 10, cy, kx + 12, cy - 7);
-            sCtx.bezierCurveTo(kx + 14, cy - 18, kx, cy - 18, kx, cy - 10);
-            sCtx.fill();
-            sCtx.stroke();
-          }
-        } else {
-          // พุ่มดอกไม้มงคล 7 ดอก
-          for (let flIdx = 0; flIdx < 7; flIdx++) {
-            const pal =
-              k.flower_type === 'mixed_garland'
-                ? GARLAND_PALETTE[flIdx % GARLAND_PALETTE.length]
-                : FLOWER_PALETTES[k.flower_type] || FLOWER_PALETTES.marigold;
-            const fx = kx - 24 + flIdx * 8;
-            const fy = cy + 2 + Math.sin(flIdx * 1.1) * 2.2;
-            drawMiniBlossom(sCtx, fx, fy, 4.8, pal.outer, pal.core);
-          }
-
-          drawIncenseAndCandle();
-        }
-
-        // ของตกแต่งเสริม
-        if (hasAcc('flag_thai')) {
-          sCtx.strokeStyle = '#fbbf24';
-          sCtx.lineWidth = 1.2;
-          sCtx.beginPath();
-          sCtx.moveTo(kx - 16, cy + 1);
-          sCtx.lineTo(kx - 16, cy - 23);
-          sCtx.stroke();
-          sCtx.fillStyle = '#f43f5e';
-          sCtx.beginPath();
-          sCtx.moveTo(kx - 16, cy - 23);
-          sCtx.lineTo(kx - 5, cy - 19);
-          sCtx.lineTo(kx - 16, cy - 15);
-          sCtx.closePath();
-          sCtx.fill();
-        }
-        if (hasAcc('grad_cap')) {
-          sCtx.fillStyle = '#1e293b';
-          sCtx.strokeStyle = '#fbbf24';
-          sCtx.lineWidth = 1;
-          sCtx.beginPath();
-          sCtx.moveTo(kx - 11, cy - 16);
-          sCtx.lineTo(kx - 4, cy - 13);
-          sCtx.lineTo(kx - 11, cy - 10);
-          sCtx.lineTo(kx - 18, cy - 13);
-          sCtx.closePath();
-          sCtx.fill();
-          sCtx.stroke();
-        }
-        if (hasAcc('pumpkin')) {
-          // โมเดลจำลองตึกฟักทอง ม.อ. บนกระทง
-          sCtx.fillStyle = '#92400e';
-          sCtx.fillRect(kx + 6, cy - 8, 16, 3);
-          sCtx.fillStyle = '#f59e0b';
-          sCtx.strokeStyle = '#78350f';
-          sCtx.lineWidth = 1;
-          sCtx.beginPath();
-          sCtx.moveTo(kx + 6, cy - 8);
-          sCtx.bezierCurveTo(kx + 6, cy - 19, kx + 10, cy - 23, kx + 14, cy - 23);
-          sCtx.bezierCurveTo(kx + 18, cy - 23, kx + 22, cy - 19, kx + 22, cy - 8);
-          sCtx.closePath();
-          sCtx.fill();
-          sCtx.stroke();
-          // กลีบกลางสีทองสว่าง + เส้นสันกลีบ + ยอดจั่ว
-          sCtx.fillStyle = '#fde68a';
-          sCtx.beginPath();
-          sCtx.moveTo(kx + 11, cy - 8);
-          sCtx.quadraticCurveTo(kx + 14, cy - 22.5, kx + 17, cy - 8);
-          sCtx.closePath();
-          sCtx.fill();
-          sCtx.strokeStyle = '#b45309';
-          sCtx.lineWidth = 0.8;
-          sCtx.beginPath();
-          sCtx.moveTo(kx + 14, cy - 25.5);
-          sCtx.lineTo(kx + 14, cy - 8);
-          sCtx.stroke();
-          // ซุ้มโค้งฐานตึก 3 ช่องโทนเดียวกับพื้นหลัง
-          sCtx.fillStyle = '#0b132b';
-          sCtx.strokeStyle = '#fde047';
-          sCtx.lineWidth = 0.5;
-          for (const ax of [kx + 8.5, kx + 12.9, kx + 17.3]) {
-            sCtx.beginPath();
-            sCtx.roundRect(ax, cy - 12.5, 2.2, 4.2, [1.1, 1.1, 0, 0]);
-            sCtx.fill();
-            sCtx.stroke();
-          }
-        }
-        if (hasAcc('heart_sign')) {
-          sCtx.fillStyle = '#ec4899';
-          sCtx.beginPath();
-          sCtx.arc(kx - 23, cy - 5, 4.5, 0, Math.PI * 2);
-          sCtx.fill();
-        }
-        if (hasAcc('lucky_coin')) {
-          sCtx.fillStyle = '#fbbf24';
-          sCtx.strokeStyle = '#fef08a';
-          sCtx.lineWidth = 1;
-          sCtx.beginPath();
-          sCtx.arc(kx + 23, cy - 5, 5, 0, Math.PI * 2);
-          sCtx.fill();
-          sCtx.stroke();
-        }
-        if (hasAcc('butterfly')) {
-          sCtx.fillStyle = '#38bdf8';
-          sCtx.beginPath();
-          sCtx.arc(kx - 13, cy - 26, 3.2, 0, Math.PI * 2);
-          sCtx.fill();
-          sCtx.fillStyle = '#f472b6';
-          sCtx.beginPath();
-          sCtx.arc(kx - 8, cy - 26, 3.2, 0, Math.PI * 2);
-          sCtx.fill();
-        }
-        if (hasAcc('noppamas_crown')) {
-          sCtx.fillStyle = '#fbbf24';
-          sCtx.strokeStyle = '#92400e';
-          sCtx.lineWidth = 0.9;
-          sCtx.beginPath();
-          sCtx.moveTo(kx - 20, cy - 8);
-          sCtx.lineTo(kx - 15, cy - 22);
-          sCtx.lineTo(kx - 10, cy - 8);
-          sCtx.closePath();
-          sCtx.fill();
-          sCtx.stroke();
-          sCtx.fillStyle = '#fef08a';
-          sCtx.beginPath();
-          sCtx.arc(kx - 15, cy - 23, 1.3, 0, Math.PI * 2);
-          sCtx.fill();
-        }
-        if (hasAcc('sky_lantern')) {
-          // โคมลอยล้านนา
-          sCtx.fillStyle = '#fb923c';
-          sCtx.strokeStyle = '#9a3412';
-          sCtx.lineWidth = 0.8;
-          sCtx.beginPath();
-          sCtx.roundRect(kx - 30, cy - 39, 10, 13, 3);
-          sCtx.fill();
-          sCtx.stroke();
-          sCtx.fillStyle = '#fef08a';
-          sCtx.beginPath();
-          sCtx.arc(kx - 25, cy - 28, 2, 0, Math.PI * 2);
-          sCtx.fill();
-        }
-        if (hasAcc('lotus_lamp')) {
-          // โคมบัวแก้ว
-          sCtx.fillStyle = '#f472b6';
-          sCtx.strokeStyle = '#fbcfe8';
-          sCtx.lineWidth = 0.8;
-          sCtx.beginPath();
-          sCtx.moveTo(kx - 26, cy - 2);
-          sCtx.quadraticCurveTo(kx - 22, cy - 15, kx - 18, cy - 2);
-          sCtx.closePath();
-          sCtx.fill();
-          sCtx.stroke();
-          sCtx.fillStyle = '#fde047';
-          sCtx.beginPath();
-          sCtx.arc(kx - 22, cy - 7, 1.8, 0, Math.PI * 2);
-          sCtx.fill();
-        }
-        if (hasAcc('elephant_gold')) {
-          // ช้างเผือกมงคล
-          sCtx.fillStyle = '#fef3c7';
-          sCtx.strokeStyle = '#92400e';
-          sCtx.lineWidth = 0.8;
-          sCtx.beginPath();
-          sCtx.roundRect(kx + 16, cy - 4, 11, 7, 2.5);
-          sCtx.fill();
-          sCtx.stroke();
-          // ผ้าคลุมหลังสีแดง
-          sCtx.fillStyle = '#dc2626';
-          sCtx.fillRect(kx + 18.5, cy - 4, 5, 3.5);
-          // งวงช้าง
-          sCtx.strokeStyle = '#fef3c7';
-          sCtx.lineWidth = 1.6;
-          sCtx.beginPath();
-          sCtx.moveTo(kx + 27, cy - 1);
-          sCtx.quadraticCurveTo(kx + 31, cy - 1, kx + 30.5, cy - 5);
-          sCtx.stroke();
-        }
-
-        sCtx.restore();
-
-        // --- Part 2: Static Speech Bubble (text measurement & glow baked once) ---
-        sCtx.save();
-        sCtx.translate(0, bodySh / currentDpr);
-        sCtx.beginPath();
-        sCtx.rect(0, 0, SPRITE_W, BUBBLE_H);
-        sCtx.clip();
-
-        const safeOwner = k.owner_name || '';
-        const safeWish = k.wish_message || '';
-
-        sCtx.font = 'bold 12px "IBM Plex Sans Thai Looped", sans-serif';
-        const ownerTextWidth = sCtx.measureText(safeOwner).width;
-
-        sCtx.font = '500 11px "IBM Plex Sans Thai Looped", sans-serif';
-        const maxWishPixelWidth = 196;
-        let displayWish = safeWish;
-        if (sCtx.measureText(displayWish).width > maxWishPixelWidth) {
-          let cut = displayWish;
-          while (cut.length > 0 && sCtx.measureText(cut + '…').width > maxWishPixelWidth) {
-            cut = cut.slice(0, -1);
-          }
-          displayWish = cut + '…';
-        }
-        const wishTextWidth = sCtx.measureText(displayWish).width;
-
-        const bubbleW = Math.min(230, Math.max(142, Math.max(ownerTextWidth, wishTextWidth) + 22));
-        const bubbleH = 36;
-        const bx = kx - bubbleW / 2;
-        const by = BUBBLE_PAD_TOP;
-
-        sCtx.fillStyle = k.isMine ? '#fef3c7' : '#fffbeb';
-        sCtx.beginPath();
-        sCtx.roundRect(bx, by, bubbleW, bubbleH, 10);
-        sCtx.fill();
-
-        // Crisp subtle dark outline (zero bloom)
-        sCtx.strokeStyle = 'rgba(0, 0, 0, 0.18)';
-        sCtx.lineWidth = 1.5;
-        sCtx.stroke();
-
-        sCtx.strokeStyle = k.isMine ? '#d97706' : '#f59e0b';
-        sCtx.lineWidth = 1.4;
-        sCtx.stroke();
-
-        sCtx.fillStyle = k.isMine ? '#fef3c7' : '#fffbeb';
-        sCtx.beginPath();
-        sCtx.moveTo(kx - 4, by + bubbleH);
-        sCtx.lineTo(kx, by + bubbleH + 6);
-        sCtx.lineTo(kx + 4, by + bubbleH);
-        sCtx.fill();
-
-        sCtx.fillStyle = '#92400e';
-        sCtx.font = 'bold 12px "IBM Plex Sans Thai Looped", sans-serif';
-        sCtx.fillText(safeOwner, bx + 11, by + 15);
-
-        sCtx.font = '500 11px "IBM Plex Sans Thai Looped", sans-serif';
-        sCtx.fillStyle = '#1c1917';
-        sCtx.fillText(displayWish, bx + 11, by + 30);
-
-        sCtx.restore();
-      }
-
-      const sig = `${k.base_type}|${k.flower_type}|${k.candle_color}|${k.owner_name}|${k.wish_message}|${k.isMine ? 1 : 0}|${currentDpr}`;
-      return { sig, canvas: sheet, sw, bodySh, bubbleSh, flameColor, hasSparkler };
-    };
-
-    const handleResize = () => {
+    const camera = new THREE.PerspectiveCamera(45, w / h, 0.2, 160);
+    const updateCameraFrustum = () => {
       w = Math.max(1, window.innerWidth);
       h = Math.max(1, window.innerHeight);
-      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const aspect = w / h;
+      // ขยายมุมมองบนมือถือแนวตั้งเพื่อไม่ให้ขอบซ้าย-ขวาของแม่น้ำและตึกฟักทองแคบเกินไป
+      camera.fov = aspect < 1 ? Math.min(68, 45 / Math.max(0.62, aspect * 0.92)) : 45;
+      camera.aspect = aspect;
+      camera.position.set(0, aspect < 1 ? 3.9 : 3.55, aspect < 1 ? 12.8 : 11.8);
+      camera.lookAt(0, 1.45, -5.5);
+      camera.updateProjectionMatrix();
+      renderer.setPixelRatio(getMobileAwareDpr());
+      renderer.setSize(w, h);
+    };
+    updateCameraFrustum();
 
-      canvas.width = Math.floor(w * dpr);
-      canvas.height = Math.floor(h * dpr);
-      canvas.style.width = `${w}px`;
-      canvas.style.height = `${h}px`;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // ฉากพื้นหลัง 3 มิติ (ตึกฟักทอง, เจดีย์, วัด, ภูเขา, ดาว, พระจันทร์, โคมลอย, พลุ)
+    const skyline = buildFestivalSkyline3D();
+    skylineRef.current = skyline;
+    scene.add(skyline.root);
 
-      if (bgCtx) {
-        bgCanvas.width = Math.floor(w * dpr);
-        bgCanvas.height = Math.floor(h * dpr);
-        bgCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        renderStaticBackground(bgCtx, w, h);
+    // ผิวน้ำแม่น้ำ 3 มิติพร้อมคลื่นริ้วเล็กๆ และเงาสะท้อน Planar Reflection
+    const reflectionSize = w < 768 ? 256 : 512;
+    const water: WaterSystem = createRealisticRiverWater({
+      width: 72,
+      depth: 36,
+      reflectionSize,
+      isCircularPond: false,
+      hasReflection: true
+    });
+    water.mesh.position.set(0, 0, -2);
+    scene.add(water.mesh);
+
+    const krathongContainer = new THREE.Group();
+    scene.add(krathongContainer);
+
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+
+    const handleCanvasClick = (ev: MouseEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+
+      const hits = raycaster.intersectObjects(krathongContainer.children, true);
+      if (hits.length > 0) {
+        let obj: THREE.Object3D | null = hits[0].object;
+        while (obj && !obj.userData?.krathongId) {
+          obj = obj.parent;
+        }
+        const hitId = obj?.userData?.krathongId;
+        if (hitId) {
+          const found = krathongsRef.current.find((k) => k.id === hitId);
+          if (found) setSelectedKrathong(found);
+        }
+      } else if (ev.clientY - rect.top < rect.height * 0.56) {
+        spawnFireworkBurst(ev.clientX, ev.clientY);
       }
     };
-    handleResize();
-    window.addEventListener('resize', handleResize);
+    renderer.domElement.addEventListener('click', handleCanvasClick);
+    window.addEventListener('resize', updateCameraFrustum);
 
-    let animId: number;
+    const syncLabelItems = () => {
+      setLabelItems(sceneEntriesRef.current.map((e) => e.item));
+    };
+
+    const addKrathongEntryToScene = (item: KrathongItem) => {
+      if (sceneEntriesRef.current.some((e) => e.item.id === item.id)) return;
+      const isMine = Boolean(item.isMine || item.id === myKrathongId);
+      const { group, anim } = buildKrathong3D({
+        baseType: item.base_type,
+        flowerType: item.flower_type,
+        candleColor: item.candle_color,
+        isMine,
+        withFlameLight: isMine
+      });
+
+      const mobileScale = w < 640 ? 0.78 : 0.94;
+      const depthScale = 0.88 + ((Number(item.y) || 0) + 4) * 0.025;
+      const finalScale = mobileScale * Math.max(0.75, Math.min(1.12, depthScale));
+
+      const worldX = typeof item.x === 'number' ? item.x : -getLaneHalfWidth(w, h);
+      const worldZ = typeof item.y === 'number' ? item.y : getLaneZ(w);
+
+      group.position.set(worldX, 0, worldZ);
+      group.scale.setScalar(finalScale);
+      group.userData.krathongId = item.id;
+      krathongContainer.add(group);
+
+      sceneEntriesRef.current.push({
+        item,
+        group,
+        anim,
+        worldX,
+        worldZ,
+        worldSpeed: item.speed || 0.65,
+        age: item.age || 0,
+        maxLife: item.maxLife || 45,
+        opacity: 1,
+        scale: finalScale,
+        phase: Math.random() * Math.PI * 2,
+        justLaunched: Boolean(isMine && justFloatedRef.current)
+      });
+    };
+
+    let animId = 0;
     let lastTime = performance.now();
-    let smoothDt = 1 / 60;
-    let elapsedMs = 0;
-    let lastQueueReleaseMs = 0;
+    let elapsedSec = 0;
+    let lastQueueReleaseSec = 0;
+    const projVec = new THREE.Vector3();
 
     const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        lastTime = performance.now();
-      }
+      if (!document.hidden) lastTime = performance.now();
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    const render = (currentTime: number) => {
-      const rawDt = (currentTime - lastTime) / 1000;
-      lastTime = currentTime;
-      let dt = smoothDt;
-      if (rawDt > 0.001 && rawDt <= 0.1) {
-        smoothDt = smoothDt * 0.85 + rawDt * 0.15;
-        dt = smoothDt;
-      }
-      const frameScale = dt * 60;
-      elapsedMs += dt * 1000;
+    const renderLoop = (now: number) => {
+      const rawDt = Math.min(0.08, Math.max(0.001, (now - lastTime) / 1000));
+      lastTime = now;
+      elapsedSec += rawDt;
 
-      // 1. Blit pre-rendered static sky, moon & river background
-      ctx.drawImage(bgCanvas, 0, 0, w, h);
+      let labelListDirty = false;
 
-      const riverTop = h * 0.38;
-
-      // 2. Sky Elements (clipped cleanly above riverTop horizon)
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(0, 0, w, riverTop);
-      ctx.clip();
-
-      // Stars
-      ctx.fillStyle = '#ffffff';
-      const stars = starsRef.current;
-      for (let i = 0; i < stars.length; i++) {
-        const star = stars[i];
-        star.alpha += star.delta * frameScale;
-        if (star.alpha >= 0.9) {
-          star.alpha = 0.9;
-          star.delta = -Math.abs(star.delta);
-        } else if (star.alpha <= 0.2) {
-          star.alpha = 0.2;
-          star.delta = Math.abs(star.delta);
-        }
-        if (star.y - star.size > riverTop) continue;
-        ctx.globalAlpha = star.alpha;
-        ctx.beginPath();
-        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
-        ctx.fill();
+      // 1. รับกระทงใหม่จากคิวรอสร้าง 3D
+      while (sceneAddQueueRef.current.length > 0) {
+        const nextItem = sceneAddQueueRef.current.shift()!;
+        addKrathongEntryToScene(nextItem);
+        labelListDirty = true;
       }
 
-      // Lanterns (โคมลอย)
-      const lanterns = lanternsRef.current;
-      for (let i = 0; i < lanterns.length; i++) {
-        const lan = lanterns[i];
-        lan.y -= lan.speedY * frameScale;
-        lan.x += lan.speedX * frameScale;
-        if (lan.y < -50) {
-          lan.y = h * 0.7;
-          lan.x = Math.random() * w;
-        }
-        if (lan.y - lan.size * 1.5 > riverTop) continue;
-
-        ctx.globalAlpha = lan.alpha;
-        ctx.fillStyle = 'rgba(251, 146, 60, 0.35)';
-        ctx.beginPath();
-        ctx.arc(lan.x, lan.y, lan.size * 1.5, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = '#fdba74';
-        ctx.fillRect(lan.x - lan.size * 0.4, lan.y - lan.size * 0.6, lan.size * 0.8, lan.size * 1.2);
-
-        ctx.fillStyle = '#ea580c';
-        ctx.fillRect(lan.x - lan.size * 0.2, lan.y + lan.size * 0.4, lan.size * 0.4, lan.size * 0.3);
-      }
-
-      // --- Sky Fireworks (พลุดอกไม้ไฟเฉลิมฉลองเหนือตึกฟักทอง, ไร้ shadowBlur รายเฟรม) ---
-      const fireworks = fireworksRef.current;
-      if (fireworks.length < 15 && Math.random() < Math.min(0.15, 0.007 * frameScale)) {
-        spawnFireworkBurst();
-      }
-      const drag = Math.pow(0.985, frameScale);
-      let fwWrite = 0;
-      for (let i = 0; i < fireworks.length; i++) {
-        const fw = fireworks[i];
-        fw.x += fw.vx * frameScale;
-        fw.y += fw.vy * frameScale;
-        fw.vy += 0.032 * frameScale;
-        fw.vx *= drag;
-        fw.alpha -= fw.decay * frameScale;
-        if (fw.alpha <= 0.02) continue;
-
-        fireworks[fwWrite++] = fw;
-        if (fw.y - fw.size * 2.5 > riverTop) continue;
-
-        const alpha = Math.max(0, fw.alpha);
-        ctx.fillStyle = fw.color;
-        ctx.globalAlpha = alpha * 0.25;
-        ctx.beginPath();
-        ctx.arc(fw.x, fw.y, fw.size * 2.2, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.globalAlpha = alpha;
-        ctx.beginPath();
-        ctx.arc(fw.x, fw.y, fw.size, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      fireworks.length = fwWrite;
-      ctx.globalAlpha = 1;
-      ctx.restore();
-
-      // 3. Water Ripple Lines with Golden Tint (batched into 2 stroke passes)
-      const time = elapsedMs * 0.002;
-      const lineSpacing = h * 0.046;
-
-      ctx.strokeStyle = 'rgba(253, 224, 71, 0.12)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      for (let i = 0; i < 13; i += 2) {
-        const y = riverTop + 15 + i * lineSpacing;
-        ctx.moveTo(0, y + Math.sin(time + i) * 3.5);
-        for (let x = 55; x < w; x += 55) {
-          ctx.lineTo(x, y + Math.sin(x * 0.016 + time + i) * 3.5);
-        }
-      }
-      ctx.stroke();
-
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-      ctx.lineWidth = 1.0;
-      ctx.beginPath();
-      for (let i = 1; i < 13; i += 2) {
-        const y = riverTop + 15 + i * lineSpacing;
-        ctx.moveTo(0, y + Math.sin(time + i) * 3.5);
-        for (let x = 55; x < w; x += 55) {
-          ctx.lineTo(x, y + Math.sin(x * 0.016 + time + i) * 3.5);
-        }
-      }
-      ctx.stroke();
-
-      // 4. Release queued real krathongs or maintain at most 3 sample krathongs on river
-      const krathongs = krathongsRef.current;
+      // 2. ปล่อยกระทงจริงจากคิวสำรอง หรือเติมกระทงตัวอย่างให้ครบ 3 ใบเริ่มต้น
       if (
         pendingQueueRef.current.length > 0 &&
-        krathongs.length < 12 &&
-        elapsedMs - lastQueueReleaseMs > 900
+        krathongsRef.current.length < 12 &&
+        elapsedSec - lastQueueReleaseSec > 1.0
       ) {
         const nextReal = pendingQueueRef.current.shift();
         if (nextReal) {
-          krathongs.push(nextReal);
-          lastQueueReleaseMs = elapsedMs;
+          krathongsRef.current.push(nextReal);
+          addKrathongEntryToScene(nextReal);
+          lastQueueReleaseSec = elapsedSec;
+          labelListDirty = true;
         }
       } else if (
         initialLoadedRef.current &&
         pendingQueueRef.current.length === 0 &&
-        krathongs.length < 3 &&
-        Math.random() < Math.min(0.25, 0.045 * frameScale)
+        krathongsRef.current.length < 3 &&
+        Math.random() < Math.min(0.25, rawDt * 2.5)
       ) {
-        krathongs.push(spawnBot());
+        const bot = spawnBot();
+        krathongsRef.current.push(bot);
+        addKrathongEntryToScene(bot);
+        labelListDirty = true;
       }
 
-      // 5. Krathong Lifecycles & Cached Sprite Rendering
-      const ripplePulse = Math.sin(elapsedMs * 0.005) * 3;
-      const flameHaloPulse = Math.sin(elapsedMs * 0.02) * 2;
-      let kWrite = 0;
+      // 3. อัปเดตตำแหน่ง การโคลงเคลงตามคลื่นน้ำ และ Label Projection ของกระทง 3D ทุกใบ
+      const halfSpan = getLaneHalfWidth(w, h) + 2.2;
+      const entries = sceneEntriesRef.current;
+      let writeIdx = 0;
 
-      for (let i = 0; i < krathongs.length; i++) {
-        const k = krathongs[i];
-        k.age = (k.age || 0) + dt;
-        k.x = (k.x || 0) + (k.speed || 1.5) * frameScale;
-
-        const maxLife = k.maxLife || 60;
-        if (k.age > maxLife - 6 || (k.x || 0) > w - 100) {
-          k.opacity = Math.max(0, (k.opacity ?? 1) - dt * 0.25);
-        }
-
-        const baseAlpha = k.opacity ?? 1;
-        if (baseAlpha <= 0 || (k.x || 0) >= w + 150) {
-          spriteCache.delete(k.id);
+      for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i];
+        if (removedIdsRef.current.has(entry.item.id)) {
+          krathongContainer.remove(entry.group);
+          disposeKrathong3D(entry.group);
+          removedIdsRef.current.delete(entry.item.id);
+          labelListDirty = true;
           continue;
         }
-        krathongs[kWrite++] = k;
 
-        const kx = (k.x || 0) + 40;
-        if (kx + SPRITE_OX < 0 || kx - SPRITE_OX > w) continue;
+        entry.age += rawDt;
+        entry.worldX += entry.worldSpeed * rawDt;
 
-        const ageSec = k.age || 0;
-        const isLaunchingMine = Boolean(k.isMine && justFloatedRef.current && ageSec < 4.5);
-        const launchDrop = isLaunchingMine && ageSec < 1.1 ? -Math.pow(1 - ageSec / 1.1, 2) * 28 : 0;
+        // ซิงก์ค่าพิกัดกลับไปให้ปุ่ม "ดูกระทงของฉัน"
+        entry.item.x = entry.worldX;
+        entry.item.y = entry.worldZ;
 
-        const wave = Math.sin((k.x || 0) * 0.025 + elapsedMs * 0.003) * 2.5;
-        const currentY = (k.y || 500) + wave + launchDrop;
-
-        const expectedSig = `${k.base_type}|${k.flower_type}|${k.candle_color}|${k.owner_name}|${k.wish_message}|${k.isMine ? 1 : 0}|${dpr}`;
-        let sprite = spriteCache.get(k.id);
-        if (!sprite || sprite.sig !== expectedSig) {
-          sprite = createKrathongSprite(k, dpr);
-          spriteCache.set(k.id, sprite);
+        if (entry.age > entry.maxLife - 4 || entry.worldX > halfSpan - 1.8) {
+          entry.opacity = Math.max(0, entry.opacity - rawDt * 0.45);
         }
 
-        // A. Animated expanding water ripple ring behind krathong
-        ctx.globalAlpha = baseAlpha * 0.35;
-        ctx.strokeStyle = 'rgba(253, 224, 71, 0.45)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.ellipse(kx, currentY + 23, 46 + ripplePulse, 8, 0, 0, Math.PI * 2);
-        ctx.stroke();
-
-        // Extra celebratory water ripples when user's krathong launches onto the river
-        if (isLaunchingMine) {
-          const ringPhase = (ageSec * 0.85) % 1;
-          ctx.globalAlpha = baseAlpha * (1 - ringPhase) * 0.75;
-          ctx.strokeStyle = '#fde047';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.ellipse(kx, currentY + 23, 46 + ringPhase * 52, 8 + ringPhase * 12, 0, 0, Math.PI * 2);
-          ctx.stroke();
+        if (entry.opacity <= 0.01 || entry.worldX > halfSpan) {
+          krathongContainer.remove(entry.group);
+          disposeKrathong3D(entry.group);
+          krathongsRef.current = krathongsRef.current.filter((k) => k.id !== entry.item.id);
+          labelListDirty = true;
+          continue;
         }
 
-        // B. Cached static krathong body (aura + shadow + petals + cup + flowers + incense + candle + accessories)
-        ctx.globalAlpha = baseAlpha;
-        ctx.drawImage(
-          sprite.canvas,
-          0,
-          0,
-          sprite.sw,
-          sprite.bodySh,
-          kx - SPRITE_OX,
-          currentY - BODY_OY,
-          SPRITE_W,
-          sprite.bodySh / dpr
-        );
+        entries[writeIdx++] = entry;
 
-        // C. Animated sparkler (if equipped)
-        if (sprite.hasSparkler) {
-          ctx.strokeStyle = '#fef08a';
-          ctx.lineWidth = 1.2;
-          ctx.beginPath();
-          for (let sp = 0; sp < 6; sp++) {
-            const ang = (sp * Math.PI) / 3 + elapsedMs * 0.008;
-            ctx.moveTo(kx + 23, currentY - 18);
-            ctx.lineTo(kx + 23 + Math.cos(ang) * 7, currentY - 18 + Math.sin(ang) * 7);
+        // คลื่นลอย + ย่อขยายตอนค่อยๆ เลือนหายขอบขวา + แอนิเมชันปล่อยลงน้ำ
+        const launchDrop =
+          entry.justLaunched && entry.age < 1.1 ? (1 - entry.age / 1.1) ** 2 * 1.1 : 0;
+        const waveY =
+          Math.sin(entry.worldX * 1.15 - elapsedSec * 1.4 + entry.phase) * 0.03 + launchDrop;
+
+        entry.group.position.set(entry.worldX, waveY, entry.worldZ);
+        entry.group.rotation.z = Math.sin(elapsedSec * 1.8 + entry.phase) * 0.04;
+        entry.group.rotation.x = Math.cos(elapsedSec * 1.5 + entry.phase) * 0.03;
+        entry.group.scale.setScalar(entry.scale * Math.max(0.25, entry.opacity));
+
+        animateKrathong3D(entry.anim, elapsedSec + entry.phase);
+
+        // Project 3D position -> Screen coordinates สำหรับป้ายคำอวยพรโปร่งแสง (ไร้ re-render React)
+        const labelEl = labelDomMapRef.current.get(entry.item.id);
+        if (labelEl) {
+          projVec.set(
+            entry.worldX,
+            waveY + 1.38 * entry.scale,
+            entry.worldZ
+          );
+          projVec.project(camera);
+
+          if (projVec.z > 1 || projVec.z < -1 || projVec.x < -1.15 || projVec.x > 1.15) {
+            labelEl.style.opacity = '0';
+            labelEl.style.pointerEvents = 'none';
+          } else {
+            const sx = (projVec.x * 0.5 + 0.5) * w;
+            const sy = (-projVec.y * 0.5 + 0.5) * h;
+            labelEl.style.transform = `translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0) translate(-50%, -100%)`;
+            labelEl.style.opacity = String(Math.min(1, entry.opacity * 0.96));
+            labelEl.style.pointerEvents = 'auto';
           }
-          ctx.stroke();
         }
-
-        // D. Animated teardrop candle flame & halo
-        const sway = Math.sin(elapsedMs * 0.015 + kx) * 1.4;
-        ctx.beginPath();
-        ctx.arc(kx + 0.5, currentY - 25, 9 + flameHaloPulse, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(251, 191, 36, 0.15)';
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.moveTo(kx + 0.5 + sway, currentY - 34);
-        ctx.quadraticCurveTo(kx + 7, currentY - 24, kx + 0.5, currentY - 19);
-        ctx.quadraticCurveTo(kx - 6, currentY - 24, kx + 0.5 + sway, currentY - 34);
-        ctx.closePath();
-        ctx.fillStyle = sprite.flameColor;
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.moveTo(kx + 0.5 + sway * 0.5, currentY - 30);
-        ctx.quadraticCurveTo(kx + 3.5, currentY - 24, kx + 0.5, currentY - 20.5);
-        ctx.quadraticCurveTo(kx - 2.5, currentY - 24, kx + 0.5 + sway * 0.5, currentY - 30);
-        ctx.closePath();
-        ctx.fillStyle = '#fffbeb';
-        ctx.fill();
-
-        // Rising golden sparkles during the user's krathong launch entrance
-        if (isLaunchingMine) {
-          for (let sp = 0; sp < 5; sp++) {
-            const spPhase = (ageSec * 0.65 + sp * 0.2) % 1;
-            const spX = kx + Math.sin(elapsedMs * 0.004 + sp * 2.1) * (18 + sp * 4);
-            const spY = currentY + 4 - spPhase * 56;
-            ctx.globalAlpha = baseAlpha * (1 - spPhase) * 0.9;
-            ctx.fillStyle = sp % 2 === 0 ? '#fef08a' : '#fbbf24';
-            ctx.beginPath();
-            ctx.arc(spX, spY, 2.2 - spPhase * 1.2, 0, Math.PI * 2);
-            ctx.fill();
-          }
-          ctx.globalAlpha = baseAlpha;
-        }
-
-        // E. Cached speech bubble
-        ctx.drawImage(
-          sprite.canvas,
-          0,
-          sprite.bodySh,
-          sprite.sw,
-          sprite.bubbleSh,
-          kx - SPRITE_OX,
-          currentY - 70 - BUBBLE_PAD_TOP,
-          SPRITE_W,
-          sprite.bubbleSh / dpr
-        );
       }
-      krathongs.length = kWrite;
-      ctx.globalAlpha = 1;
+      entries.length = writeIdx;
 
-      // Prune stale cache entries if removed externally via realtime/storage events
-      if (spriteCache.size > krathongs.length + 4) {
-        const activeIds = new Set<string>();
-        for (let i = 0; i < krathongs.length; i++) {
-          activeIds.add(krathongs[i].id);
-        }
-        spriteCache.forEach((_, id) => {
-          if (!activeIds.has(id)) {
-            spriteCache.delete(id);
-          }
-        });
+      if (labelListDirty) {
+        syncLabelItems();
       }
 
-      animId = requestAnimationFrame(render);
+      // 4. อัปเดตฉาก 3D ผิวน้ำ + เรนเดอร์ Planar Reflection สะท้อนบนน้ำจริง + เรนเดอร์ฉากหลัก
+      skyline.update(elapsedSec, rawDt);
+      water.update(elapsedSec);
+      water.renderReflection(renderer, scene, camera);
+      renderer.render(scene, camera);
+
+      animId = requestAnimationFrame(renderLoop);
     };
 
-    animId = requestAnimationFrame(render);
+    animId = requestAnimationFrame(renderLoop);
+
     return () => {
-      fontsCancelled = true;
       cancelAnimationFrame(animId);
-      window.removeEventListener('resize', handleResize);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      spriteCache.clear();
+      window.removeEventListener('resize', updateCameraFrustum);
+      renderer.domElement.removeEventListener('click', handleCanvasClick);
+
+      sceneEntriesRef.current.forEach((entry) => {
+        krathongContainer.remove(entry.group);
+        disposeKrathong3D(entry.group);
+      });
+      sceneEntriesRef.current = [];
+      skylineRef.current = null;
+
+      water.dispose();
+      skyline.dispose();
+      renderer.dispose();
+      if (renderer.domElement.parentNode === mount) {
+        mount.removeChild(renderer.domElement);
+      }
     };
-  }, [spawnBot, spawnFireworkBurst]);
+  }, [webglReady, myKrathongId, spawnBot, spawnFireworkBurst]);
 
-  // Click on Canvas to Zoom in on a Krathong
-  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
-
-    const clicked = krathongsRef.current.find(k => {
-      const dx = clickX - ((k.x || 0) + 40);
-      const dy = clickY - (k.y || 0);
-      return Math.sqrt(dx * dx + dy * dy) < 45;
-    });
-
-    if (clicked) {
-      setSelectedKrathong(clicked);
-    }
-  };
-
-  // Find My Krathong
   const handleFindMyKrathong = () => {
     const mine =
       krathongsRef.current.find((k) => k.isMine || k.id === myKrathongId) ||
@@ -1703,7 +773,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
     if (mine) {
       setSelectedKrathong(mine);
     } else {
-      alert("กระทงของคุณอาจจะลอยผ่านสายน้ำไปแล้ว หรือกำลังรอการตรวจสอบจากผู้ดูแล");
+      alert('กระทงของคุณอาจจะลอยผ่านสายน้ำไปแล้ว หรือกำลังรอการตรวจสอบจากผู้ดูแล');
     }
   };
 
@@ -1724,25 +794,68 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
 
   return (
     <div className="fixed inset-0 w-full h-dvh overflow-hidden overscroll-none bg-slate-950 select-none">
-      {/* 1. Canvas พื้นหลัง: วาดท้องฟ้า พระจันทร์ และผิวน้ำแม่น้ำ */}
-      <canvas
-        ref={canvasRef}
-        onClick={handleCanvasClick}
-        className="w-full h-full absolute inset-0 cursor-pointer z-0 will-change-transform transform-gpu"
-      />
+      {/* 1. ฉากแม่น้ำ 3D เต็มหน้าจอ พร้อมคลื่นริ้วเล็กๆ เงาสะท้อน และสิ่งปลูกสร้าง 3 มิติ */}
+      {webglReady ? (
+        <div
+          ref={mountRef}
+          className="w-full h-full absolute inset-0 cursor-pointer z-0"
+        />
+      ) : (
+        <div className="w-full h-full absolute inset-0 bg-gradient-to-b from-[#020617] via-[#0b132b] to-[#132245] z-0">
+          <ThaiArchitectureSkyline />
+        </div>
+      )}
 
-      {/* 2. สิ่งก่อสร้าง: วางบนผิวน้ำอย่างคมชัด สีทองสว่าง 100% ไม่จาง */}
-      <ThaiArchitectureSkyline />
-
-      {/* 3. Foreground & Edge Borders: โคมแขวนล้านนา ลายกนกมุมจอ และกอดอกบัวริมตลิ่ง */}
+      {/* 2. ลายประดับมุมจอและกอบัวริมตลิ่ง (ไม่บังปุ่มกด) */}
       <DecorativeScreenBorders />
+
+      {/* 3. ป้ายชื่อและคำอวยพรโปร่งแสงลอยตามกระทง 3D ทุกใบ (คลิกอ่านเต็ม/สร้าง E-Card ได้) */}
+      {showWishLabels && (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
+          {labelItems.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              ref={(el) => {
+                if (el) {
+                  labelDomMapRef.current.set(item.id, el);
+                } else {
+                  labelDomMapRef.current.delete(item.id);
+                }
+              }}
+              onClick={() => setSelectedKrathong(item)}
+              style={{ opacity: 0, willChange: 'transform, opacity' }}
+              className={`absolute top-0 left-0 max-w-[146px] sm:max-w-[205px] px-2.5 py-1 rounded-xl backdrop-blur-[2px] border text-left shadow-md transition-colors cursor-pointer ${
+                item.isMine
+                  ? 'bg-[#1c2845]/82 border-amber-400/80 text-amber-100 ring-1 ring-amber-300/40'
+                  : 'bg-[#0b132b]/72 hover:bg-[#121b33]/90 border-amber-400/35 text-amber-50'
+              }`}
+            >
+              <p className="text-[10px] sm:text-[11px] font-bold text-amber-300 truncate leading-tight">
+                {item.isMine ? `✨ ${item.owner_name}` : item.owner_name}
+              </p>
+              <p className="text-[9px] sm:text-[10px] text-amber-50/90 truncate leading-snug">
+                {item.wish_message}
+              </p>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Organizer Logo (มุมขวาบน แสดงสังกัดองค์กรผู้จัดงาน SAM SCI 69) */}
+      <div className="absolute top-2.5 right-2.5 sm:top-5 sm:right-6 z-30 pointer-events-none select-none">
+        <img
+          src="/logo-final-notext-white.png"
+          alt="SAM SCI 69 Logo"
+          className="h-7 sm:h-11 md:h-14 w-auto object-contain opacity-95 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
+        />
+      </div>
 
       {/* Floating QR Code & Stage Mode Watermark (ซ่อนบนมือถือแสดงเฉพาะจอโปรเจกเตอร์/แท็บเล็ต >= md) */}
       {showControls && (
         <div className="hidden md:block absolute top-5 left-5 z-30 transition-all duration-300 ease-in-out">
           {isQrExpanded ? (
-            <div className="relative flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-3.5 p-3 sm:p-3.5 bg-[#0b132b]/95 rounded-2xl border border-amber-500/35 text-amber-50 shadow-xl transition-all">
-              {/* QR Code Container with High-Contrast Cream Background (Static Local Asset) */}
+            <div className="relative flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-3.5 p-3 sm:p-3.5 bg-[#0b132b]/90 rounded-2xl border border-amber-500/35 text-amber-50 shadow-xl transition-all">
               <div className="w-28 h-28 sm:w-32 sm:h-32 bg-[#fffbeb] rounded-xl flex items-center justify-center p-1.5 shrink-0 border border-amber-300/80 shadow-md">
                 <img
                   src="/qr-create.svg"
@@ -1751,7 +864,6 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
                 />
               </div>
 
-              {/* Header Text Container: เว้น padding-right (pr-9 sm:pr-10 = 36-40px) ป้องกันข้อความชนปุ่มมุมบนขวา */}
               <div className="text-center sm:text-left flex flex-col justify-center self-center sm:self-auto pr-9 sm:pr-10 pt-0.5">
                 <div className="flex items-center justify-center sm:justify-start space-x-1.5">
                   <span
@@ -1762,7 +874,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
                   <p className="font-bold text-sm tracking-wide text-amber-200 whitespace-nowrap">สแกนร่วมลอยกระทง</p>
                 </div>
                 <p className="text-[11px] text-amber-100/85 mt-0.5 font-medium whitespace-nowrap">
-                  เปิดหน้าสร้างกระทงบนมือถือทันที
+                  เปิดหน้าสร้างกระทง 3D บนมือถือทันที
                 </p>
                 <p className="text-[10px] text-amber-300 font-mono mt-1.5 px-2 py-0.5 rounded-lg bg-[#0b132b]/80 inline-block border border-amber-500/40 shadow-inner">
                   {window.location.hostname === 'localhost'
@@ -1771,7 +883,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
                 </p>
                 <div className="mt-1.5 flex items-center justify-center sm:justify-start gap-2">
                   <span className="text-[10px] text-amber-200/75 whitespace-nowrap">
-                    {enableRealtime ? 'โหมดจอเวที (Realtime)' : 'โหมดผู้ร่วมงาน'}
+                    {enableRealtime ? 'โหมดจอเวที (Realtime 3D)' : 'โหมดผู้ร่วมงาน'}
                   </span>
                   <a
                     href="/qr-create.png"
@@ -1784,7 +896,6 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
                 </div>
               </div>
 
-              {/* ปุ่มพับเก็บกล่อง QR (Collapse Button) วางมุมบนขวา มี Hitbox 28x28px (w-7 h-7) กดง่าย ไม่ทับข้อความ */}
               <button
                 onClick={() => setIsQrExpanded(false)}
                 title="พับเก็บกล่อง QR Code"
@@ -1795,7 +906,6 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
               </button>
             </div>
           ) : (
-            /* สถานะพับเก็บ (Collapsed): แสดงแถบ/ปุ่มขนาดกะทัดรัด พร้อม Tooltip และไอคอน QR */
             <button
               onClick={() => setIsQrExpanded(true)}
               title="คลิกเพื่อขยาย QR Code สำหรับสแกนลอยกระทง"
@@ -1811,27 +921,17 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         </div>
       )}
 
-      {/* Organizer Logo (มุมขวาบน แสดงสังกัดองค์กรผู้จัดงาน SAM SCI 69) */}
-      <div className="absolute top-2.5 right-2.5 sm:top-5 sm:right-6 z-30 pointer-events-none select-none">
-        <img
-          src="/logo-final-notext-white.png"
-          alt="SAM SCI 69 Logo"
-          className="h-7 sm:h-11 md:h-14 w-auto object-contain opacity-95 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
-        />
-      </div>
-
-      {/* Header Central Brand (สมมาตรสมบูรณ์แบบ พร้อมตัวนับสถิติรักษ์โลก Zero-Waste แบบเรียลไทม์) */}
+      {/* Header Central Brand */}
       {showControls && (
         <header className="absolute top-3 sm:top-5 inset-x-0 flex flex-col items-center justify-center text-center pointer-events-none z-30 px-14 sm:px-4">
           <div className="flex flex-col items-center justify-center">
-            <h1 className="text-lg sm:text-3xl md:text-4xl font-extrabold text-amber-100 drop-shadow-[0_2px_6px_rgba(0,0,0,0.75)] tracking-wide whitespace-nowrap">
+            <h1 className="text-lg sm:text-3xl md:text-4xl font-extrabold text-amber-100 drop-shadow-[0_2px_6px_rgba(0,0,0,0.85)] tracking-wide whitespace-nowrap">
               เทศกาลลอยกระทงออนไลน์
             </h1>
             <p className="text-[10px] sm:text-sm text-amber-200/90 tracking-[0.2em] sm:tracking-[0.25em] uppercase mt-1 sm:mt-1.5 font-semibold drop-shadow whitespace-nowrap pl-[0.2em] sm:pl-[0.25em]">
-              Loy Krathong River of Lights
+              Loy Krathong River of Lights 3D
             </p>
-            {/* Live Krathong Counter (แสดงเฉพาะจำนวนกระทงที่ลอยจริง) */}
-            <div className="mt-2 inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-[#0b132b]/95 border border-emerald-400/35 text-[10px] sm:text-xs text-emerald-100 shadow-md">
+            <div className="mt-2 inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-[#0b132b]/90 border border-emerald-400/35 text-[10px] sm:text-xs text-emerald-100 shadow-md">
               <Leaf className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               <span>
                 ร่วมลอยแล้ว <strong className="text-amber-300 font-bold">{totalFloatedCount.toLocaleString()}</strong> ใบ
@@ -1842,7 +942,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
               <div className="mt-2.5 pointer-events-auto inline-flex flex-wrap items-center justify-center gap-2 px-3.5 py-2 rounded-2xl bg-[#0b132b]/95 border border-amber-400/50 text-xs text-amber-100 shadow-lg max-w-[92vw]">
                 <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />
                 <span>
-                  กระทงของ <strong className="text-amber-300">{launchNoticeKrathong.owner_name}</strong> กำลังลอยลงสู่สายน้ำแล้ว!
+                  กระทง 3D ของ <strong className="text-amber-300">{launchNoticeKrathong.owner_name}</strong> กำลังลอยลงสู่สายน้ำแล้ว!
                 </span>
                 <button
                   type="button"
@@ -1866,7 +966,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       )}
 
       {/* Bottom Floating Control Bar */}
-      <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 flex items-center space-x-1.5 sm:space-x-3 bg-[#0b132b]/95 px-3 sm:px-5 py-2.5 sm:py-3 rounded-full border border-amber-500/35 shadow-xl z-30 max-w-[95vw]">
+      <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 flex items-center space-x-1.5 sm:space-x-2.5 bg-[#0b132b]/92 px-3 sm:px-5 py-2.5 sm:py-3 rounded-full border border-amber-500/35 shadow-xl z-30 max-w-[95vw]">
         <button
           onClick={onNavigateCustomize}
           className="flex items-center space-x-1.5 sm:space-x-2 px-3.5 sm:px-5 py-2 sm:py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-full shadow-md border border-amber-300/60 transition active:scale-95 whitespace-nowrap cursor-pointer text-xs sm:text-sm"
@@ -1888,7 +988,8 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         {myKrathongId && (
           <button
             onClick={handleFindMyKrathong}
-            className="flex items-center space-x-1.5 px-3 sm:px-3.5 py-2 sm:py-2.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-400/50 rounded-full text-xs sm:text-sm font-semibold shadow-sm transition whitespace-nowrap cursor-pointer"
+            title="ดูกระทงของฉัน"
+            className="flex items-center space-x-1.5 px-2.5 sm:px-3.5 py-2 sm:py-2.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-400/50 rounded-full text-xs sm:text-sm font-semibold shadow-sm transition whitespace-nowrap cursor-pointer"
           >
             <Eye className="w-4 h-4 text-amber-300 shrink-0" />
             <span className="hidden sm:inline">ดูกระทงของฉัน</span>
@@ -1910,6 +1011,19 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
             <VolumeX className="w-4 h-4 shrink-0" />
           )}
           <span className="hidden md:inline">{isAudioPlaying ? 'เพลงเปียโน: เปิด' : 'เปิดเพลงเปียโน'}</span>
+        </button>
+
+        <button
+          onClick={() => setShowWishLabels((prev) => !prev)}
+          title={showWishLabels ? 'ซ่อนป้ายคำอวยพรเหนือกระทง' : 'แสดงป้ายคำอวยพรเหนือกระทง'}
+          className={`hidden sm:inline-flex items-center space-x-1 px-3 py-2 rounded-full border text-xs whitespace-nowrap cursor-pointer transition ${
+            showWishLabels
+              ? 'bg-slate-900/80 border-amber-500/35 text-amber-200 hover:border-amber-400'
+              : 'bg-slate-900/60 border-slate-700 text-slate-400 hover:text-amber-200'
+          }`}
+        >
+          {showWishLabels ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+          <span>ป้ายคำอวยพร</span>
         </button>
 
         <button
@@ -1942,7 +1056,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         <div className="fixed inset-0 bg-black/65 flex items-center justify-center p-4 z-50">
           <div className="bg-slate-900 border border-amber-500/35 rounded-3xl p-6 max-w-sm w-full text-center relative shadow-2xl animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-center mb-2">
-              <KrathongVisual
+              <KrathongThumb3D
                 baseType={selectedKrathong.base_type}
                 flowerType={selectedKrathong.flower_type}
                 candleColor={selectedKrathong.candle_color}
@@ -1982,7 +1096,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         </div>
       )}
 
-      {/* Share Card Modal when triggered from RiverCanvas */}
+      {/* Share Card Modal */}
       {shareCardKrathong && (
         <ShareCardModal
           ownerName={shareCardKrathong.owner_name}

@@ -1,5 +1,6 @@
 // src/components/KrathongVisual.tsx
 import React, { useId } from 'react';
+import { parseCandleConfig } from '../utils/krathongConfig';
 
 interface KrathongVisualProps {
   baseType: string;
@@ -24,15 +25,15 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
     lg: 'w-68 h-68'
   }[size];
 
-  // แยกค่า candleColor กรณีเก็บในรูปแบบ "candle|acc1,acc2,acc3"
-  const [parsedCandle, parsedAcc] = (candleColor || 'yellow').split('|');
-  const activeCandle = parsedCandle || 'yellow';
-  const rawAccStr = accessory !== undefined ? accessory : (parsedAcc || '');
-  const activeAccessories = rawAccStr
-    .split(',')
-    .map((s) => s.trim())
-    .filter((s) => s && s !== 'none');
+  // แยกค่า candleColor รูปแบบใหม่ (รวม scale ของแต่ละชิ้น) และรูปแบบเดิม
+  const {
+    candleId: activeCandle,
+    accessories: activeAccessories,
+    accessoryScales,
+    centerScale
+  } = parseCandleConfig(candleColor, accessory);
   const hasAcc = (id: string) => activeAccessories.includes(id);
+  const getAccScale = (id: string) => accessoryScales[id] ?? 1;
   const isCenterpieceModel = [
     'pumpkin',
     'noppamas_crown',
@@ -555,7 +556,7 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
         {/* --- 6. ของตกแต่งเสริมพิเศษ (Accessories / Toppers — จัดวางแยกตำแหน่งอย่างประณีต) --- */}
         {/* 6.1 ธงราวงานวัด (ซ้ายบน) */}
         {hasAcc('flag_thai') && (
-          <g transform="translate(44, 44)">
+          <g transform={`translate(68, 102) scale(${getAccScale('flag_thai')}) translate(-24, -58)`}>
             <line x1="24" y1="58" x2="6" y2="6" stroke="#fbbf24" strokeWidth="2.2" strokeLinecap="round" />
             <circle cx="6" cy="6" r="2.5" fill="#fde047" />
             <polygon points="7,9 29,13 11,22" fill="#f43f5e" stroke="#fef08a" strokeWidth="1" />
@@ -566,7 +567,7 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
 
         {/* 6.2 หมวกปริญญา A+ (ซ้ายกลาง) */}
         {hasAcc('grad_cap') && (
-          <g transform="translate(58, 52)">
+          <g transform={`translate(80, 100) scale(${getAccScale('grad_cap')}) translate(-22, -48)`}>
             <line x1="22" y1="48" x2="14" y2="16" stroke="#fbbf24" strokeWidth="2" />
             <polygon points="14,3 0,11 14,19 28,11" fill="#0f172a" stroke="#fbbf24" strokeWidth="1.6" />
             <path d="M 7 15 L 7 21 C 10 24, 18 24, 21 21 L 21 15" fill="#1e293b" stroke="#fbbf24" strokeWidth="1.2" />
@@ -577,7 +578,7 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
 
         {/* 6.3 โมเดลจำลองตึกฟักทอง ม.อ. (3D Miniature Pumpkin Building) */}
         {hasAcc('pumpkin') && (
-          <g transform="translate(114, 42)">
+          <g transform={`translate(121, 100) scale(${getAccScale('pumpkin')}) translate(-7, -58)`}>
             {/* ก้านเสียบปักบนกระทง */}
             <line x1="7" y1="58" x2="18" y2="39" stroke="#d97706" strokeWidth="2" strokeLinecap="round" />
             {/* ฐานแท่นรองรับอาคาร */}
@@ -602,7 +603,7 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
 
         {/* 6.3b ชฎาทองนพมาศ (ซ้ายบน) */}
         {hasAcc('noppamas_crown') && (
-          <g transform="translate(46, 38)">
+          <g transform={`translate(64, 98) scale(${getAccScale('noppamas_crown')}) translate(-18, -60)`}>
             <line x1="18" y1="60" x2="14" y2="32" stroke="#d97706" strokeWidth="1.8" strokeLinecap="round" />
             {/* ยอดชฎาเรียวแหลม */}
             <path d="M 14 2 L 16.5 16 L 11.5 16 Z" fill="#fde047" stroke="#92400e" strokeWidth="0.7" />
@@ -619,7 +620,7 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
 
         {/* 6.3c โคมลอยล้านนา (ลอยเหนือมุมซ้ายบน) */}
         {hasAcc('sky_lantern') && (
-          <g transform="translate(20, 8)">
+          <g transform={`translate(35, 26) scale(${getAccScale('sky_lantern')}) translate(-15, -18)`}>
             {/* โคมกระดาษทรงกระบอกอุ่น */}
             <path d="M 7 6 Q 15 2 23 6 L 26 18 Q 24 28 19 30 L 11 30 Q 6 28 4 18 Z" fill="#fb923c" stroke="#9a3412" strokeWidth="0.9" />
             <path d="M 10 6.5 Q 15 4 20 6.5 L 21.5 18 Q 19.5 27 15 29 Q 10.5 27 8.5 18 Z" fill="#fef08a" opacity="0.75" />
@@ -633,7 +634,7 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
 
         {/* 6.3d โคมบัวแก้ว (ประดับริมซ้ายล่าง) */}
         {hasAcc('lotus_lamp') && (
-          <g transform="translate(30, 72)">
+          <g transform={`translate(46, 98) scale(${getAccScale('lotus_lamp')}) translate(-16, -26)`}>
             {/* ฐานบัว */}
             <ellipse cx="16" cy="26" rx="11" ry="3.2" fill="#0f766e" stroke="#5eead4" strokeWidth="0.8" />
             {/* กลีบบัวแก้วซ้อน */}
@@ -647,7 +648,7 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
 
         {/* 6.3e ช้างเผือกมงคล (ประดับมุมขวาล่าง) */}
         {hasAcc('elephant_gold') && (
-          <g transform="translate(132, 72)">
+          <g transform={`translate(147, 98) scale(${getAccScale('elephant_gold')}) translate(-15, -26)`}>
             {/* ฐานตั้งช้าง */}
             <rect x="4" y="25" width="22" height="3.5" rx="1.2" fill="#92400e" stroke="#fde047" strokeWidth="0.7" />
             {/* ลำตัวช้างทรงเครื่องสีครีมงาช้าง */}
@@ -665,7 +666,7 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
 
         {/* 6.4 ไฟเย็นระยิบระยับ (ขวาบน) */}
         {hasAcc('sparkler') && (
-          <g>
+          <g transform={`translate(122, 98) scale(${getAccScale('sparkler')}) translate(-122, -98)`}>
             <line x1="122" y1="98" x2="148" y2="44" stroke="#a8a29e" strokeWidth="2" />
             <line x1="133" y1="75" x2="148" y2="44" stroke="#fde047" strokeWidth="2.8" />
             <g transform="translate(148, 44)" className="animate-spin" style={{ animationDuration: '4s' }}>
@@ -688,7 +689,7 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
 
         {/* 6.5 หัวใจคู่รัก (ประดับหน้าซ้าย) */}
         {hasAcc('heart_sign') && (
-          <g transform="translate(36, 72)">
+          <g transform={`translate(60, 104) scale(${getAccScale('heart_sign')}) translate(-24, -32)`}>
             <line x1="24" y1="32" x2="14" y2="16" stroke="#f472b6" strokeWidth="2" />
             <path
               d="M 14 9 C 14 4, 6 2, 4 7 C 2 12, 14 19, 14 22 C 14 19, 26 12, 24 7 C 22 2, 14 4, 14 9 Z"
@@ -702,7 +703,7 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
 
         {/* 6.6 เหรียญทองนำโชค (ประดับหน้าขวา) */}
         {hasAcc('lucky_coin') && (
-          <g transform="translate(138, 72)">
+          <g transform={`translate(140, 104) scale(${getAccScale('lucky_coin')}) translate(-2, -32)`}>
             <line x1="2" y1="32" x2="12" y2="16" stroke="#eab308" strokeWidth="2" />
             <circle cx="13" cy="12" r="10.5" fill="#f59e0b" stroke="#fef08a" strokeWidth="2" />
             <circle cx="13" cy="12" r="8" fill="none" stroke="#fde047" strokeWidth="0.8" strokeDasharray="2 2" />
@@ -712,7 +713,7 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
 
         {/* 6.7 ผีเสื้อแสงจันทร์ (บินเหนือเทียนด้านซ้ายบน) */}
         {hasAcc('butterfly') && (
-          <g transform="translate(64, 22)">
+          <g transform={`translate(76, 37) scale(${getAccScale('butterfly')}) translate(-12, -15)`}>
             <path
               d="M 11 12 C 1 0, -2 15, 11 16 C 1 18, 3 27, 11 19 Z"
               fill="#38bdf8"
@@ -730,7 +731,7 @@ export const KrathongVisual: React.FC<KrathongVisualProps> = ({
         )}
 
         {/* --- 7. พุ่มดอกไม้ 3 มิติ หรือ ของตกแต่งตรงกลางกระทง (Centerpiece Model) --- */}
-        <g>
+        <g transform={centerScale !== 1 ? `translate(100, 112) scale(${centerScale}) translate(-100, -112)` : undefined}>
           {/* ใบไม้รองรับตรงกลางหน้าตักกระทง */}
           <ellipse cx="100" cy="116" rx="56" ry="15" fill="#14532d" opacity="0.72" />
 

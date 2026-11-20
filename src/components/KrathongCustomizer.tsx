@@ -1,9 +1,15 @@
 // src/components/KrathongCustomizer.tsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { UserType } from '../types';
-import { KrathongVisual } from './KrathongVisual';
+import { Krathong3DPreview } from './Krathong3DPreview';
 import { ShareCardModal } from './ShareCardModal';
-import { Sparkles, Eye, Image as ImageIcon, Dices, Volume2, VolumeX, MessageSquareHeart } from 'lucide-react';
+import { Sparkles, Eye, Image as ImageIcon, Dices, Volume2, VolumeX, MessageSquareHeart, RotateCcw } from 'lucide-react';
+import {
+  MIN_DECOR_SCALE,
+  MAX_DECOR_SCALE,
+  SCALE_STEP,
+  encodeCandleConfig
+} from '../utils/krathongConfig';
 import { supabase } from '../utils/supabase';
 import {
   containsProfanity,
@@ -39,7 +45,19 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
   const [flowerType, setFlowerType] = useState('lotus_flower');
   const [candleColor, setCandleColor] = useState('yellow');
   const [selectedAccessories, setSelectedAccessories] = useState<string[]>([]);
+  const [centerScale, setCenterScale] = useState<number>(1);
+  const [accessoryScales, setAccessoryScales] = useState<Record<string, number>>({});
   const [activeDecorTab, setActiveDecorTab] = useState<'base' | 'flower' | 'candle' | 'accessory'>('base');
+  const [isDesktopPreview, setIsDesktopPreview] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 768 : true
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const onChange = (ev: MediaQueryListEvent) => setIsDesktopPreview(ev.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -124,6 +142,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
   const handleToggleAccessory = (accId: string) => {
     if (accId === 'none') {
       setSelectedAccessories([]);
+      setAccessoryScales({});
       return;
     }
     setSelectedAccessories((prev) =>
@@ -131,11 +150,17 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
     );
   };
 
+  const handleAccessoryScaleChange = (accId: string, scale: number) => {
+    setAccessoryScales((prev) => ({ ...prev, [accId]: scale }));
+  };
+
   // สุ่มแต่งกระทงมงคลด้วยปุ่มเดียว (สุ่มของประดับ 1-3 ชิ้นพร้อมกัน)
   const handleRandomizeDesign = () => {
     setBaseType(bases[Math.floor(Math.random() * bases.length)].id);
     setFlowerType(flowers[Math.floor(Math.random() * flowers.length)].id);
     setCandleColor(candles[Math.floor(Math.random() * candles.length)].id);
+    setCenterScale(1);
+    setAccessoryScales({});
 
     const decorPool = accessories.filter((a) => a.id !== 'none').map((a) => a.id);
     const shuffled = [...decorPool].sort(() => 0.5 - Math.random());
@@ -143,10 +168,12 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
     setSelectedAccessories(shuffled.slice(0, pickCount));
   };
 
-  const combinedCandleValue =
-    selectedAccessories.length > 0
-      ? `${candleColor}|${selectedAccessories.join(',')}`
-      : candleColor;
+  const combinedCandleValue = encodeCandleConfig(
+    candleColor,
+    selectedAccessories,
+    accessoryScales,
+    centerScale
+  );
 
   const handleFloatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -381,118 +408,123 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
 
       {/* Main Builder Container */}
       <div className="max-w-5xl mx-auto w-full grid grid-cols-1 md:grid-cols-12 gap-3.5 sm:gap-6 items-start py-3 sm:py-4 pb-10">
-        {/* Left Side: Sticky Real-time Live Preview (Compact Horizontal on Mobile, Full Vertical on Desktop) */}
+        {/* Left Side: Sticky Real-time 3D Live Preview (Compact Horizontal on Mobile, Full Vertical on Desktop) */}
         <div className="md:col-span-5 sticky top-2 z-30 md:top-4 flex flex-col items-center justify-center p-2.5 sm:p-5 md:p-6 bg-[#121b33] rounded-2xl md:rounded-3xl border border-amber-400/35 shadow-xl relative overflow-hidden">
-          {/* Mobile Compact Sticky Preview (< md) */}
-          <div className="flex md:hidden items-center gap-3 w-full">
-            <div className="w-28 h-28 shrink-0 rounded-2xl bg-[#0b132b]/80 border border-amber-500/25 flex items-center justify-center">
-              <KrathongVisual
-                baseType={baseType}
-                flowerType={flowerType}
-                candleColor={combinedCandleValue}
-                size="sm"
-              />
+          {!isDesktopPreview ? (
+            /* Mobile Compact Sticky 3D Preview (< md) */
+            <div className="flex items-center gap-3 w-full">
+              <div className="w-28 h-28 shrink-0 rounded-2xl bg-[#0b132b]/80 border border-amber-500/25 flex items-center justify-center overflow-hidden">
+                <Krathong3DPreview
+                  baseType={baseType}
+                  flowerType={flowerType}
+                  candleColor={combinedCandleValue}
+                  compact
+                />
+              </div>
+              <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+                <div className="flex items-center justify-between gap-1.5">
+                  <span className="text-[10px] text-amber-300 font-semibold uppercase tracking-wide truncate">
+                    กระทง 3D (ด้านบน)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleRandomizeDesign}
+                    className="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-amber-400/20 hover:bg-amber-400/35 border border-amber-400/50 text-amber-200 text-[10px] font-semibold transition active:scale-95 cursor-pointer shrink-0"
+                  >
+                    <Dices className="w-3 h-3 text-amber-300" />
+                    <span>สุ่มแบบ</span>
+                  </button>
+                </div>
+                <div className="flex flex-wrap items-center gap-1">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-900/90 border border-amber-500/30 text-amber-200 truncate max-w-[115px]">
+                    {bases.find((b) => b.id === baseType)?.icon} {bases.find((b) => b.id === baseType)?.name}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-900/90 border border-amber-500/30 text-amber-200 truncate max-w-[115px]">
+                    {flowers.find((f) => f.id === flowerType)?.icon || '🌸'} {flowers.find((f) => f.id === flowerType)?.name}
+                    {Math.abs(centerScale - 1) >= 0.01 ? ` ${Math.round(centerScale * 100)}%` : ''}
+                  </span>
+                  {selectedAccessories.length > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 border border-amber-400/50 text-amber-100">
+                      +{selectedAccessories.length} ของเสริม
+                    </span>
+                  )}
+                </div>
+                <div className="w-full bg-[#fffbeb] rounded-xl px-2.5 py-1.5 border border-amber-400 text-left shadow-sm">
+                  <p className="font-bold text-amber-900 text-[11px] truncate">
+                    {ownerName || 'ชื่อของคุณจะปรากฏที่นี่'}
+                  </p>
+                  <p className="text-[10px] text-stone-800 italic truncate">
+                    "{wishMessage || 'คำอธิษฐานหรือคำขอขมา...'}"
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-              <div className="flex items-center justify-between gap-1.5">
-                <span className="text-[10px] text-amber-300 font-semibold uppercase tracking-wide truncate">
-                  ตัวอย่างกระทงจริง
+          ) : (
+            /* Desktop Vertical 3D Live Preview (>= md) */
+            <div className="flex flex-col items-center w-full">
+              <div className="w-full flex items-center justify-between mb-2">
+                <span className="text-[11px] text-amber-300 font-medium tracking-wide uppercase">
+                  ตัวอย่างกระทง 3D (Live 3D Preview)
                 </span>
                 <button
                   type="button"
                   onClick={handleRandomizeDesign}
-                  className="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-amber-400/20 hover:bg-amber-400/35 border border-amber-400/50 text-amber-200 text-[10px] font-semibold transition active:scale-95 cursor-pointer shrink-0"
+                  className="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-amber-400/20 hover:bg-amber-400/35 border border-amber-400/50 text-amber-200 text-[11px] font-semibold transition active:scale-95 cursor-pointer"
                 >
-                  <Dices className="w-3 h-3 text-amber-300" />
-                  <span>สุ่มแบบ</span>
+                  <Dices className="w-3.5 h-3.5 text-amber-300" />
+                  <span>สุ่มแบบสวยๆ</span>
                 </button>
               </div>
-              <div className="flex flex-wrap items-center gap-1">
-                <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-900/90 border border-amber-500/30 text-amber-200 truncate max-w-[115px]">
+
+              <div className="my-2 w-full flex items-center justify-center">
+                <Krathong3DPreview
+                  baseType={baseType}
+                  flowerType={flowerType}
+                  candleColor={combinedCandleValue}
+                />
+              </div>
+
+              {/* Current Design Badges */}
+              <div className="flex flex-wrap items-center justify-center gap-1.5 my-2">
+                <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-900/90 border border-amber-500/30 text-amber-200">
                   {bases.find((b) => b.id === baseType)?.icon} {bases.find((b) => b.id === baseType)?.name}
                 </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-900/90 border border-amber-500/30 text-amber-200 truncate max-w-[115px]">
+                <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-900/90 border border-amber-500/30 text-amber-200">
                   {flowers.find((f) => f.id === flowerType)?.icon || '🌸'} {flowers.find((f) => f.id === flowerType)?.name}
+                  {Math.abs(centerScale - 1) >= 0.01 ? ` (${Math.round(centerScale * 100)}%)` : ''}
                 </span>
-                {selectedAccessories.length > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 border border-amber-400/50 text-amber-100">
-                    +{selectedAccessories.length} ของเสริม
+                {selectedAccessories.length === 0 ? (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-900/90 border border-amber-500/30 text-amber-200">
+                    🕯️ ธูปเทียนปกติ
                   </span>
+                ) : (
+                  selectedAccessories.map((accId) => {
+                    const found = accessories.find((a) => a.id === accId);
+                    const s = accessoryScales[accId] ?? 1;
+                    return found ? (
+                      <span
+                        key={accId}
+                        className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 border border-amber-400/50 text-amber-100"
+                      >
+                        {found.icon} {found.name}
+                        {Math.abs(s - 1) >= 0.01 ? ` (${Math.round(s * 100)}%)` : ''}
+                      </span>
+                    ) : null;
+                  })
                 )}
               </div>
-              <div className="w-full bg-[#fffbeb] rounded-xl px-2.5 py-1.5 border border-amber-400 text-left shadow-sm">
-                <p className="font-bold text-amber-900 text-[11px] truncate">
+
+              {/* Speech Bubble Preview */}
+              <div className="w-full bg-[#fffbeb] rounded-2xl p-4 border-2 border-amber-400 text-center mt-1 shadow-md">
+                <p className="font-bold text-amber-900 text-sm">
                   {ownerName || 'ชื่อของคุณจะปรากฏที่นี่'}
                 </p>
-                <p className="text-[10px] text-stone-800 italic truncate">
-                  "{wishMessage || 'คำอธิษฐานหรือคำขอขมา...'}"
+                <p className="text-xs text-stone-800 italic mt-0.5 break-words line-clamp-2">
+                  "{wishMessage || 'คำขอขมาพระแม่คงคาหรือคำอธิษฐาน...'}"
                 </p>
               </div>
             </div>
-          </div>
-
-          {/* Desktop Vertical Live Preview (>= md) */}
-          <div className="hidden md:flex md:flex-col md:items-center w-full">
-            <div className="w-full flex items-center justify-between mb-1">
-              <span className="text-[11px] text-amber-300 font-medium tracking-wide uppercase">
-                ตัวอย่างกระทงจริง (Live Preview)
-              </span>
-              <button
-                type="button"
-                onClick={handleRandomizeDesign}
-                className="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-amber-400/20 hover:bg-amber-400/35 border border-amber-400/50 text-amber-200 text-[11px] font-semibold transition active:scale-95 cursor-pointer"
-              >
-                <Dices className="w-3.5 h-3.5 text-amber-300" />
-                <span>สุ่มแบบสวยๆ</span>
-              </button>
-            </div>
-
-            <div className="my-4 transform hover:scale-105 transition-transform duration-300 flex items-center justify-center">
-              <KrathongVisual
-                baseType={baseType}
-                flowerType={flowerType}
-                candleColor={combinedCandleValue}
-                size="md"
-              />
-            </div>
-
-            {/* Current Design Badges */}
-            <div className="flex flex-wrap items-center justify-center gap-1.5 mb-2">
-              <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-900/90 border border-amber-500/30 text-amber-200">
-                {bases.find((b) => b.id === baseType)?.icon} {bases.find((b) => b.id === baseType)?.name}
-              </span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-900/90 border border-amber-500/30 text-amber-200">
-                {flowers.find((f) => f.id === flowerType)?.icon || '🌸'} {flowers.find((f) => f.id === flowerType)?.name}
-              </span>
-              {selectedAccessories.length === 0 ? (
-                <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-900/90 border border-amber-500/30 text-amber-200">
-                  🕯️ ธูปเทียนปกติ
-                </span>
-              ) : (
-                selectedAccessories.map((accId) => {
-                  const found = accessories.find((a) => a.id === accId);
-                  return found ? (
-                    <span
-                      key={accId}
-                      className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 border border-amber-400/50 text-amber-100"
-                    >
-                      {found.icon} {found.name}
-                    </span>
-                  ) : null;
-                })
-              )}
-            </div>
-
-            {/* Speech Bubble Preview */}
-            <div className="w-full bg-[#fffbeb] rounded-2xl p-4 border-2 border-amber-400 text-center mt-1 shadow-md">
-              <p className="font-bold text-amber-900 text-sm">
-                {ownerName || 'ชื่อของคุณจะปรากฏที่นี่'}
-              </p>
-              <p className="text-xs text-stone-800 italic mt-0.5 break-words line-clamp-2">
-                "{wishMessage || 'คำขอขมาพระแม่คงคาหรือคำอธิษฐาน...'}"
-              </p>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Right Side: Form Controls */}
@@ -703,6 +735,45 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
                     ))}
                 </div>
               </div>
+
+              {/* ตัวปรับขนาดดอกไม้ / ของตกแต่งตรงกลาง (60%–160%) */}
+              <div className="p-3 rounded-2xl bg-[#0b132b]/85 border border-amber-500/25 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-semibold text-amber-200">
+                    ปรับขนาดดอกไม้ / ของตกแต่งกลางกระทง:
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-amber-300 tabular-nums">
+                      {Math.round(centerScale * 100)}%
+                    </span>
+                    {Math.abs(centerScale - 1) >= 0.01 && (
+                      <button
+                        type="button"
+                        onClick={() => setCenterScale(1)}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/30 border border-amber-400/40 text-[10px] text-amber-200 cursor-pointer"
+                      >
+                        <RotateCcw className="w-2.5 h-2.5" />
+                        <span>รีเซ็ต</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <input
+                  type="range"
+                  min={MIN_DECOR_SCALE}
+                  max={MAX_DECOR_SCALE}
+                  step={SCALE_STEP}
+                  value={centerScale}
+                  onChange={(e) => setCenterScale(Number(e.target.value))}
+                  aria-label="ปรับขนาดของตกแต่งกลางกระทง"
+                  className="w-full accent-amber-400 cursor-pointer"
+                />
+                <div className="flex justify-between text-[10px] text-slate-400">
+                  <span>เล็ก (60%)</span>
+                  <span>มาตรฐาน (100%)</span>
+                  <span>ใหญ่พิเศษ (160%)</span>
+                </div>
+              </div>
             </div>
 
             {/* 5. แสงเทียนนำทาง (8 สีมงคล) */}
@@ -772,6 +843,66 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
                   );
                 })}
               </div>
+
+              {/* ตัวปรับขนาดของตกแต่งเสริมแต่ละชิ้นแยกกัน (60%–160%) */}
+              {selectedAccessories.length > 0 && (
+                <div className="mt-3 p-3 rounded-2xl bg-[#0b132b]/85 border border-amber-500/25 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-amber-200">
+                      ปรับขนาดของตกแต่งเสริมแต่ละชิ้น (60%–160%):
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setAccessoryScales({})}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-800/80 hover:bg-amber-500/20 border border-slate-600/70 text-[10px] text-amber-200/85 cursor-pointer"
+                    >
+                      <RotateCcw className="w-2.5 h-2.5" />
+                      <span>รีเซ็ตทั้งหมด</span>
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {selectedAccessories.map((accId) => {
+                      const info = accessories.find((a) => a.id === accId);
+                      const currentScale = accessoryScales[accId] ?? 1;
+                      return (
+                        <div key={accId} className="space-y-1">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-amber-100 font-medium">
+                              {info?.icon || '✨'} {info?.name || accId}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-amber-300 tabular-nums">
+                                {Math.round(currentScale * 100)}%
+                              </span>
+                              {Math.abs(currentScale - 1) >= 0.01 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleAccessoryScaleChange(accId, 1)}
+                                  className="text-[10px] text-amber-300/80 hover:text-amber-200 underline cursor-pointer"
+                                >
+                                  100%
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <input
+                            type="range"
+                            min={MIN_DECOR_SCALE}
+                            max={MAX_DECOR_SCALE}
+                            step={SCALE_STEP}
+                            value={currentScale}
+                            onChange={(e) =>
+                              handleAccessoryScaleChange(accId, Number(e.target.value))
+                            }
+                            aria-label={`ปรับขนาด ${info?.name || accId}`}
+                            className="w-full accent-amber-400 cursor-pointer"
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Submit Button */}

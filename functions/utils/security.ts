@@ -30,13 +30,35 @@ export const VALID_ACCESSORIES = [
 ] as const;
 
 export function isValidCandleField(val: string): boolean {
-  if (!val || typeof val !== 'string') return false;
-  const [candle, accPart] = val.split('|');
-  const candleOk = VALID_CANDLE_STYLES.includes(candle as any);
-  if (!accPart) return candleOk;
-  const accList = accPart.split(',').filter(Boolean);
-  const accOk = accList.length <= 12 && accList.every(a => VALID_ACCESSORIES.includes(a as any));
-  return candleOk && accOk;
+  if (!val || typeof val !== 'string' || val.length > 260) return false;
+  const parts = val.split('|');
+  if (parts.length > 3) return false;
+
+  const [candle, accPart = '', metaPart = ''] = parts;
+  if (!VALID_CANDLE_STYLES.includes(candle as any)) return false;
+
+  if (accPart) {
+    const accList = accPart.split(',').filter(Boolean);
+    if (accList.length > 12) return false;
+    const accOk = accList.every((token) => {
+      const [id, scaleStr, ...extra] = token.split('@');
+      if (extra.length > 0 || !VALID_ACCESSORIES.includes(id as any)) return false;
+      if (scaleStr === undefined) return true;
+      if (!/^\d+(\.\d{1,2})?$/.test(scaleStr)) return false;
+      const scaleVal = Number(scaleStr);
+      return scaleVal >= 0.5 && scaleVal <= 1.8;
+    });
+    if (!accOk) return false;
+  }
+
+  if (metaPart) {
+    const match = metaPart.match(/^cs=(\d+(?:\.\d{1,2})?)$/);
+    if (!match) return false;
+    const csVal = Number(match[1]);
+    if (csVal < 0.5 || csVal > 1.8) return false;
+  }
+
+  return true;
 }
 
 export function filterProfanity(text: string): boolean {

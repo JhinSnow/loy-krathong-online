@@ -21,7 +21,7 @@ import {
   getModerationOverrides,
   mergeModerationOverrides
 } from '../utils/evaluationHelpers';
-import { KrathongVisual } from './KrathongVisual';
+import { KrathongThumb3D } from './KrathongThumb3D';
 import { ShareCardModal } from './ShareCardModal';
 import { soundManager } from '../utils/soundEffects';
 
@@ -487,7 +487,7 @@ export const WishesGallery: React.FC<WishesGalleryProps> = ({
                       <div className="flex items-center gap-3">
                         <div className="w-24 h-24 shrink-0 rounded-2xl bg-[#0b132b]/85 border border-amber-500/25 flex items-center justify-center overflow-hidden">
                           <div className="scale-90">
-                            <KrathongVisual
+                            <KrathongThumb3D
                               baseType={item.base_type}
                               flowerType={item.flower_type}
                               candleColor={item.candle_color}

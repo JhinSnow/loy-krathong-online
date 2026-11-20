@@ -1,7 +1,7 @@
 // src/components/ShareCardModal.tsx
 import React, { useRef, useState } from 'react';
 import { toPng } from 'html-to-image';
-import { KrathongVisual } from './KrathongVisual';
+import { KrathongThumb3D } from './KrathongThumb3D';
 import { Download, X, Share2, Check } from 'lucide-react';
 
 interface ShareCardModalProps {
@@ -82,7 +82,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
 
           {/* Visual */}
           <div className="my-2 flex justify-center">
-            <KrathongVisual
+            <KrathongThumb3D
               baseType={baseType}
               flowerType={flowerType}
               candleColor={candleColor}
