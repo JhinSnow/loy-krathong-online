@@ -162,12 +162,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
-    const setting = await env.DB.prepare(
-      `SELECT value FROM system_settings WHERE key = 'require_approval'`
-    ).first<{ value: string }>();
-    const requireApproval = setting?.value === 'true';
-
-    const status = requireApproval ? 'pending' : 'approved';
+    const status = 'approved';
     const krathongId = crypto.randomUUID();
 
     await env.DB.prepare(`
@@ -179,18 +174,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       status, ipHash
     ).run();
 
-    // Invalidate Edge cache immediately when a new approved krathong arrives
-    if (status === 'approved') {
-      approvedCache = null;
-    }
+    // Invalidate Edge cache immediately when a new krathong arrives
+    approvedCache = null;
 
     return new Response(JSON.stringify({
       success: true,
       id: krathongId,
       status,
-      message: status === 'pending'
-        ? 'กระทงของคุณกำลังรอการตรวจสอบจากผู้ดูแล'
-        : 'ปล่อยกระทงสำเร็จแล้ว!'
+      message: 'ปล่อยกระทงสำเร็จแล้ว!'
     }), {
       status: 201,
       headers

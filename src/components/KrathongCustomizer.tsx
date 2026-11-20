@@ -42,7 +42,6 @@ import {
 } from '../utils/security';
 import {
   saveLocalKrathongRecord,
-  getLocalRequireApproval,
   getOrCreateDeviceToken
 } from '../utils/evaluationHelpers';
 
@@ -349,22 +348,12 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
     const safeCandleColor = isValidCandleField(combinedCandleValue) ? combinedCandleValue : 'yellow';
 
     setLoading(true);
-    let initialStatus: 'approved' | 'pending' = getLocalRequireApproval() ? 'pending' : 'approved';
+    const initialStatus = 'approved' as const;
     try {
       let createdId: string | null = null;
 
-      // 4. ลองบันทึกลง Supabase พร้อมเช็กสถานะ require_approval จาก system_settings
+      // 4. ลองบันทึกลง Supabase (ทุกกระทงแสดงผลบนสายน้ำทันที)
       try {
-        const { data: settingData } = await supabase
-          .from('system_settings')
-          .select('value')
-          .eq('key', 'require_approval')
-          .maybeSingle();
-
-        if (settingData?.value !== undefined) {
-          initialStatus = settingData.value === 'true' ? 'pending' : 'approved';
-        }
-
         const { data: supaData, error: supaErr } = await supabase
           .from('krathongs')
           .insert([

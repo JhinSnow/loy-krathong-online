@@ -186,11 +186,64 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
     aspect: typeof window !== 'undefined' ? window.innerWidth / Math.max(1, window.innerHeight) : 1.77
   });
 
+  const LOOP_POOL_MAX = 300;
   const krathongsRef = useRef<KrathongItem[]>([]);
   const pendingQueueRef = useRef<KrathongItem[]>([]);
+  const loopPoolRef = useRef<KrathongItem[]>([]);
+  const loopPoolIdsRef = useRef<Set<string>>(new Set());
+  const loopCursorRef = useRef<number>(0);
+  const loopLaneSlotRef = useRef<number>(0);
   const seenIdsRef = useRef<Set<string>>(new Set());
   const initialLoadedRef = useRef<boolean>(false);
   const botSlotRef = useRef<number>(0);
+
+  const upsertIntoLoopPool = useCallback((raw: KrathongItem, atFront = false) => {
+    if (!raw || !raw.id || raw.id.startsWith('bot-')) return;
+    if (containsProfanity(raw.owner_name) || containsProfanity(raw.wish_message)) return;
+    if (loopPoolIdsRef.current.has(raw.id)) return;
+
+    const template: KrathongItem = {
+      ...raw,
+      owner_name: sanitizeInputText(raw.owner_name, 40),
+      wish_message: sanitizeInputText(raw.wish_message, 150),
+      status: 'approved',
+      opacity: 1,
+      age: 0,
+      maxLife: 45
+    };
+
+    if (atFront) {
+      loopPoolRef.current.unshift(template);
+      loopPoolIdsRef.current.add(template.id);
+      if (loopPoolRef.current.length > 1) {
+        loopCursorRef.current = (loopCursorRef.current + 1) % loopPoolRef.current.length;
+      }
+      if (loopPoolRef.current.length > LOOP_POOL_MAX) {
+        const evicted = loopPoolRef.current.pop();
+        if (evicted) loopPoolIdsRef.current.delete(evicted.id);
+      }
+    } else {
+      if (loopPoolRef.current.length >= LOOP_POOL_MAX) return;
+      loopPoolRef.current.push(template);
+      loopPoolIdsRef.current.add(template.id);
+    }
+  }, []);
+
+  const removeFromLoopPool = useCallback((id: string) => {
+    if (!loopPoolIdsRef.current.has(id)) return;
+    loopPoolIdsRef.current.delete(id);
+    const idx = loopPoolRef.current.findIndex((k) => k.id === id);
+    if (idx === -1) return;
+    loopPoolRef.current.splice(idx, 1);
+    const len = loopPoolRef.current.length;
+    if (len === 0) {
+      loopCursorRef.current = 0;
+    } else if (idx < loopCursorRef.current) {
+      loopCursorRef.current = Math.max(0, loopCursorRef.current - 1);
+    } else {
+      loopCursorRef.current = loopCursorRef.current % len;
+    }
+  }, []);
 
   const starsRef = useRef<SkyStar[]>([]);
   const lanternsRef = useRef<SkyLantern[]>([]);
@@ -344,12 +397,16 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
     };
   }, []);
 
-  // 1. ดึงประวัติกระทงและฟัง Realtime (Supabase + SSE Fallback + LocalStorage)
+  // 1. ดึงประวัติกระทงและฟัง Realtime (Supabase + SSE Fallback + LocalStorage) พร้อมคิววนซ้ำผู้เข้าร่วมจริงสูงสุด 300 ใบ
   useEffect(() => {
     initialLoadedRef.current = false;
     krathongsRef.current = [];
     pendingQueueRef.current = [];
     sceneAddQueueRef.current = [];
+    loopPoolRef.current = [];
+    loopPoolIdsRef.current.clear();
+    loopCursorRef.current = 0;
+    loopLaneSlotRef.current = 0;
     removedIdsRef.current.clear();
     const seenIds = seenIdsRef.current;
     seenIds.clear();
@@ -396,19 +453,22 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
           const { count } = await supabase
             .from('krathongs')
             .select('*', { count: 'exact', head: true })
-            .eq('status', 'approved');
+            .neq('status', 'rejected');
           if (typeof count === 'number') supaTotalCount = count;
 
           const { data, error } = await supabase
             .from('krathongs')
-            .select('*')
+            .select(
+              'id, user_type, owner_name, wish_message, base_type, flower_type, candle_color, status, created_at'
+            )
+            .neq('status', 'rejected')
             .order('created_at', { ascending: false })
-            .limit(20);
+            .limit(LOOP_POOL_MAX);
 
           if (!error && data) {
             (data as KrathongItem[]).forEach((item) => {
               const effectiveStatus = overrides[item.id] || item.status || 'approved';
-              if (effectiveStatus === 'approved') {
+              if (effectiveStatus !== 'rejected' && effectiveStatus !== 'deleted') {
                 combinedMap.set(item.id, item);
               }
             });
@@ -416,13 +476,17 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         } catch {}
 
         try {
-          const apiRes = await fetch('/api/krathongs');
+          const apiRes = await fetch('/api/krathongs?limit=300');
           if (apiRes.ok) {
             const apiData = (await apiRes.json()) as KrathongItem[];
             if (Array.isArray(apiData)) {
               apiData.forEach((item) => {
                 const effectiveStatus = overrides[item.id] || item.status || 'approved';
-                if (effectiveStatus === 'approved' && !combinedMap.has(item.id)) {
+                if (
+                  effectiveStatus !== 'rejected' &&
+                  effectiveStatus !== 'deleted' &&
+                  !combinedMap.has(item.id)
+                ) {
                   combinedMap.set(item.id, item);
                 }
               });
@@ -433,22 +497,30 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         const localRecords = getLocalKrathongRecords();
         localRecords.forEach((item) => {
           const effectiveStatus = overrides[item.id] || item.status || 'approved';
-          if (effectiveStatus === 'approved' && !combinedMap.has(item.id)) {
+          if (
+            effectiveStatus !== 'rejected' &&
+            effectiveStatus !== 'deleted' &&
+            !combinedMap.has(item.id)
+          ) {
             combinedMap.set(item.id, item as KrathongItem);
           }
         });
 
         setTotalFloatedCount(Math.max(supaTotalCount, combinedMap.size));
 
-        const mergedList = Array.from(combinedMap.values()).slice(0, maxActive);
+        // จัดคิววนซ้ำกระทงผู้เข้าร่วมจริง (ล่าสุดก่อน, สูงสุด 300 ใบ)
+        Array.from(combinedMap.values())
+          .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+          .forEach((item) => upsertIntoLoopPool(item, false));
+
+        const initialPool = loopPoolRef.current.slice(0, maxActive);
         botSlotRef.current = 0;
 
         const initialBatch: KrathongItem[] = [];
         const currentMineId = myKrathongIdRef.current;
 
-        mergedList.forEach((item, index) => {
+        initialPool.forEach((item, index) => {
           if (seenIds.has(item.id)) return;
-          if (containsProfanity(item.owner_name) || containsProfanity(item.wish_message)) return;
           const isMyItem = Boolean(currentMineId && item.id === currentMineId);
           const worldZ = isMyItem
             ? bounds.zFar + (bounds.zNear - bounds.zFar) * 0.86
@@ -457,12 +529,10 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
           const span = halfW * 1.65;
           const worldX = isMyItem
             ? -halfW * 0.35
-            : -halfW * 0.82 + (index / Math.max(1, mergedList.length)) * span + (Math.random() - 0.5) * 1.1;
+            : -halfW * 0.82 + (index / Math.max(1, initialPool.length)) * span + (Math.random() - 0.5) * 1.1;
 
           const krathongObj: KrathongItem = {
             ...item,
-            owner_name: sanitizeInputText(item.owner_name, 40),
-            wish_message: sanitizeInputText(item.wish_message, 150),
             x: worldX,
             y: worldZ,
             speed: isMyItem ? 0.72 : 0.65 + Math.random() * 0.25,
@@ -474,13 +544,20 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
           initialBatch.push(krathongObj);
         });
 
-        while (initialBatch.length < 3) {
-          const idx = initialBatch.length;
-          const bot = spawnBot(idx);
-          const halfW = getHalfSpanAtZ(bounds, Number(bot.y) || bounds.zNear);
-          bot.x = -halfW * 0.65 + idx * (halfW * 0.65);
-          initialBatch.push(bot);
-          botSlotRef.current = idx + 1;
+        loopCursorRef.current =
+          loopPoolRef.current.length > 0 ? initialBatch.length % loopPoolRef.current.length : 0;
+        loopLaneSlotRef.current = initialBatch.length;
+
+        // ปล่อยกระทงบอทตัวอย่างเฉพาะเมื่อยังไม่มีกระทงผู้เข้าร่วมจริงในระบบเลยเท่านั้น
+        if (loopPoolRef.current.length === 0) {
+          while (initialBatch.length < 3) {
+            const idx = initialBatch.length;
+            const bot = spawnBot(idx);
+            const halfW = getHalfSpanAtZ(bounds, Number(bot.y) || bounds.zNear);
+            bot.x = -halfW * 0.65 + idx * (halfW * 0.65);
+            initialBatch.push(bot);
+            botSlotRef.current = idx + 1;
+          }
         }
 
         initialBatch.forEach((k) => {
@@ -511,19 +588,33 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         const status = overrides[k.id];
         if (status === 'rejected' || status === 'deleted') {
           removedIdsRef.current.add(k.id);
+          removeFromLoopPool(k.id);
           return false;
         }
         return true;
       });
-      const localApproved = getLocalKrathongRecords().filter(
-        (item) => (overrides[item.id] || item.status || 'approved') === 'approved'
-      );
+      loopPoolRef.current.slice().forEach((k) => {
+        const status = overrides[k.id];
+        if (status === 'rejected' || status === 'deleted') {
+          removeFromLoopPool(k.id);
+        }
+      });
+      const localApproved = getLocalKrathongRecords().filter((item) => {
+        const st = overrides[item.id] || item.status || 'approved';
+        return st !== 'rejected' && st !== 'deleted';
+      });
+      localApproved.forEach((item) => {
+        removedIdsRef.current.delete(item.id);
+        upsertIntoLoopPool(item as KrathongItem, true);
+      });
       setTotalFloatedCount((prev) => Math.max(prev, localApproved.length));
     };
     window.addEventListener('storage', handleStorageModerationSync);
 
     const pushIncomingKrathong = (data: KrathongItem) => {
-      if (!data || !data.id || seenIds.has(data.id)) return;
+      if (!data || !data.id) return;
+      upsertIntoLoopPool(data, true);
+      if (seenIds.has(data.id)) return;
       seenIds.add(data.id);
       if (seenIds.size > 12000) {
         const oldest = seenIds.values().next().value;
@@ -592,7 +683,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
               const data = payload.new as KrathongItem;
               if (
                 data &&
-                (data.status === 'approved' || !data.status) &&
+                data.status !== 'rejected' &&
                 !containsProfanity(data.owner_name) &&
                 !containsProfanity(data.wish_message)
               ) {
@@ -606,16 +697,18 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
             (payload) => {
               const data = payload.new as KrathongItem;
               if (!data) return;
-              if (data.status === 'rejected' || data.status === 'pending') {
+              if (data.status === 'rejected') {
                 removedIdsRef.current.add(data.id);
+                removeFromLoopPool(data.id);
                 krathongsRef.current = krathongsRef.current.filter((k) => k.id !== data.id);
                 pendingQueueRef.current = pendingQueueRef.current.filter((k) => k.id !== data.id);
                 setTotalFloatedCount((prev) => Math.max(0, prev - 1));
               } else if (
-                data.status === 'approved' &&
+                data.status !== 'rejected' &&
                 !containsProfanity(data.owner_name) &&
                 !containsProfanity(data.wish_message)
               ) {
+                removedIdsRef.current.delete(data.id);
                 pushIncomingKrathong(data);
               }
             }
@@ -627,6 +720,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
               const oldRow = payload.old as { id?: string };
               if (oldRow?.id) {
                 removedIdsRef.current.add(oldRow.id);
+                removeFromLoopPool(oldRow.id);
                 krathongsRef.current = krathongsRef.current.filter((k) => k.id !== oldRow.id);
                 pendingQueueRef.current = pendingQueueRef.current.filter((k) => k.id !== oldRow.id);
                 setTotalFloatedCount((prev) => Math.max(0, prev - 1));
@@ -659,7 +753,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       }
       if (eventSource) eventSource.close();
     };
-  }, [enableRealtime, spawnBot, spawnFireworkBurst]);
+  }, [enableRealtime, spawnBot, spawnFireworkBurst, upsertIntoLoopPool, removeFromLoopPool]);
 
   // 2. Initialize Warm Night Sky Stars & Sky Lanterns (ทำงานใน Single rAF Loop)
   useEffect(() => {
@@ -1458,29 +1552,70 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
           sceneAddQueueRef.current.length = maxActive;
         }
 
-        // 2. ปล่อยจากคิว หรือเติมกระทงตัวอย่างเริ่มต้นให้ครบ 3 ใบ
+        // 2. ปล่อยกระทงลงสายน้ำตามลำดับความสำคัญ:
+        //    (1) กระทงใหม่สดที่เพิ่งเข้ามา (Priority Queue)
+        //    (2) คิววนซ้ำกระทงผู้เข้าร่วมจริง (Round-Robin Circular Pool สูงสุด 300 ใบ)
+        //    (3) กระทงตัวอย่าง (Bot) เฉพาะเมื่อยังไม่มีกระทงผู้เข้าร่วมจริงในระบบเลย
         if (
-          pendingQueueRef.current.length > 0 &&
           krathongsRef.current.length < maxActive &&
-          elapsedSec - lastQueueReleaseSec > 1.0
+          sceneAddQueueRef.current.length === 0 &&
+          elapsedSec - lastQueueReleaseSec > 1.35
         ) {
-          const nextReal = pendingQueueRef.current.shift();
-          if (nextReal) {
-            krathongsRef.current.push(nextReal);
-            addKrathongEntryToScene(nextReal);
+          if (pendingQueueRef.current.length > 0) {
+            const nextReal = pendingQueueRef.current.shift();
+            if (nextReal) {
+              krathongsRef.current.push(nextReal);
+              addKrathongEntryToScene(nextReal);
+              lastQueueReleaseSec = elapsedSec;
+              labelListDirty = true;
+            }
+          } else if (initialLoadedRef.current && loopPoolRef.current.length > 0) {
+            const pool = loopPoolRef.current;
+            let chosen: KrathongItem | null = null;
+            for (let tries = 0; tries < pool.length; tries++) {
+              const idx = loopCursorRef.current % pool.length;
+              loopCursorRef.current = (idx + 1) % pool.length;
+              const candidate = pool[idx];
+              if (!candidate || removedIdsRef.current.has(candidate.id)) continue;
+              const alreadyActive =
+                krathongsRef.current.some((k) => k.id === candidate.id) ||
+                sceneEntriesRef.current.some((e) => e.item.id === candidate.id);
+              if (!alreadyActive) {
+                chosen = candidate;
+                break;
+              }
+            }
+            if (chosen) {
+              const bounds = boundsRef.current;
+              const laneZ = getLaneZFromBounds(bounds, loopLaneSlotRef.current++);
+              const halfW = getHalfSpanAtZ(bounds, laneZ);
+              const replayed: KrathongItem = {
+                ...chosen,
+                x: -halfW - 1.1,
+                y: laneZ,
+                speed: 0.68 + Math.random() * 0.22,
+                opacity: 1,
+                age: 0,
+                maxLife: 45,
+                isMine: Boolean(myKrathongIdRef.current && chosen.id === myKrathongIdRef.current)
+              };
+              krathongsRef.current.push(replayed);
+              addKrathongEntryToScene(replayed);
+              lastQueueReleaseSec = elapsedSec;
+              labelListDirty = true;
+            }
+          } else if (
+            initialLoadedRef.current &&
+            loopPoolRef.current.length === 0 &&
+            krathongsRef.current.length < 3 &&
+            Math.random() < Math.min(0.25, rawDt * 2.5)
+          ) {
+            const bot = spawnBot();
+            krathongsRef.current.push(bot);
+            addKrathongEntryToScene(bot);
             lastQueueReleaseSec = elapsedSec;
             labelListDirty = true;
           }
-        } else if (
-          initialLoadedRef.current &&
-          pendingQueueRef.current.length === 0 &&
-          krathongsRef.current.length < 3 &&
-          Math.random() < Math.min(0.25, rawDt * 2.5)
-        ) {
-          const bot = spawnBot();
-          krathongsRef.current.push(bot);
-          addKrathongEntryToScene(bot);
-          labelListDirty = true;
         }
 
         // 3. อัปเดตกลีบดอกไม้ลอยบนผิวน้ำ (1 InstancedMesh Draw Call)
@@ -1792,6 +1927,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       };
 
       seenIdsRef.current.add(launchedItem.id);
+      upsertIntoLoopPool(launchedItem, true);
       krathongsRef.current.push(launchedItem);
       sceneEntriesRef.current.push({
         item: launchedItem,
@@ -1868,7 +2004,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         mount.removeChild(renderer.domElement);
       }
     };
-  }, [webglReady, spawnBot, spawnFireworkBurst]);
+  }, [webglReady, spawnBot, spawnFireworkBurst, upsertIntoLoopPool]);
 
   // 4. ซิงค์โมเดลกระทง 3D แบบ Real-time ขณะแต่งกระทง (ไม่สร้าง WebGL Canvas ใหม่)
   useEffect(() => {
@@ -1946,11 +2082,12 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
     const targetId = myKrathongIdRef.current || myKrathongId;
     const mine =
       krathongsRef.current.find((k) => k.isMine || k.id === targetId) ||
-      pendingQueueRef.current.find((k) => k.isMine || k.id === targetId);
+      pendingQueueRef.current.find((k) => k.isMine || k.id === targetId) ||
+      loopPoolRef.current.find((k) => k.id === targetId);
     if (mine) {
       setSelectedKrathong(mine);
     } else {
-      alert('กระทงของคุณอาจจะลอยผ่านสายน้ำไปแล้ว หรือกำลังรอการตรวจสอบจากผู้ดูแล');
+      alert('ไม่พบกระทงของคุณในคิวแสดงผลขณะนี้');
     }
   };
 

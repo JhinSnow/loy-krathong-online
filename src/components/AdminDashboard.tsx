@@ -14,11 +14,7 @@ import {
   FileSpreadsheet,
   FileText,
   ShieldCheck,
-  CheckCircle,
-  XCircle,
   ArrowLeft,
-  ToggleLeft,
-  ToggleRight,
   RefreshCw,
   Lock,
   LogOut,
@@ -47,8 +43,6 @@ import {
   buildStudentTranscriptRoster,
   getLocalKrathongRecords,
   updateLocalKrathongStatus,
-  getLocalRequireApproval,
-  setLocalRequireApproval,
   getModerationOverrides,
   mergeModerationOverrides,
   resetDeviceEvaluationLock,
@@ -84,9 +78,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
   );
   const [isUsingDemoEvals, setIsUsingDemoEvals] = useState<boolean>(false);
   const [loading, setLoading] = useState(false);
-  const [requireApproval, setRequireApproval] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'pending' | 'rejected'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'rejected'>('all');
   const [selectedFacultyFilter, setSelectedFacultyFilter] = useState<string>('all');
   const [transcriptSearch, setTranscriptSearch] = useState<string>('');
   const [transcriptPage, setTranscriptPage] = useState<number>(1);
@@ -106,7 +99,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
     try {
       let supaKrathongs: any[] = [];
       let supaEvals: any[] = [];
-      let approvalSetting = getLocalRequireApproval();
 
       // 1. ดึงจาก Supabase แบบแบ่งหน้า (รองรับมากกว่า 1,000 รายการในวันงานจริง)
       try {
@@ -127,18 +119,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
           return allRows;
         };
 
-        const [kData, eData, sRes] = await Promise.all([
+        const [kData, eData] = await Promise.all([
           fetchAllRows('krathongs'),
-          fetchAllRows('evaluations'),
-          supabase.from('system_settings').select('value').eq('key', 'require_approval').maybeSingle()
+          fetchAllRows('evaluations')
         ]);
 
         supaKrathongs = kData;
         supaEvals = eData;
-        if (sRes.data?.value !== undefined) {
-          approvalSetting = sRes.data.value === 'true';
-          setLocalRequireApproval(approvalSetting);
-        }
       } catch (supaErr) {
         console.warn('Supabase fetch note:', supaErr);
       }
@@ -157,14 +144,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
           if (Array.isArray(modData.deletedEvalIds)) {
             deletedEvalIds = mergeDeletedEvaluationIds(modData.deletedEvalIds);
           }
-          if (modData.requireApproval !== undefined) {
-            approvalSetting = Boolean(modData.requireApproval);
-            setLocalRequireApproval(approvalSetting);
-          }
         }
       } catch {}
-
-      setRequireApproval(approvalSetting);
 
       // 2. รวมข้อมูลกระทงจาก LocalStorage + Supabase (เรียงใหม่ล่าสุดขึ้นก่อน)
       const localKrathongs = getLocalKrathongRecords();
@@ -211,13 +192,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
         }
       } catch {}
 
-      // นำสถานะ Override (อนุมัติ / ซ่อน / ลบ) มาประยุกต์กับทุกกระทง
+      // นำสถานะ Override (แสดงผล / ซ่อน / ลบ) มาประยุกต์กับทุกกระทง
       const allKrathongs = Array.from(mergedKrathongsMap.values())
         .filter((item) => overrides[item.id] !== 'deleted')
-        .map((item) => ({
-          ...item,
-          status: overrides[item.id] || item.status || 'approved'
-        }))
+        .map((item) => {
+          const resolvedStatus = overrides[item.id] || item.status || 'approved';
+          return {
+            ...item,
+            status: resolvedStatus === 'rejected' ? 'rejected' : 'approved'
+          };
+        })
         .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
       setKrathongs(allKrathongs);
 
@@ -271,7 +255,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
       let staffCount = 0;
       let generalCount = 0;
       let approvedCount = 0;
-      let pendingCount = 0;
       let rejectedCount = 0;
       for (let i = 0; i < allKrathongs.length; i++) {
         const k = allKrathongs[i];
@@ -279,8 +262,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
         else if (k.user_type === 'staff') staffCount++;
         else generalCount++;
 
-        if (k.status === 'pending') pendingCount++;
-        else if (k.status === 'rejected') rejectedCount++;
+        if (k.status === 'rejected') rejectedCount++;
         else approvedCount++;
       }
 
@@ -302,7 +284,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
         ],
         statusStats: [
           { status: 'approved', count: approvedCount },
-          { status: 'pending', count: pendingCount },
           { status: 'rejected', count: rejectedCount }
         ],
         ratingSummary: {
@@ -311,7 +292,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
         },
         ratingDistribution: [],
         recentFeedbacks,
-        requireApproval: approvalSetting
+        requireApproval: false
       });
     } catch (e) {
       console.warn('Load admin data note:', e);
@@ -446,29 +427,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
     await loadData();
   };
 
-  // สลับโหมด Approval
-  const handleToggleApproval = async () => {
-    if (!getAdminSession()) return;
-    const nextVal = !requireApproval;
-    setRequireApproval(nextVal);
-    setLocalRequireApproval(nextVal);
-    try {
-      await supabase
-        .from('system_settings')
-        .upsert({ key: 'require_approval', value: nextVal ? 'true' : 'false' }, { onConflict: 'key' });
-    } catch (_) {}
-
-    try {
-      await fetch('/api/admin/moderate', {
-        method: 'POST',
-        headers: getAdminAuthHeaders(),
-        credentials: 'include',
-        body: JSON.stringify({ action: 'toggle_approval', requireApproval: nextVal })
-      });
-    } catch (_) {}
-  };
-
-  // ดำเนินการ อนุมัติ / ซ่อน / ลบกระทง
+  // ดำเนินการ ซ่อน / แสดงคืน / ลบกระทง
   const handleModerate = async (krathongId: string, status: 'approved' | 'rejected' | 'deleted') => {
     if (!getAdminSession()) return;
 
@@ -484,8 +443,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
       // อัปเดตตัวเลขสถิติด้านบนให้ตรงกันทันที
       setStats((prevStats) => {
         if (!prevStats) return prevStats;
-        const approvedCount = next.filter((k: any) => k.status === 'approved' || !k.status).length;
-        const pendingCount = next.filter((k: any) => k.status === 'pending').length;
+        const approvedCount = next.filter((k: any) => k.status !== 'rejected').length;
         const rejectedCount = next.filter((k: any) => k.status === 'rejected').length;
         const studentCount = next.filter((k: any) => k.user_type === 'student').length;
         const staffCount = next.filter((k: any) => k.user_type === 'staff').length;
@@ -499,7 +457,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
           ],
           statusStats: [
             { status: 'approved', count: approvedCount },
-            { status: 'pending', count: pendingCount },
             { status: 'rejected', count: rejectedCount }
           ]
         };
@@ -539,7 +496,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
       user_type: k.user_type,
       owner_name: k.owner_name,
       wish_message: k.wish_message,
-      status: k.status || 'approved',
+      status: k.status === 'rejected' ? 'rejected' : 'approved',
       created_at: k.created_at || new Date().toISOString()
     }));
     exportEvaluationAndProjectToExcel(evalAnalytics, exportRows);
@@ -572,22 +529,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
   }, [filteredTranscriptStudents, safeTranscriptPage]);
 
   const statusCounts = useMemo(() => {
-    let pending = 0;
     let approved = 0;
     let rejected = 0;
     for (let i = 0; i < krathongs.length; i++) {
-      const st = krathongs[i].status || 'approved';
-      if (st === 'pending') pending++;
-      else if (st === 'rejected') rejected++;
+      if (krathongs[i].status === 'rejected') rejected++;
       else approved++;
     }
-    return { pending, approved, rejected };
+    return { approved, rejected };
   }, [krathongs]);
 
   const filteredKrathongs = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return krathongs.filter((k: any) => {
-      const st = k.status || 'approved';
+      const st = k.status === 'rejected' ? 'rejected' : 'approved';
       if (statusFilter !== 'all' && st !== statusFilter) return false;
       if (!q) return true;
       return (
@@ -729,8 +683,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
           </div>
         </div>
 
-        {/* System Control Grid (5 Equal Buttons) */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 w-full lg:w-auto shrink-0">
+        {/* System Control Grid (4 Equal Buttons) */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 w-full lg:w-auto shrink-0">
           {/* Open Evaluation Modal for Admin Testing */}
           <button
             type="button"
@@ -740,24 +694,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
           >
             <ClipboardCheck className="w-4 h-4 text-amber-800 shrink-0" />
             <span className="truncate">ทดสอบแบบประเมิน</span>
-          </button>
-
-          {/* Approval Mode Toggle */}
-          <button
-            type="button"
-            onClick={handleToggleApproval}
-            className={`flex items-center justify-center space-x-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold border transition active:scale-95 cursor-pointer ${
-              requireApproval
-                ? 'bg-amber-100 border-amber-400 text-amber-950 shadow-2xs'
-                : 'bg-white border-amber-900/15 text-[#574536] hover:bg-amber-50 shadow-2xs'
-            }`}
-          >
-            {requireApproval ? (
-              <ToggleRight className="w-4 h-4 text-amber-700 shrink-0" />
-            ) : (
-              <ToggleLeft className="w-4 h-4 text-[#9c8671] shrink-0" />
-            )}
-            <span className="truncate">คัดกรอง: {requireApproval ? 'เปิด' : 'ปิด'}</span>
           </button>
 
           <button
@@ -853,10 +789,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
               <ShieldCheck className="w-5 h-5 text-amber-700" />
             </div>
             <p className="text-2xl font-black text-[#231912] mt-2">
-              {stats?.statusStats.find(s => s.status === 'approved')?.count || krathongs.length} ใบ
+              {statusCounts.approved.toLocaleString()} ใบ
             </p>
             <p className="text-[11px] text-[#7c5d3a] mt-2">
-              รอตรวจ: {stats?.statusStats.find(s => s.status === 'pending')?.count || 0} | ปฏิเสธ: {stats?.statusStats.find(s => s.status === 'rejected')?.count || 0}
+              กำลังแสดงผล: {statusCounts.approved.toLocaleString()} | ซ่อนแล้ว: {statusCounts.rejected.toLocaleString()}
             </p>
           </div>
         </div>
@@ -1234,7 +1170,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                 รายการกระทงล่าสุด (Live Moderation Stream)
               </h2>
               <p className="text-xs text-[#7c5d3a]">
-                สามารถค้นหา กรองสถานะ ตรวจสอบ อนุมัติ หรือซ่อนข้อความที่ไม่เหมาะสมได้ทันที
+                สามารถค้นหา กรองสถานะ ซ่อน หรือลบข้อความที่ไม่เหมาะสมได้ทันที
               </p>
             </div>
 
@@ -1254,7 +1190,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
               <div className="flex items-center bg-[#f6efdf] p-1 rounded-xl border border-amber-900/12">
                 {[
                   { id: 'all', label: `ทั้งหมด (${krathongs.length})` },
-                  { id: 'pending', label: `รอตรวจ (${statusCounts.pending})` },
                   { id: 'approved', label: `แสดงผล (${statusCounts.approved})` },
                   { id: 'rejected', label: `ซ่อนแล้ว (${statusCounts.rejected})` }
                 ].map((tab) => (
@@ -1272,21 +1207,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                   </button>
                 ))}
               </div>
-
-              {statusCounts.pending > 0 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    krathongs
-                      .filter((k) => k.status === 'pending')
-                      .forEach((k) => handleModerate(k.id, 'approved'));
-                  }}
-                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition active:scale-95 shadow-sm cursor-pointer flex items-center space-x-1"
-                >
-                  <CheckCircle className="w-3.5 h-3.5" />
-                  <span>อนุมัติที่รอตรวจทั้งหมด</span>
-                </button>
-              )}
             </div>
           </div>
 
@@ -1313,7 +1233,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                   </tr>
                 ) : (
                   pagedKrathongs.map((k: any) => {
-                    const currentStatus = k.status || 'approved';
+                    const isHidden = k.status === 'rejected';
                     return (
                       <tr key={k.id} className="hover:bg-[#fdf8ec] transition">
                         <td className="py-3 px-4 font-bold text-[#231912] whitespace-nowrap">
@@ -1328,17 +1248,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                           &ldquo;{k.wish_message}&rdquo;
                         </td>
                         <td className="py-3 px-4 text-center whitespace-nowrap">
-                          {currentStatus === 'approved' ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
-                              แสดงผล (อนุมัติ)
-                            </span>
-                          ) : currentStatus === 'pending' ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
-                              รอตรวจสอบ
-                            </span>
-                          ) : (
+                          {isHidden ? (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
                               ซ่อนแล้ว
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                              แสดงผล
                             </span>
                           )}
                         </td>
@@ -1349,35 +1265,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                           <div className="flex items-center justify-center space-x-1.5">
                             <button
                               type="button"
-                              onClick={() => handleModerate(k.id, 'approved')}
-                              title="อนุมัติให้แสดงบนแม่น้ำ"
-                              className={`px-2 py-1 rounded-lg transition active:scale-95 cursor-pointer flex items-center space-x-1 text-[11px] font-semibold ${
-                                currentStatus === 'approved'
-                                  ? 'bg-emerald-600 text-white shadow-sm'
-                                  : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200'
-                              }`}
-                            >
-                              <CheckCircle className="w-3.5 h-3.5" />
-                              <span>อนุมัติ</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleModerate(k.id, 'rejected')}
-                              title="ซ่อนไม่ให้แสดงบนแม่น้ำ"
-                              className={`px-2 py-1 rounded-lg transition active:scale-95 cursor-pointer flex items-center space-x-1 text-[11px] font-semibold ${
-                                currentStatus === 'rejected'
-                                  ? 'bg-amber-500 text-[#231912] shadow-sm'
+                              onClick={() => handleModerate(k.id, isHidden ? 'approved' : 'rejected')}
+                              title={isHidden ? 'นำกลับมาแสดงบนแม่น้ำ' : 'ซ่อนไม่ให้แสดงบนแม่น้ำ'}
+                              className={`px-2.5 py-1 rounded-lg transition active:scale-95 cursor-pointer flex items-center space-x-1 text-[11px] font-semibold ${
+                                isHidden
+                                  ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200'
                                   : 'bg-[#fffbeb] hover:bg-amber-100 text-amber-900 border border-amber-300/70'
                               }`}
                             >
-                              <XCircle className="w-3.5 h-3.5" />
-                              <span>ซ่อน</span>
+                              {isHidden ? (
+                                <>
+                                  <Eye className="w-3.5 h-3.5" />
+                                  <span>แสดงคืน</span>
+                                </>
+                              ) : (
+                                <>
+                                  <EyeOff className="w-3.5 h-3.5" />
+                                  <span>ซ่อน</span>
+                                </>
+                              )}
                             </button>
                             <button
                               type="button"
                               onClick={() => handleModerate(k.id, 'deleted')}
                               title="ลบรายการนี้ออกจากระบบ"
-                              className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg transition active:scale-95 cursor-pointer flex items-center space-x-1 text-[11px] font-semibold"
+                              className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg transition active:scale-95 cursor-pointer flex items-center space-x-1 text-[11px] font-semibold"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                               <span>ลบ</span>
