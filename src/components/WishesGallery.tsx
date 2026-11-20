@@ -509,7 +509,7 @@ export const WishesGallery: React.FC<WishesGalleryProps> = ({
                     <div>
                       {/* Card Header: Krathong Miniature + Owner Metadata */}
                       <div className="flex items-center gap-3">
-                        <div className="w-24 h-24 shrink-0 rounded-2xl bg-[radial-gradient(circle_at_50%_60%,#0c7c9e_0%,#00415a_88%)] border border-cyan-900/25 flex items-center justify-center overflow-hidden shadow-inner">
+                        <div className="w-24 h-24 shrink-0 rounded-2xl bg-[radial-gradient(circle_at_50%_60%,#22c7e0_0%,#0c7c94_88%)] border border-cyan-900/25 flex items-center justify-center overflow-hidden shadow-inner">
                           <div className="scale-90">
                             <KrathongThumb3D
                               baseType={item.base_type}

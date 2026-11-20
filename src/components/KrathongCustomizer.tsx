@@ -454,7 +454,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
   };
 
   return (
-    <div className="h-dvh w-screen overflow-hidden flex flex-col md:flex-row bg-[#00415a]">
+    <div className="h-dvh w-screen overflow-hidden flex flex-col md:flex-row bg-[#0c7c94]">
       {/* ฝั่งซ้าย (เดสก์ท็อป) / ด้านบน (มือถือ): ฉากผิวน้ำ 3D เต็มพื้นที่ + แคปซูลนำทางด้านบน */}
       <div className="relative w-full h-[44dvh] shrink-0 md:h-full md:flex-1 overflow-hidden">
         <Krathong3DPreview

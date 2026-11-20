@@ -458,7 +458,7 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
 
   if (!webglReady) {
     return (
-      <div className="w-full h-full flex items-center justify-center bg-[#00415a]">
+      <div className="w-full h-full flex items-center justify-center bg-[#0c7c94]">
         <KrathongVisual
           baseType={baseType}
           flowerType={flowerType}
@@ -473,10 +473,10 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
     <div
       className={`relative select-none ${
         fullBleed
-          ? 'w-full h-full bg-[#00415a]'
+          ? 'w-full h-full bg-[#0c7c94]'
           : compact
-            ? 'w-28 h-28 rounded-2xl overflow-hidden bg-[radial-gradient(circle_at_50%_55%,#0c7c9e_0%,#00415a_85%)]'
-            : 'w-full h-60 sm:h-64 rounded-2xl overflow-hidden bg-[radial-gradient(circle_at_50%_55%,#0c7c9e_0%,#00415a_85%)]'
+            ? 'w-28 h-28 rounded-2xl overflow-hidden bg-[radial-gradient(circle_at_50%_55%,#22c7e0_0%,#0c7c94_85%)]'
+            : 'w-full h-60 sm:h-64 rounded-2xl overflow-hidden bg-[radial-gradient(circle_at_50%_55%,#22c7e0_0%,#0c7c94_85%)]'
       }`}
     >
       <div ref={containerRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
