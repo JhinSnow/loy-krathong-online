@@ -293,6 +293,26 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
     pendingQueueRef.current = [];
     sceneAddQueueRef.current = [];
     removedIdsRef.current.clear();
+    const seenIds = new Set<string>();
+    let pendingCountDelta = 0;
+    let countFlushTimer: number | null = null;
+    let lastIncomingFwTime = 0;
+
+    const flushPendingCount = () => {
+      countFlushTimer = null;
+      if (pendingCountDelta !== 0) {
+        const delta = pendingCountDelta;
+        pendingCountDelta = 0;
+        setTotalFloatedCount((prev) => Math.max(0, prev + delta));
+      }
+    };
+
+    const queueCountDelta = (delta: number) => {
+      pendingCountDelta += delta;
+      if (countFlushTimer === null) {
+        countFlushTimer = window.setTimeout(flushPendingCount, 180);
+      }
+    };
 
     const fetchRecentKrathongs = async () => {
       try {
@@ -409,6 +429,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         }
 
         initialBatch.forEach((k) => {
+          seenIds.add(k.id);
           krathongsRef.current.push(k);
           sceneAddQueueRef.current.push(k);
         });
@@ -454,14 +475,30 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
     window.addEventListener('storage', handleStorageModerationSync);
 
     const pushIncomingKrathong = (data: KrathongItem) => {
-      const exists =
-        krathongsRef.current.some((k) => k.id === data.id) ||
-        pendingQueueRef.current.some((k) => k.id === data.id);
-      if (exists) return;
+      if (!data || !data.id || seenIds.has(data.id)) return;
+      seenIds.add(data.id);
+      if (seenIds.size > 12000) {
+        const oldest = seenIds.values().next().value;
+        if (oldest) seenIds.delete(oldest);
+      }
+
+      const isMineItem = data.id === myKrathongId;
+      const maxActive = window.innerWidth < 768 ? 7 : 10;
+      const isQueueFull = krathongsRef.current.length >= maxActive && pendingQueueRef.current.length >= 60;
+
+      // Fast path when 5,000+ krathongs arrive in a burst and queue is already full (skip string allocation for overflow items)
+      if (isQueueFull && !isMineItem) {
+        queueCountDelta(1);
+        const nowMs = performance.now();
+        if (nowMs - lastIncomingFwTime >= 650) {
+          lastIncomingFwTime = nowMs;
+          spawnFireworkBurst();
+        }
+        return;
+      }
 
       const worldZ = getLaneZFromBounds(boundsRef.current);
       const halfW = getHalfSpanAtZ(boundsRef.current, worldZ);
-      const maxActive = window.innerWidth < 768 ? 7 : 10;
 
       const incomingItem: KrathongItem = {
         ...data,
@@ -473,7 +510,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         opacity: 1,
         age: 0,
         maxLife: 45,
-        isMine: data.id === myKrathongId
+        isMine: isMineItem
       };
 
       if (krathongsRef.current.length >= maxActive) {
@@ -487,9 +524,15 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         krathongsRef.current.push(incomingItem);
         sceneAddQueueRef.current.push(incomingItem);
       }
-      setTotalFloatedCount((prev) => prev + 1);
-      spawnFireworkBurst();
+      queueCountDelta(1);
+      const nowMs = performance.now();
+      if (nowMs - lastIncomingFwTime >= 650) {
+        lastIncomingFwTime = nowMs;
+        spawnFireworkBurst();
+      }
     };
+
+    (window as any).__pushIncomingKrathong = pushIncomingKrathong;
 
     const channel = enableRealtime
       ? supabase
@@ -558,6 +601,10 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
     }
 
     return () => {
+      delete (window as any).__pushIncomingKrathong;
+      if (countFlushTimer !== null) {
+        window.clearTimeout(countFlushTimer);
+      }
       window.removeEventListener('storage', handleStorageModerationSync);
       if (channel) {
         supabase.removeChannel(channel);

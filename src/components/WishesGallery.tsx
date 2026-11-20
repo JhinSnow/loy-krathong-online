@@ -135,7 +135,7 @@ async function fetchApprovedWishes(myKrathongId?: string | null): Promise<{
       query = query.not('id', 'in', `(${hiddenUuidList.join(',')})`);
     }
 
-    const { data } = await query.order('created_at', { ascending: false }).limit(2000);
+    const { data } = await query.order('created_at', { ascending: false }).limit(5000);
     if (Array.isArray(data)) {
       remoteItems = data;
     }

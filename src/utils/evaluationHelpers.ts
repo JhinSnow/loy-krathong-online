@@ -464,7 +464,7 @@ export function saveLocalKrathongRecord(record: LocalKrathongRecord): void {
     ensureLegacyLocalKrathongsCleared();
     const existing = getLocalKrathongRecords();
     const filtered = existing.filter((item) => item.id !== record.id);
-    const updated = [record, ...filtered].slice(0, 2000);
+    const updated = [record, ...filtered].slice(0, 5000);
     localStorage.setItem(LOCAL_KRATHONG_STORAGE_KEY, JSON.stringify(updated));
   } catch {}
 }
@@ -522,7 +522,7 @@ export function setLocalRequireApproval(val: boolean): void {
 export function saveLocalEvaluationRecord(record: ParsedEvaluationRecord): void {
   try {
     const existing = getLocalEvaluationRecords();
-    const updated = [record, ...existing].slice(0, 2000);
+    const updated = [record, ...existing].slice(0, 5000);
     localStorage.setItem(LOCAL_EVAL_STORAGE_KEY, JSON.stringify(updated));
   } catch {}
 }
