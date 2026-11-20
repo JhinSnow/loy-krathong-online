@@ -580,85 +580,54 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
           </div>
         </div>
 
-        {/* Action Controls & Export Buttons */}
-        <div className="flex flex-wrap items-center gap-2">
+        {/* System Control Grid (4 Equal Buttons) */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full lg:w-auto shrink-0">
           {/* Approval Mode Toggle */}
           <button
+            type="button"
             onClick={handleToggleApproval}
-            className={`flex items-center space-x-2 px-3 py-2 rounded-xl text-xs font-semibold border transition active:scale-95 cursor-pointer ${
+            className={`flex items-center justify-center space-x-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold border transition active:scale-95 cursor-pointer ${
               requireApproval
-                ? 'bg-amber-100 border-amber-400 text-amber-950'
-                : 'bg-white border-amber-900/15 text-[#574536] hover:bg-amber-50'
+                ? 'bg-amber-100 border-amber-400 text-amber-950 shadow-2xs'
+                : 'bg-white border-amber-900/15 text-[#574536] hover:bg-amber-50 shadow-2xs'
             }`}
           >
             {requireApproval ? (
-              <ToggleRight className="w-5 h-5 text-amber-700" />
+              <ToggleRight className="w-4 h-4 text-amber-700 shrink-0" />
             ) : (
-              <ToggleLeft className="w-5 h-5 text-[#9c8671]" />
+              <ToggleLeft className="w-4 h-4 text-[#9c8671] shrink-0" />
             )}
-            <span>คัดกรองก่อนขึ้นจอ: {requireApproval ? 'เปิด' : 'ปิด'}</span>
-          </button>
-
-          <button
-            onClick={handleExportExcel}
-            title="ดาวน์โหลดไฟล์ Excel (.xlsx) ครบทั้ง 3 Sheets: ข้อมูลดิบผู้ประเมิน, ตารางสรุปสถิติ 10 ด้าน และรายชื่อผู้ลอยกระทง"
-            className="flex items-center space-x-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition active:scale-95 shadow-sm cursor-pointer"
-          >
-            <FileSpreadsheet className="w-4 h-4" />
-            <span>Export Excel (.xlsx 3 Sheets)</span>
-          </button>
-          <button
-            onClick={handleExportTranscriptExcel}
-            title="ดาวน์โหลดรายชื่อนักศึกษาสำหรับยื่น Activity Transcript แยก Sheet ตามคณะ พร้อมตัดรหัสซ้ำอัตโนมัติ"
-            className="flex items-center space-x-1.5 px-3.5 py-2 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-amber-400 text-[#231912] border border-amber-600/25 rounded-xl text-xs font-bold transition active:scale-95 shadow-sm cursor-pointer"
-          >
-            <GraduationCap className="w-4 h-4" />
-            <span>Export Transcript แยกคณะ (.xlsx)</span>
-          </button>
-
-          <button
-            onClick={handleExportCSV}
-            title="ดาวน์โหลดข้อมูลดิบผู้ตอบแบบประเมินเป็นไฟล์ CSV"
-            className="flex items-center space-x-1.5 px-3 py-2 bg-[#241911] hover:bg-[#38271a] text-[#fffbeb] rounded-xl text-xs font-bold transition active:scale-95 shadow-sm cursor-pointer"
-          >
-            <Download className="w-4 h-4" />
-            <span>CSV (Raw)</span>
-          </button>
-
-          <button
-            onClick={handleExportA4Report}
-            title="เปิดหน้ารายงานสรุปผลขนาด A4 พร้อมกราฟ Radar Chart และตารางสถิติ 10 ข้อเพื่อพิมพ์หรือเซฟเป็น PDF"
-            className="flex items-center space-x-1.5 px-3.5 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold transition active:scale-95 shadow-sm cursor-pointer"
-          >
-            <FileText className="w-4 h-4" />
-            <span>รายงานสรุปโครงการ A4 (PDF)</span>
+            <span className="truncate">คัดกรอง: {requireApproval ? 'เปิด' : 'ปิด'}</span>
           </button>
 
           <button
             onClick={handleResetDeviceTestLock}
             type="button"
             title="ล้างสถานะล็อกเครื่องและประวัติการประเมินในเบราว์เซอร์นี้สำหรับการทดสอบ"
-            className="flex items-center space-x-1.5 px-3 py-2 bg-white hover:bg-amber-50 text-[#231912] border border-amber-900/15 rounded-xl text-xs font-semibold shadow-2xs transition active:scale-95 cursor-pointer"
+            className="flex items-center justify-center space-x-1.5 px-3 py-2.5 bg-white hover:bg-amber-50 text-[#231912] border border-amber-900/15 rounded-xl text-xs font-semibold shadow-2xs transition active:scale-95 cursor-pointer"
           >
-            <RotateCcw className="w-4 h-4 text-amber-700" />
-            <span>รีเซ็ตสถานะทดสอบเครื่องนี้</span>
+            <RotateCcw className="w-4 h-4 text-amber-700 shrink-0" />
+            <span className="truncate">รีเซ็ตสถานะทดสอบ</span>
           </button>
 
           <button
+            type="button"
             onClick={loadData}
             title="รีเฟรชข้อมูล"
-            className="p-2 bg-white hover:bg-amber-50 text-[#231912] rounded-xl border border-amber-900/15 shadow-2xs transition active:scale-95 cursor-pointer"
+            className="flex items-center justify-center space-x-1.5 px-3 py-2.5 bg-white hover:bg-amber-50 text-[#231912] rounded-xl border border-amber-900/15 text-xs font-semibold shadow-2xs transition active:scale-95 cursor-pointer"
           >
-            <RefreshCw className={`w-4 h-4 text-amber-700 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 text-amber-700 shrink-0 ${loading ? 'animate-spin' : ''}`} />
+            <span className="truncate">รีเฟรชข้อมูล</span>
           </button>
 
           <button
+            type="button"
             onClick={handleLogout}
             title="ออกจากระบบผู้ดูแล"
-            className="flex items-center space-x-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded-xl text-xs font-semibold transition active:scale-95 cursor-pointer"
+            className="flex items-center justify-center space-x-1.5 px-3 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded-xl text-xs font-semibold transition active:scale-95 cursor-pointer"
           >
-            <LogOut className="w-4 h-4" />
-            <span>ออกจากระบบ</span>
+            <LogOut className="w-4 h-4 shrink-0" />
+            <span className="truncate">ออกจากระบบ</span>
           </button>
         </div>
       </div>
@@ -741,7 +710,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
 
         {/* 2. ตารางสรุปผลสถิติความพึงพอใจ 10 ด้าน (ตามรูปแบบเอกสารรายงานสรุปโครงการ) */}
         <div className="bg-white border border-amber-900/12 rounded-2xl overflow-hidden shadow-sm">
-          <div className="p-4 sm:p-5 border-b border-amber-900/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="p-4 sm:p-5 border-b border-amber-900/10 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
                 <BarChart3 className="w-5 h-5 text-amber-700" />
@@ -759,18 +728,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full lg:w-auto shrink-0">
               <button
+                type="button"
                 onClick={handleExportExcel}
-                className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-semibold transition active:scale-95 cursor-pointer"
+                title="ดาวน์โหลดไฟล์ Excel (.xlsx) ครบทั้ง 3 Sheets: ข้อมูลดิบผู้ประเมิน, ตารางสรุปสถิติ 10 ด้าน และรายชื่อผู้ลอยกระทง"
+                className="flex items-center justify-center space-x-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition active:scale-95 cursor-pointer"
               >
-                ดาวน์โหลดตารางนี้เป็น Excel
+                <FileSpreadsheet className="w-4 h-4 shrink-0" />
+                <span>Export Excel (3 Sheets)</span>
               </button>
               <button
-                onClick={handleExportA4Report}
-                className="px-3 py-1.5 rounded-xl bg-[#fffbeb] hover:bg-amber-100 border border-amber-400/60 text-amber-950 text-xs font-semibold transition active:scale-95 cursor-pointer"
+                type="button"
+                onClick={handleExportCSV}
+                title="ดาวน์โหลดข้อมูลดิบผู้ตอบแบบประเมินเป็นไฟล์ CSV"
+                className="flex items-center justify-center space-x-1.5 px-3.5 py-2 rounded-xl bg-[#241911] hover:bg-[#38271a] text-[#fffbeb] text-xs font-bold shadow-sm transition active:scale-95 cursor-pointer"
               >
-                พิมพ์รายงาน A4
+                <Download className="w-4 h-4 shrink-0" />
+                <span>Export CSV (Raw)</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleExportA4Report}
+                title="เปิดหน้ารายงานสรุปผลขนาด A4 พร้อมกราฟ Radar Chart และตารางสถิติ 10 ข้อเพื่อพิมพ์หรือเซฟเป็น PDF"
+                className="flex items-center justify-center space-x-1.5 px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-sm transition active:scale-95 cursor-pointer"
+              >
+                <FileText className="w-4 h-4 shrink-0" />
+                <span>รายงานสรุป A4 (PDF)</span>
               </button>
             </div>
           </div>

@@ -29,37 +29,39 @@ const ThaiArchitectureSkylineBase: React.FC = () => {
         className="w-full h-full opacity-95 overflow-visible"
       >
         <defs>
-          {/* Main Architecture Golden Gradient */}
+          {/* Main Architecture Warm Cream-White Gradient */}
           <linearGradient id="templeGoldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#fde68a" stopOpacity="0.95" />
-            <stop offset="25%" stopColor="#f59e0b" stopOpacity="0.82" />
-            <stop offset="65%" stopColor="#b45309" stopOpacity="0.68" />
-            <stop offset="100%" stopColor="#160f09" stopOpacity="0.92" />
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.98" />
+            <stop offset="25%" stopColor="#fdfaf4" stopOpacity="0.94" />
+            <stop offset="62%" stopColor="#efe0c4" stopOpacity="0.88" />
+            <stop offset="86%" stopColor="#bfa378" stopOpacity="0.82" />
+            <stop offset="100%" stopColor="#261a10" stopOpacity="0.94" />
           </linearGradient>
 
-          {/* Prang Wat Arun Golden Gradient */}
+          {/* Prang Wat Arun Warm Cream-White Gradient */}
           <linearGradient id="prangGoldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#fffbeb" stopOpacity="1" />
-            <stop offset="15%" stopColor="#fde047" stopOpacity="0.9" />
-            <stop offset="45%" stopColor="#d97706" stopOpacity="0.78" />
-            <stop offset="100%" stopColor="#26190e" stopOpacity="0.88" />
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
+            <stop offset="22%" stopColor="#fffbeb" stopOpacity="0.96" />
+            <stop offset="58%" stopColor="#f3e3c3" stopOpacity="0.90" />
+            <stop offset="85%" stopColor="#c4a678" stopOpacity="0.84" />
+            <stop offset="100%" stopColor="#26190e" stopOpacity="0.92" />
           </linearGradient>
 
-          {/* Real Fluted Pumpkin Vault Gold Gradient */}
+          {/* Real Fluted Pumpkin Vault Warm Cream-White Gradient */}
           <linearGradient id="vaultGoldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#fffbeb" stopOpacity="1" />
-            <stop offset="20%" stopColor="#fde047" stopOpacity="0.95" />
-            <stop offset="60%" stopColor="#f59e0b" stopOpacity="0.82" />
-            <stop offset="90%" stopColor="#b45309" stopOpacity="0.72" />
-            <stop offset="100%" stopColor="#160f09" stopOpacity="0.92" />
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
+            <stop offset="25%" stopColor="#fdfaf4" stopOpacity="0.96" />
+            <stop offset="62%" stopColor="#efe0c4" stopOpacity="0.90" />
+            <stop offset="88%" stopColor="#bfa378" stopOpacity="0.82" />
+            <stop offset="100%" stopColor="#261a10" stopOpacity="0.94" />
           </linearGradient>
 
-          {/* Fluted Vault Ridge Side Gradient (สร้างแสงเงาร่องกลีบ) */}
+          {/* Fluted Vault Ridge Side Gradient (สร้างแสงเงาร่องกลีบโทนครีมอุ่น) */}
           <linearGradient id="vaultShadowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.9" />
-            <stop offset="40%" stopColor="#b45309" stopOpacity="0.8" />
-            <stop offset="85%" stopColor="#78350f" stopOpacity="0.75" />
-            <stop offset="100%" stopColor="#160f09" stopOpacity="0.95" />
+            <stop offset="0%" stopColor="#fdfaf4" stopOpacity="0.92" />
+            <stop offset="45%" stopColor="#e5d1b0" stopOpacity="0.85" />
+            <stop offset="85%" stopColor="#9c7a4c" stopOpacity="0.80" />
+            <stop offset="100%" stopColor="#1f150d" stopOpacity="0.95" />
           </linearGradient>
 
           {/* Golden Aura Radial Gradient for Stupa Tip */}
@@ -91,12 +93,12 @@ const ThaiArchitectureSkylineBase: React.FC = () => {
             <stop offset="100%" stopColor="#140d07" stopOpacity="0.96" />
           </linearGradient>
 
-          {/* Muted Translucent Gold Gradient for Midground Architecture */}
+          {/* Muted Translucent Warm Cream-White Gradient for Midground Architecture */}
           <linearGradient id="mutedGoldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#fde68a" stopOpacity="0.82" />
-            <stop offset="35%" stopColor="#d97706" stopOpacity="0.68" />
-            <stop offset="75%" stopColor="#78350f" stopOpacity="0.62" />
-            <stop offset="100%" stopColor="#160f09" stopOpacity="0.92" />
+            <stop offset="0%" stopColor="#fffdf9" stopOpacity="0.90" />
+            <stop offset="35%" stopColor="#f5ead4" stopOpacity="0.82" />
+            <stop offset="75%" stopColor="#c2a57a" stopOpacity="0.74" />
+            <stop offset="100%" stopColor="#24180e" stopOpacity="0.92" />
           </linearGradient>
 
           {/* Soft Horizon Blend Gradient (ไร้ขอบคั่นแข็งระหว่างพื้นหลังกับผิวน้ำ 3D) */}
@@ -326,26 +328,26 @@ const ThaiArchitectureSkylineBase: React.FC = () => {
           </g>
         </g>
 
-        {/* ----------------- 3. ตึกฟักทอง คณะวิทยาศาสตร์ ม.อ. (โทนสีทองไล่เฉดเดียวกับสถาปัตยกรรมพื้นหลัง templeGoldGrad) ----------------- */}
+        {/* ----------------- 3. ตึกฟักทอง คณะวิทยาศาสตร์ ม.อ. (โทนสีขาวครีมอบอุ่นคู่บรรยากาศแสงสีทอง) ----------------- */}
         <g id="realPumpkinBuildingPSU">
-          {/* Spotlight แสงนวลส่องหลังตัวตึกฟักทอง */}
-          <ellipse cx="800" cy="245" rx="280" ry="68" fill="url(#spireAura)" opacity="0.12" />
+          {/* Spotlight แสงทองนวลส่องหลังตัวตึกฟักทอง */}
+          <ellipse cx="800" cy="245" rx="290" ry="72" fill="url(#spireAura)" opacity="0.24" />
 
           {/* Silhouette บังฉากหลังเฉพาะช่วงตัวอาคารตึกฟักทอง เพื่อไม่ให้เส้นเจดีย์ด้านหลังทะลุเข้ามาซ้อนในตัวอาคาร */}
           <path
             d="M 512 302 C 512 225, 575 176, 650 162 C 710 150, 755 148, 800 148 C 845 148, 890 150, 950 162 C 1025 176, 1088 225, 1088 302 Z"
-            fill="#160f09"
+            fill="#1c120a"
             opacity="0.92"
           />
 
           <image
-            href="/vector.png?v=temple-gold"
+            href="/vector.png?v=warm-white"
             x="510"
             y="130"
             width="580"
             height="176"
             preserveAspectRatio="xMidYMax meet"
-            opacity="0.95"
+            opacity="0.98"
           />
         </g>
 
@@ -427,12 +429,12 @@ const ThaiArchitectureSkylineBase: React.FC = () => {
         </g>
       </svg>
 
-      {/* เงาสะท้อนสีทองของทรงกลีบมนตึกฟักทองทอดลงบนผิวน้ำ (Soft Radial Reflection) */}
+      {/* เงาสะท้อนสีขาวครีมอบอุ่น-ทองของทรงกลีบมนตึกฟักทองทอดลงบนผิวน้ำ (Soft Radial Reflection) */}
       <div
         className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-[380px] sm:w-[520px] h-20 pointer-events-none"
         style={{
           background:
-            'radial-gradient(ellipse at 50% 15%, rgba(253, 224, 71, 0.16) 0%, rgba(245, 158, 11, 0.08) 48%, transparent 74%)'
+            'radial-gradient(ellipse at 50% 15%, rgba(255, 251, 235, 0.16) 0%, rgba(251, 191, 36, 0.10) 48%, transparent 74%)'
         }}
       />
     </div>
