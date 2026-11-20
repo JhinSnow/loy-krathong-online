@@ -1,7 +1,8 @@
 // src/components/KrathongCustomizer.tsx
 import React, { useEffect, useRef, useState } from 'react';
-import type { UserType } from '../types';
-import { Krathong3DPreview } from './Krathong3DPreview';
+import type { KrathongItem, UserType } from '../types';
+import type { CraftCameraPreset, CraftDesignState } from './RiverCanvas';
+import { KrathongVisual } from './KrathongVisual';
 import { ShareCardModal } from './ShareCardModal';
 import { KrathongItemIcon, PumpkinBuildingIcon } from './KrathongIcons';
 import {
@@ -14,6 +15,7 @@ import {
   MessageSquareHeart,
   MessageCircle,
   RotateCcw,
+  Rotate3D,
   Check,
   ArrowLeft,
   ArrowRight,
@@ -26,6 +28,7 @@ import {
   SCALE_STEP,
   encodeCandleConfig
 } from '../utils/krathongConfig';
+import { isWebGLAvailable } from '../three/krathongThumbnail';
 import { supabase } from '../utils/supabase';
 import {
   containsProfanity,
@@ -42,13 +45,18 @@ import {
   getLocalRequireApproval,
   getOrCreateDeviceToken
 } from '../utils/evaluationHelpers';
-import { soundManager } from '../utils/soundEffects';
 
 interface KrathongCustomizerProps {
+  isOpen: boolean;
+  cameraPreset: CraftCameraPreset;
+  onToggleCameraPreset: () => void;
+  onDesignChange: (design: CraftDesignState) => void;
+  isAudioPlaying: boolean;
+  onToggleAudio: () => void;
   onBackToRiver: () => void;
   onNavigateWishes: () => void;
-  onSuccessFloating: (krathongId: string, userType: UserType) => void;
-  isOverlayOpen?: boolean;
+  onSuccessFloating: (krathongId: string, userType: UserType, item: KrathongItem) => void;
+  onModalOpenChange?: (open: boolean) => void;
 }
 
 type WizardStep = 'base' | 'decor' | 'float';
@@ -208,11 +216,18 @@ const QUICK_WISHES = [
 ] as const;
 
 export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
+  isOpen,
+  cameraPreset,
+  onToggleCameraPreset,
+  onDesignChange,
+  isAudioPlaying,
+  onToggleAudio,
   onBackToRiver,
   onNavigateWishes,
   onSuccessFloating,
-  isOverlayOpen = false
+  onModalOpenChange
 }) => {
+  const [webglReady] = useState<boolean>(() => isWebGLAvailable());
   const [wizardStep, setWizardStep] = useState<WizardStep>('base');
   const [userType, setUserType] = useState<UserType>('student');
   const [ownerName, setOwnerName] = useState('');
@@ -226,41 +241,18 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
   const [previewPulseNonce, setPreviewPulseNonce] = useState<number>(0);
 
   const [loading, setLoading] = useState(false);
-  const [isLaunching, setIsLaunching] = useState(false);
-  const [isLaunchFading, setIsLaunchFading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [showShareModal, setShowShareModal] = useState(false);
-  const [isAudioPlaying, setIsAudioPlaying] = useState<boolean>(() => soundManager.isAudioEnabled());
 
   const bodyScrollRef = useRef<HTMLDivElement | null>(null);
-  const launchFadeTimerRef = useRef<number | null>(null);
-  const launchDoneTimerRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (launchFadeTimerRef.current) window.clearTimeout(launchFadeTimerRef.current);
-      if (launchDoneTimerRef.current) window.clearTimeout(launchDoneTimerRef.current);
-    };
-  }, []);
-
-  const triggerLaunchSequence = (krathongId: string, safeUserType: UserType) => {
-    soundManager.playFloatSuccessChime();
-    setIsLaunching(true);
-    launchFadeTimerRef.current = window.setTimeout(() => {
-      setIsLaunchFading(true);
-    }, 720);
-    launchDoneTimerRef.current = window.setTimeout(() => {
-      onSuccessFloating(krathongId, safeUserType);
-    }, 900);
-  };
 
   useEffect(() => {
     bodyScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, [wizardStep]);
 
-  const handleToggleAudio = () => {
-    setIsAudioPlaying(soundManager.toggleAudio());
-  };
+  useEffect(() => {
+    onModalOpenChange?.(showShareModal);
+  }, [showShareModal, onModalOpenChange]);
 
   const handleApplyIdeaPreset = (preset: IdeaPreset) => {
     setBaseType(preset.baseType);
@@ -308,9 +300,19 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
     centerScale
   );
 
+  useEffect(() => {
+    onDesignChange({
+      baseType,
+      flowerType,
+      candleColor: combinedCandleValue,
+      pulseNonce: previewPulseNonce,
+      cameraPreset
+    });
+  }, [baseType, flowerType, combinedCandleValue, previewPulseNonce, cameraPreset, onDesignChange]);
+
   const handleFloatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (loading || isLaunching) return;
+    if (loading || !isOpen) return;
     setErrorMsg('');
 
     const cleanName = sanitizeInputText(ownerName, 40);
@@ -437,9 +439,8 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
       }
 
       const finalId = createdId || `local-${Date.now()}`;
-
-      // 6. บันทึกลง LocalStorage เสมอ
-      saveLocalKrathongRecord({
+      const nowIso = new Date().toISOString();
+      const createdRecord = {
         id: finalId,
         user_type: safeUserType,
         owner_name: cleanName,
@@ -448,15 +449,19 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
         flower_type: safeFlowerType,
         candle_color: safeCandleColor,
         status: initialStatus,
-        created_at: new Date().toISOString()
-      });
+        created_at: nowIso
+      };
+
+      // 6. บันทึกลง LocalStorage เสมอ
+      saveLocalKrathongRecord(createdRecord);
 
       markRateLimitAction('krathong_submit');
-      triggerLaunchSequence(finalId, safeUserType);
+      onSuccessFloating(finalId, safeUserType, createdRecord);
     } catch (err: any) {
       console.warn('Using local fallback:', err);
       const fakeId = `local-${Date.now()}`;
-      saveLocalKrathongRecord({
+      const nowIso = new Date().toISOString();
+      const fallbackRecord = {
         id: fakeId,
         user_type: safeUserType,
         owner_name: cleanName,
@@ -465,52 +470,35 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
         flower_type: safeFlowerType,
         candle_color: safeCandleColor,
         status: initialStatus,
-        created_at: new Date().toISOString()
-      });
+        created_at: nowIso
+      };
+      saveLocalKrathongRecord(fallbackRecord);
       markRateLimitAction('krathong_submit');
-      triggerLaunchSequence(fakeId, safeUserType);
+      onSuccessFloating(fakeId, safeUserType, fallbackRecord);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div
-      className={`relative h-dvh w-screen overflow-hidden flex flex-col md:flex-row bg-[#0c7c94] transition-opacity duration-200 ${
-        isLaunchFading ? 'opacity-0' : 'opacity-100'
-      }`}
-    >
-      {/* ฝั่งซ้าย (เดสก์ท็อป) / ด้านบน (มือถือ): ฉากผิวน้ำ 3D เต็มพื้นที่ + แคปซูลนำทางด้านบน */}
-      <div
-        className={
-          isLaunching
-            ? 'fixed inset-0 z-10 w-full h-dvh overflow-hidden'
-            : 'relative w-full h-[44dvh] shrink-0 md:h-full md:flex-1 overflow-hidden'
-        }
-      >
-        <Krathong3DPreview
-          baseType={baseType}
-          flowerType={flowerType}
-          candleColor={combinedCandleValue}
-          fullBleed
-          paused={showShareModal || isOverlayOpen}
-          pulseNonce={previewPulseNonce}
-          isLaunching={isLaunching}
-        />
-
-        {isLaunching && (
-          <div className="absolute top-5 sm:top-7 left-1/2 -translate-x-1/2 z-30 pointer-events-none animate-ui-step">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#fdfaf4]/95 border border-amber-500/40 shadow-xl text-[#231912] text-xs sm:text-sm font-bold whitespace-nowrap">
-              <Sparkles className="w-4 h-4 text-amber-600 shrink-0 animate-pulse" />
-              <span>กำลังปล่อยกระทงลงสู่สายน้ำ...</span>
-            </div>
+    <div className="fixed inset-0 z-30 pointer-events-none overflow-hidden flex flex-col md:flex-row">
+      {/* ฝั่งซ้าย (เดสก์ท็อป) / ด้านบน (มือถือ): ช่องใสเปิดรับการลากหมุนกระทง 3D บนแม่น้ำจริงด้านล่าง */}
+      <div className="relative w-full h-[44dvh] shrink-0 md:h-full md:flex-1 pointer-events-none">
+        {!webglReady && isOpen && (
+          <div className="w-full h-full flex items-center justify-center bg-[#0c7c94] pointer-events-auto">
+            <KrathongVisual
+              baseType={baseType}
+              flowerType={flowerType}
+              candleColor={combinedCandleValue}
+              size="md"
+            />
           </div>
         )}
 
-        {/* มุมบนซ้าย: โลโก้ผู้จัดงาน + ชื่อเทศกาลแบบแคปซูลครีมอุ่น (ไม่ใช้ backdrop-blur ทับ WebGL) */}
+        {/* มุมบนซ้าย: โลโก้ผู้จัดงาน + ชื่อเทศกาลแบบแคปซูลครีมอุ่น */}
         <div
-          className={`absolute top-3 left-3 sm:top-4 sm:left-4 z-20 flex items-center gap-2 bg-[#fdfaf4]/95 px-2.5 sm:px-3 py-1.5 rounded-2xl border border-amber-900/15 shadow-md text-[#231912] transition-opacity duration-300 ${
-            isLaunching ? 'opacity-0 pointer-events-none' : 'opacity-100'
+          className={`absolute top-3 left-3 sm:top-4 sm:left-4 z-20 flex items-center gap-2 bg-[#fdfaf4]/95 px-2.5 sm:px-3 py-1.5 rounded-2xl border border-amber-900/15 shadow-md text-[#231912] transition-all duration-300 ease-out ${
+            isOpen ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 -translate-y-3 pointer-events-none'
           }`}
         >
           <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#241911] flex items-center justify-center p-1 shrink-0">
@@ -532,8 +520,8 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
 
         {/* มุมบนขวา: แคปซูลเมนูสายน้ำ / คำอวยพร / เปียโน / การ์ด */}
         <div
-          className={`absolute top-3 right-3 sm:top-4 sm:right-4 z-20 flex flex-wrap items-center justify-end gap-1.5 max-w-[54vw] transition-opacity duration-300 ${
-            isLaunching ? 'opacity-0 pointer-events-none' : 'opacity-100'
+          className={`absolute top-3 right-3 sm:top-4 sm:right-4 z-20 flex flex-wrap items-center justify-end gap-1.5 max-w-[54vw] transition-all duration-300 ease-out ${
+            isOpen ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 -translate-y-3 pointer-events-none'
           }`}
         >
           <button
@@ -556,7 +544,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
 
           <button
             type="button"
-            onClick={handleToggleAudio}
+            onClick={onToggleAudio}
             title={isAudioPlaying ? 'ปิดเสียงเพลงเปียโน' : 'เปิดเสียงเพลงลอยกระทง (เปียโน)'}
             aria-label={isAudioPlaying ? 'ปิดเสียงเพลงเปียโน' : 'เปิดเสียงเพลงลอยกระทง (เปียโน)'}
             className={`px-2.5 py-1.5 rounded-full border shadow-md text-[11px] sm:text-xs font-semibold flex items-center gap-1 transition-all duration-150 active:scale-95 cursor-pointer ${
@@ -582,15 +570,37 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
             <span className="hidden sm:inline">การ์ด</span>
           </button>
         </div>
+
+        {/* แคปซูลแนะนำการหมุนตรงกลางล่าง */}
+        <span
+          className={`hidden sm:inline-flex pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 px-3.5 py-1.5 rounded-full text-[11px] font-medium bg-[#fdfaf4]/95 text-[#2a1f16] border border-amber-900/15 shadow-md z-20 whitespace-nowrap transition-all duration-300 ${
+            isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+          }`}
+        >
+          ลากเพื่อหมุนดูรอบๆ
+        </span>
+
+        {/* ปุ่มสลับมุมมอง เอียง 3D / มุมตรงด้านบน */}
+        <button
+          type="button"
+          onClick={onToggleCameraPreset}
+          title={cameraPreset === 'angled' ? 'สลับเป็นมุมมองตรงจากด้านบน' : 'กลับสู่มุมมองเอียง 3 มิติ'}
+          className={`absolute bottom-3 sm:bottom-4 right-3 sm:right-4 px-3 py-1.5 text-[11px] font-semibold flex items-center space-x-1.5 rounded-full bg-[#fdfaf4]/95 hover:bg-white text-[#2a1f16] border border-amber-900/15 shadow-md transition-all duration-300 active:scale-95 cursor-pointer z-20 ${
+            isOpen ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-2 pointer-events-none'
+          }`}
+        >
+          <Rotate3D className="w-3.5 h-3.5 text-amber-700" />
+          <span>{cameraPreset === 'angled' ? 'มุมตรงด้านบน' : 'มุมเอียง 3D'}</span>
+        </button>
       </div>
 
-      {/* ฝั่งขวา (เดสก์ท็อป) / ด้านล่าง (มือถือ): แผงควบคุมครีมอุ่น 3 ขั้นตอน */}
+      {/* ฝั่งขวา (เดสก์ท็อป) / ด้านล่าง (มือถือ): แผงควบคุมครีมอุ่น 3 ขั้นตอนสไลด์เปิด-ปิดต่อเนื่อง */}
       <div
-        className={`${
-          isLaunching
-            ? 'fixed bottom-0 inset-x-0 h-[56dvh] md:inset-y-0 md:right-0 md:left-auto md:h-full md:w-[395px] lg:w-[425px] pointer-events-none animate-panel-launch-out'
-            : 'w-full flex-1 md:flex-none md:w-[395px] lg:w-[425px] md:h-full relative -mt-3 md:mt-0'
-        } bg-[#fdfaf4] text-[#231912] rounded-t-3xl md:rounded-none z-20 flex flex-col overflow-hidden shadow-2xl border-t md:border-t-0 md:border-l border-amber-900/15`}
+        className={`w-full flex-1 md:flex-none md:w-[395px] lg:w-[425px] md:h-full bg-[#fdfaf4] text-[#231912] rounded-t-3xl md:rounded-none -mt-3 md:mt-0 relative z-20 flex flex-col overflow-hidden shadow-2xl border-t md:border-t-0 md:border-l border-amber-900/15 touch-auto transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          isOpen
+            ? 'translate-y-0 md:translate-x-0 pointer-events-auto'
+            : 'translate-y-[108%] md:translate-y-0 md:translate-x-[108%] pointer-events-none'
+        }`}
       >
         {/* แถบ Progress Tabs 3 ขั้นตอนปักหมุดด้านบน */}
         <div className="px-4 pt-3.5 pb-2.5 border-b border-amber-900/10 bg-[#fdfaf4] shrink-0">
@@ -1145,13 +1155,11 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || isLaunching}
+                  disabled={loading}
                   className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-[#231912] font-extrabold text-sm flex items-center justify-center gap-2 shadow-md border border-amber-600/25 transition-all duration-150 active:scale-[0.98] cursor-pointer disabled:opacity-60"
                 >
                   <Sparkles className="w-4 h-4 text-[#231912]" />
-                  <span>
-                    {isLaunching ? 'กำลังปล่อยกระทง...' : loading ? 'กำลังส่งข้อมูล...' : 'ปล่อยกระทงลงน้ำ'}
-                  </span>
+                  <span>{loading ? 'กำลังส่งข้อมูล...' : 'ปล่อยกระทงลงน้ำ'}</span>
                 </button>
               </div>
             )}
@@ -1161,15 +1169,17 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
 
       {/* Social Card Modal */}
       {showShareModal && (
-        <ShareCardModal
-          ownerName={ownerName || 'ผู้มีจิตศรัทธา'}
-          wishMessage={wishMessage || 'ขอขมาพระแม่คงคา'}
-          userType={userType}
-          baseType={baseType}
-          flowerType={flowerType}
-          candleColor={combinedCandleValue}
-          onClose={() => setShowShareModal(false)}
-        />
+        <div className="pointer-events-auto">
+          <ShareCardModal
+            ownerName={ownerName || 'ผู้มีจิตศรัทธา'}
+            wishMessage={wishMessage || 'ขอขมาพระแม่คงคา'}
+            userType={userType}
+            baseType={baseType}
+            flowerType={flowerType}
+            candleColor={combinedCandleValue}
+            onClose={() => setShowShareModal(false)}
+          />
+        </div>
       )}
     </div>
   );
