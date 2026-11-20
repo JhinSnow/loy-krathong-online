@@ -5,6 +5,7 @@ import { KrathongCustomizer } from './components/KrathongCustomizer';
 import { EvaluationModal } from './components/EvaluationModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { WishesGallery } from './components/WishesGallery';
+import { hasCompletedEvaluationOnDevice } from './utils/evaluationHelpers';
 import type { UserType } from './types';
 
 type AppView = 'river' | 'customize' | 'wishes' | 'admin';
@@ -81,7 +82,12 @@ export const App: React.FC = () => {
   const handleSuccessFloating = (krathongId: string, userType: UserType) => {
     setMyKrathongId(krathongId);
     setCurrentUserType(userType);
-    // บังคับแสดงแบบประเมินความพึงพอใจทันทีตามข้อกำหนด
+    // หากเครื่องนี้เคยทำแบบประเมินไปแล้ว ให้ข้ามหน้าแบบประเมินและพากลับสู่สายน้ำทันที (ไม่ติดล็อกซ้ำ)
+    if (hasCompletedEvaluationOnDevice()) {
+      setShowEvaluation(false);
+      navigateToRiver(true);
+      return;
+    }
     setShowEvaluation(true);
   };
 
@@ -120,6 +126,7 @@ export const App: React.FC = () => {
           onBackToRiver={() => navigateToRiver(false)}
           onNavigateWishes={navigateToWishes}
           onSuccessFloating={handleSuccessFloating}
+          isOverlayOpen={showEvaluation}
         />
       )}
 

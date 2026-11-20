@@ -93,11 +93,13 @@ const WATER_FRAGMENT_SHADER = /* glsl */ `
     dz += c3 * 0.28;
     ridge += 0.5 + 0.5 * sin(a3);
 
-    // Layer 4: High-frequency micro surface shimmer
-    float a4 = p.z * 29.0 - p.x * 3.80 + t * 2.85;
-    float c4 = cos(a4);
-    dx += c4 * -0.055;
-    dz += c4 * 0.22;
+    // Layer 4: High-frequency micro surface shimmer (river mode only)
+    if (uIsPreview < 0.5) {
+      float a4 = p.z * 29.0 - p.x * 3.80 + t * 2.85;
+      float c4 = cos(a4);
+      dx += c4 * -0.055;
+      dz += c4 * 0.22;
+    }
 
     vec3 n = normalize(vec3(-dx, 1.0, -dz));
     return vec4(n, ridge / 3.0);
@@ -203,7 +205,7 @@ export function createRealisticRiverWater(options: {
 
   const geometry = isCircularPond
     ? new THREE.CircleGeometry(pondRadius, 40)
-    : new THREE.PlaneGeometry(width, depth, 48, 36);
+    : new THREE.PlaneGeometry(width, depth, isPreview ? 16 : 48, isPreview ? 16 : 36);
   geometry.rotateX(-Math.PI / 2);
 
   const reflectionTarget = new THREE.WebGLRenderTarget(reflectionWidth, reflectionHeight, {

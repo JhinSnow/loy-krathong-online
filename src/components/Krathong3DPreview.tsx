@@ -2,7 +2,7 @@
 // หน้าต่างแสดงตัวอย่างกระทง 3 มิติแบบ Real-time สำหรับหน้าแต่งกระทง
 // รองรับโหมดเต็มพื้นที่ (Full-Bleed) คู่ผิวน้ำริ้วคลื่น ใบไม้/ดอกไม้ลอยน้ำ และมุมกล้องสูงเฉียง ~58°
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Rotate3D } from 'lucide-react';
@@ -10,10 +10,12 @@ import {
   buildKrathong3D,
   animateKrathong3D,
   disposeKrathong3D,
-  type KrathongAnimHandles
+  type KrathongAnimHandles,
+  type KrathongScaleTargets
 } from '../three/krathongBuilder';
 import { createRealisticRiverWater, type WaterSystem } from '../three/waterShader';
 import { isWebGLAvailable } from '../three/krathongThumbnail';
+import { parseCandleConfig } from '../utils/krathongConfig';
 import { KrathongVisual } from './KrathongVisual';
 
 interface Krathong3DPreviewProps {
@@ -22,6 +24,7 @@ interface Krathong3DPreviewProps {
   candleColor: string;
   compact?: boolean;
   fullBleed?: boolean;
+  paused?: boolean;
 }
 
 type CameraPreset = 'angled' | 'top';
@@ -29,6 +32,15 @@ type CameraPreset = 'angled' | 'top';
 const ANGLE_DEFAULT_POS = new THREE.Vector3(0, 2.08, 1.52);
 const TOP_VIEW_POS = new THREE.Vector3(0, 2.78, 0.36);
 const CAMERA_TARGET = new THREE.Vector3(0, 0.22, 0);
+
+function getStructureKey(
+  baseType: string,
+  flowerType: string,
+  candleId: string,
+  accessories: string[]
+): string {
+  return `${baseType}|${flowerType}|${candleId}|${accessories.join(',')}`;
+}
 
 interface PreviewWaterAccent {
   x: number;
@@ -44,17 +56,33 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
   flowerType,
   candleColor,
   compact = false,
-  fullBleed = false
+  fullBleed = false,
+  paused = false
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [webglReady] = useState<boolean>(() => isWebGLAvailable());
   const [viewMode, setViewMode] = useState<CameraPreset>('angled');
 
+  const parsedCandle = useMemo(() => parseCandleConfig(candleColor), [candleColor]);
+  const structureKey = getStructureKey(
+    baseType,
+    flowerType,
+    parsedCandle.candleId,
+    parsedCandle.accessories
+  );
+
   const sceneRef = useRef<THREE.Scene | null>(null);
   const krathongGroupRef = useRef<THREE.Group | null>(null);
   const animHandlesRef = useRef<KrathongAnimHandles | null>(null);
+  const scaleTargetsRef = useRef<KrathongScaleTargets | null>(null);
+  const builtStructureKeyRef = useRef<string>('');
+  const latestCandleColorRef = useRef<string>(candleColor);
+
   const targetCameraPosRef = useRef<THREE.Vector3 | null>(null);
   const initialModelPropsRef = useRef({ baseType, flowerType, candleColor });
+  const pausedRef = useRef<boolean>(paused);
+  const reflectionDirtyRef = useRef<boolean>(true);
+  const resumeLoopRef = useRef<(() => void) | null>(null);
 
   // ตั้งค่า Three.js Scene + Rippling Water + Floating Leaves/Blooms + OrbitControls
   useEffect(() => {
@@ -64,7 +92,7 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({
-        antialias: !compact,
+        antialias: false,
         alpha: true,
         powerPreference: 'high-performance'
       });
@@ -72,7 +100,7 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
       return;
     }
 
-    const dpr = Math.min(window.devicePixelRatio || 1, compact ? 1.2 : 1.5);
+    const dpr = Math.min(window.devicePixelRatio || 1, compact ? 1.15 : 1.25);
     const width = Math.max(112, container.clientWidth);
     const height = Math.max(112, container.clientHeight);
     renderer.setPixelRatio(dpr);
@@ -109,8 +137,8 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
       isCircularPond: false,
       isPreview: true,
       hasReflection: !compact,
-      reflectionWidth: fullBleed ? 320 : 256,
-      reflectionHeight: fullBleed ? 320 : 256
+      reflectionWidth: 224,
+      reflectionHeight: 224
     });
     scene.add(water.mesh);
 
@@ -179,6 +207,7 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
 
     // สร้างโมเดลกระทงเริ่มต้นทันทีที่ mount
     const initProps = initialModelPropsRef.current;
+    const initParsed = parseCandleConfig(initProps.candleColor);
     const initial = buildKrathong3D({
       baseType: initProps.baseType,
       flowerType: initProps.flowerType,
@@ -187,10 +216,24 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
     });
     krathongGroupRef.current = initial.group;
     animHandlesRef.current = initial.anim;
+    scaleTargetsRef.current = initial.scaleTargets;
+    builtStructureKeyRef.current = getStructureKey(
+      initProps.baseType,
+      initProps.flowerType,
+      initParsed.candleId,
+      initParsed.accessories
+    );
+    reflectionDirtyRef.current = true;
     scene.add(initial.group);
 
     let animId = 0;
-    const startTime = performance.now();
+    let isDisposed = false;
+    let isRunning = false;
+    let frameCount = 0;
+    let elapsedSec = 0;
+    let lastNow = performance.now();
+
+    const shouldPause = () => isDisposed || document.hidden || pausedRef.current;
 
     const handleResize = () => {
       if (!container) return;
@@ -199,6 +242,7 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
+      reflectionDirtyRef.current = true;
     };
 
     const resizeObserver =
@@ -206,7 +250,15 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
     resizeObserver?.observe(container);
 
     const renderLoop = (now: number) => {
-      const elapsedSec = (now - startTime) * 0.001;
+      if (shouldPause()) {
+        isRunning = false;
+        animId = 0;
+        return;
+      }
+
+      const dt = Math.min(Math.max((now - lastNow) * 0.001, 0), 0.1);
+      lastNow = now;
+      elapsedSec += dt;
 
       if (targetCameraPosRef.current) {
         camera.position.lerp(targetCameraPosRef.current, 0.14);
@@ -256,16 +308,41 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
       }
 
       water.update(elapsedSec);
-      water.renderReflection(renderer, scene, camera);
+      // Render reflection at 30Hz (and immediately whenever scene/model state changes)
+      if (frameCount === 0 || reflectionDirtyRef.current || frameCount % 2 === 0) {
+        water.renderReflection(renderer, scene, camera);
+        reflectionDirtyRef.current = false;
+      }
+      frameCount++;
       renderer.render(scene, camera);
 
       animId = requestAnimationFrame(renderLoop);
     };
 
-    animId = requestAnimationFrame(renderLoop);
+    const resumeLoop = () => {
+      if (isRunning || shouldPause()) return;
+      isRunning = true;
+      lastNow = performance.now();
+      animId = requestAnimationFrame(renderLoop);
+    };
+    resumeLoopRef.current = resumeLoop;
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        reflectionDirtyRef.current = true;
+        resumeLoop();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    resumeLoop();
 
     return () => {
-      cancelAnimationFrame(animId);
+      isDisposed = true;
+      isRunning = false;
+      resumeLoopRef.current = null;
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (animId) cancelAnimationFrame(animId);
       resizeObserver?.disconnect();
       controls.removeEventListener('start', handleUserInteract);
       controls.dispose();
@@ -275,6 +352,8 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
         krathongGroupRef.current = null;
       }
       animHandlesRef.current = null;
+      scaleTargetsRef.current = null;
+      builtStructureKeyRef.current = '';
       leafInst.dispose();
       leafGeo.dispose();
       leafMat.dispose();
@@ -290,11 +369,28 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
     };
   }, [webglReady, compact, fullBleed]);
 
-  // อัปเดตเฉพาะตัวโมเดล 3D เมื่อมีการเลือกฐาน ดอกไม้ เทียน ของเสริม หรือปรับขนาด
+  // พัก/ปลุกลูปเรนเดอร์ 3D อัตโนมัติเมื่อเปิด Modal ทับหน้าแต่งกระทง
   useEffect(() => {
-    initialModelPropsRef.current = { baseType, flowerType, candleColor };
+    pausedRef.current = paused;
+    if (!paused) {
+      reflectionDirtyRef.current = true;
+      resumeLoopRef.current?.();
+    }
+  }, [paused]);
+
+  useEffect(() => {
+    latestCandleColorRef.current = candleColor;
+  }, [candleColor]);
+
+  // สร้างโมเดล 3D ใหม่เฉพาะเมื่อเปลี่ยนโครงสร้าง (ฐาน ดอกไม้ สีเทียน หรือรายการของเสริม) เท่านั้น
+  useEffect(() => {
+    initialModelPropsRef.current = {
+      baseType,
+      flowerType,
+      candleColor: latestCandleColorRef.current
+    };
     const scene = sceneRef.current;
-    if (!scene) return;
+    if (!scene || builtStructureKeyRef.current === structureKey) return;
 
     if (krathongGroupRef.current) {
       scene.remove(krathongGroupRef.current);
@@ -304,18 +400,33 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
     const built = buildKrathong3D({
       baseType,
       flowerType,
-      candleColor,
+      candleColor: latestCandleColorRef.current,
       withFlameLight: true
     });
     krathongGroupRef.current = built.group;
     animHandlesRef.current = built.anim;
+    scaleTargetsRef.current = built.scaleTargets;
+    builtStructureKeyRef.current = structureKey;
+    reflectionDirtyRef.current = true;
     scene.add(built.group);
-  }, [baseType, flowerType, candleColor]);
+  }, [structureKey, baseType, flowerType]);
+
+  // ปรับขนาดพุ่มดอกไม้กลางและของเสริมแบบ Real-time ทันทีโดยไม่สร้าง Mesh ใหม่
+  useEffect(() => {
+    const targets = scaleTargetsRef.current;
+    if (!targets) return;
+    targets.centerGroup.scale.setScalar(parsedCandle.centerScale);
+    targets.accessoryGroups.forEach((accGroup, accId) => {
+      accGroup.scale.setScalar(parsedCandle.accessoryScales[accId] ?? 1);
+    });
+    reflectionDirtyRef.current = true;
+  }, [parsedCandle]);
 
   const handleToggleCameraView = () => {
     const nextMode: CameraPreset = viewMode === 'angled' ? 'top' : 'angled';
     setViewMode(nextMode);
     targetCameraPosRef.current = nextMode === 'top' ? TOP_VIEW_POS.clone() : ANGLE_DEFAULT_POS.clone();
+    reflectionDirtyRef.current = true;
   };
 
   if (!webglReady) {

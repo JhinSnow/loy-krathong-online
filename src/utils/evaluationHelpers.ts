@@ -368,6 +368,38 @@ export function bindStudentIdToDevice(studentId: string): void {
   } catch {}
 }
 
+/**
+ * ตรวจสอบว่าอุปกรณ์นี้เคยส่งแบบประเมินความพึงพอใจไปแล้วหรือไม่ (จาก Student ID ที่ผูกไว้หรือประวัติในเครื่อง)
+ */
+export function hasCompletedEvaluationOnDevice(): boolean {
+  try {
+    if (getBoundStudentId()) return true;
+    return getLocalEvaluationRecords().length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * ล้างสถานะล็อกเครื่อง ประวัติแบบประเมินในเครื่อง และ Rate Limit เพื่อใช้ทดสอบระบบ (ไม่กระทบฐานข้อมูล Supabase/D1)
+ */
+export function resetDeviceEvaluationLock(): void {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(LOCAL_BOUND_STUDENT_ID_KEY);
+      localStorage.removeItem(LOCAL_EVAL_STORAGE_KEY);
+      localStorage.removeItem(LOCAL_DEVICE_TOKEN_KEY);
+    }
+  } catch {}
+
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem('rl_krathong_submit');
+      sessionStorage.removeItem('rl_evaluation_submit');
+    }
+  } catch {}
+}
+
 // รายการ ID ทดสอบระบบช่วงพัฒนาที่เคลียร์ออกจากหน้าเว็บและสถิติเริ่มต้น
 const DEFAULT_HIDDEN_IDS: Record<string, 'approved' | 'rejected' | 'deleted'> = {
   'f2d13964-5717-4aea-b14d-d6ad1c8a40b0': 'deleted',

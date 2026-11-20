@@ -43,6 +43,7 @@ interface KrathongCustomizerProps {
   onBackToRiver: () => void;
   onNavigateWishes: () => void;
   onSuccessFloating: (krathongId: string, userType: UserType) => void;
+  isOverlayOpen?: boolean;
 }
 
 type WizardStep = 'base' | 'decor' | 'float';
@@ -60,7 +61,8 @@ interface IdeaPreset {
 export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
   onBackToRiver,
   onNavigateWishes,
-  onSuccessFloating
+  onSuccessFloating,
+  isOverlayOpen = false
 }) => {
   const [wizardStep, setWizardStep] = useState<WizardStep>('base');
   const [userType, setUserType] = useState<UserType>('student');
@@ -446,6 +448,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
           flowerType={flowerType}
           candleColor={combinedCandleValue}
           fullBleed
+          paused={showShareModal || isOverlayOpen}
         />
 
         {/* มุมบนซ้าย: โลโก้ผู้จัดงาน + ชื่อเทศกาลแบบแคปซูลครีมอุ่น */}

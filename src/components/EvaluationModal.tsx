@@ -50,6 +50,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [showShareModal, setShowShareModal] = useState<boolean>(false);
+  const [showSkipEscape, setShowSkipEscape] = useState<boolean>(() => Boolean(getBoundStudentId()));
 
   const boundStudentIdOnDevice = useMemo(() => getBoundStudentId(), []);
 
@@ -101,6 +102,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
       // เช็กการกรอกแทนเพื่อน (1 อุปกรณ์ ต่อ 1 รหัสนักศึกษา)
       const boundId = getBoundStudentId();
       if (boundId && boundId !== cleanStudentId) {
+        setShowSkipEscape(true);
         setErrorMsg(
           `อุปกรณ์นี้ได้ใช้ลงทะเบียนรหัสนักศึกษา ${boundId} ไปแล้ว (สงวนสิทธิ์ 1 อุปกรณ์ ต่อ 1 รหัสนักศึกษา เพื่อป้องกันการลงชื่อแทนกัน)`
         );
@@ -112,6 +114,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
         (rec) => rec.user_type === 'student' && (rec.student_id || '').trim() === cleanStudentId
       );
       if (localDuplicate) {
+        setShowSkipEscape(true);
         setErrorMsg(`รหัสนักศึกษา ${cleanStudentId} ได้ลงทะเบียนบันทึกชั่วโมงกิจกรรมไปแล้ว`);
         return;
       }
@@ -131,6 +134,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
             .ilike('feedback', `%"sid":"${cleanStudentId}"%`)
             .limit(1);
           if (dupRows && dupRows.length > 0) {
+            setShowSkipEscape(true);
             setErrorMsg(`รหัสนักศึกษา ${cleanStudentId} ได้ลงทะเบียนบันทึกชั่วโมงกิจกรรมไปแล้ว`);
             return;
           }
@@ -193,6 +197,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
           });
           if (apiRes.status === 409) {
             const errBody = await apiRes.json().catch(() => ({})) as any;
+            setShowSkipEscape(true);
             setErrorMsg(
               errBody.error || `รหัสนักศึกษา ${cleanStudentId} ได้ลงทะเบียนบันทึกชั่วโมงกิจกรรมไปแล้ว`
             );
@@ -457,6 +462,15 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
             <CheckCircle2 className="w-4 h-4 text-stone-950" />
             <span>{submitting ? 'กำลังบันทึกผลประเมิน & ปล่อยกระทง...' : 'ส่งแบบประเมิน 10 ข้อ & ลอยกระทงสู่สายน้ำ'}</span>
           </button>
+          {showSkipEscape && (
+            <button
+              type="button"
+              onClick={onFinish}
+              className="w-full py-2.5 bg-[#2a1d11] hover:bg-[#3a2818] text-amber-200 font-semibold rounded-xl border border-amber-400/40 transition cursor-pointer text-xs sm:text-sm"
+            >
+              เคยลงทะเบียนแล้ว — ข้ามไปชมกระทงบนสายน้ำ →
+            </button>
+          )}
         </div>
       </div>
 

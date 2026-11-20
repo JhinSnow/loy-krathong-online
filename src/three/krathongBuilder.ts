@@ -13,6 +13,11 @@ export interface KrathongAnimHandles {
   waterHalo?: THREE.Mesh;
 }
 
+export interface KrathongScaleTargets {
+  centerGroup: THREE.Group;
+  accessoryGroups: Map<string, THREE.Group>;
+}
+
 export interface BuildKrathong3DOptions {
   baseType: string;
   flowerType: string;
@@ -1183,7 +1188,7 @@ function addAccessory3D(
   parent: THREE.Group,
   assets: SharedAssets,
   anim: KrathongAnimHandles
-): void {
+): THREE.Group {
   const wrap = new THREE.Group();
   wrap.position.set(pos[0], pos[1], pos[2]);
   wrap.scale.setScalar(scale);
@@ -1371,6 +1376,7 @@ function addAccessory3D(
   }
 
   parent.add(wrap);
+  return wrap;
 }
 
 /**
@@ -1379,6 +1385,7 @@ function addAccessory3D(
 export function buildKrathong3D(options: BuildKrathong3DOptions): {
   group: THREE.Group;
   anim: KrathongAnimHandles;
+  scaleTargets: KrathongScaleTargets;
 } {
   const { baseType, flowerType, candleColor, isMine = false, withFlameLight = false } = options;
   const assets = getSharedAssets();
@@ -1735,6 +1742,7 @@ export function buildKrathong3D(options: BuildKrathong3DOptions): {
     elephant_gold: [0.58, 0.25, 0.44]
   };
 
+  const accessoryGroups = new Map<string, THREE.Group>();
   parsed.accessories.forEach((accId, idx) => {
     const anchor = accessoryAnchorMap[accId] || [
       Math.cos((idx * Math.PI) / 3) * 0.56,
@@ -1742,7 +1750,8 @@ export function buildKrathong3D(options: BuildKrathong3DOptions): {
       Math.sin((idx * Math.PI) / 3) * 0.56
     ];
     const scale = parsed.accessoryScales[accId] ?? 1;
-    addAccessory3D(accId, anchor, scale, group, assets, anim);
+    const wrap = addAccessory3D(accId, anchor, scale, group, assets, anim);
+    accessoryGroups.set(accId, wrap);
   });
 
   // วงแหวนแสงสีทองรอบกระทงตัวเอง (isMine)
@@ -1760,7 +1769,7 @@ export function buildKrathong3D(options: BuildKrathong3DOptions): {
     anim.waterHalo = halo;
   }
 
-  return { group, anim };
+  return { group, anim, scaleTargets: { centerGroup, accessoryGroups } };
 }
 
 /**

@@ -29,7 +29,8 @@ import {
   Trash2,
   Search,
   Eye,
-  EyeOff
+  EyeOff,
+  RotateCcw
 } from 'lucide-react';
 import { supabase } from '../utils/supabase';
 import {
@@ -50,6 +51,7 @@ import {
   setLocalRequireApproval,
   getModerationOverrides,
   mergeModerationOverrides,
+  resetDeviceEvaluationLock,
   type EvaluationAnalyticsSummary
 } from '../utils/evaluationHelpers';
 import { EvaluationRadarChart } from './EvaluationRadarChart';
@@ -78,6 +80,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
   const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'pending' | 'rejected'>('all');
   const [selectedFacultyFilter, setSelectedFacultyFilter] = useState<string>('all');
   const [transcriptSearch, setTranscriptSearch] = useState<string>('');
+  const [resetLockNotice, setResetLockNotice] = useState<string>('');
 
   // ดึงข้อมูลสถิติ รายการกระทง และข้อมูลประเมิน 10 ข้อ (รวมข้อมูลจากทั้ง LocalStorage + Supabase + API)
   const loadData = async () => {
@@ -298,6 +301,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
     setIsAuthenticated(false);
     setStats(null);
     setKrathongs([]);
+  };
+
+  const handleResetDeviceTestLock = () => {
+    if (!getAdminSession()) return;
+    const confirmed = window.confirm(
+      'ต้องการรีเซ็ตสถานะล็อกแบบประเมินบนเบราว์เซอร์เครื่องนี้เพื่อใช้ทดสอบระบบใช่หรือไม่?\n(การรีเซ็ตนี้ล้างเฉพาะข้อมูลในเบราว์เซอร์นี้ ไม่ลบข้อมูลจริงในฐานข้อมูล Supabase/D1)'
+    );
+    if (!confirmed) return;
+    resetDeviceEvaluationLock();
+    setResetLockNotice(
+      'รีเซ็ตสถานะทดสอบบนเครื่องนี้เรียบร้อยแล้ว! สามารถกลับไปทดลองลอยกระทงและส่งแบบประเมินใหม่ได้ทันที (หากทดสอบด้วยรหัสนักศึกษา ให้ใช้รหัสทดสอบใหม่ที่ยังไม่ซ้ำในฐานข้อมูล)'
+    );
   };
 
   // สลับโหมด Approval
@@ -593,6 +608,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
           </button>
 
           <button
+            onClick={handleResetDeviceTestLock}
+            type="button"
+            title="ล้างสถานะล็อกเครื่องและประวัติการประเมินในเบราว์เซอร์นี้สำหรับการทดสอบ"
+            className="flex items-center space-x-1.5 px-3 py-2 bg-[#1f150d] hover:bg-amber-900/40 text-amber-200 border border-amber-500/35 rounded-xl text-xs font-semibold transition cursor-pointer"
+          >
+            <RotateCcw className="w-4 h-4 text-amber-400" />
+            <span>รีเซ็ตสถานะทดสอบเครื่องนี้</span>
+          </button>
+
+          <button
             onClick={loadData}
             title="รีเฟรชข้อมูล"
             className="p-2 bg-[#1f150d] hover:bg-[#2a1d11] text-amber-200 rounded-xl border border-amber-500/30 cursor-pointer"
@@ -612,6 +637,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
       </div>
 
       <div className="max-w-7xl mx-auto py-6 space-y-6">
+        {resetLockNotice && (
+          <div className="bg-emerald-500/15 border border-emerald-400/40 text-emerald-100 rounded-2xl px-4 py-3 flex items-start justify-between gap-3 text-xs sm:text-sm">
+            <span>{resetLockNotice}</span>
+            <button
+              type="button"
+              onClick={() => setResetLockNotice('')}
+              className="text-emerald-200 hover:text-white font-bold px-2 py-0.5 rounded-lg hover:bg-emerald-500/20 cursor-pointer shrink-0"
+            >
+              ปิด
+            </button>
+          </div>
+        )}
+
         {/* Metric Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-[#1f150d]/95 border border-amber-500/25 p-5 rounded-2xl">
