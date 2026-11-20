@@ -667,8 +667,8 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       cachedSkyGrad = skyCtx.createLinearGradient(0, 0, 0, skyH);
       cachedSkyGrad.addColorStop(0.0, '#120b06');
       cachedSkyGrad.addColorStop(0.48, '#24160b');
-      cachedSkyGrad.addColorStop(0.84, '#362312');
-      cachedSkyGrad.addColorStop(1.0, '#221810');
+      cachedSkyGrad.addColorStop(0.82, '#362312');
+      cachedSkyGrad.addColorStop(1.0, '#103742');
 
       cachedMoonX = w * 0.82;
       cachedMoonY = skyH * 0.34;
@@ -1231,7 +1231,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 w-full h-dvh overflow-hidden overscroll-none bg-[#140e09] select-none">
+    <div className="fixed inset-0 w-full h-dvh overflow-hidden overscroll-none bg-[#083b46] select-none">
       {/* Layer 1: ท้องฟ้ายามค่ำคืนโทนอุ่นสีเหลืองทอง + ดวงจันทร์ + ดาว + โคมลอย + พลุ */}
       <canvas
         ref={skyCanvasRef}
@@ -1240,7 +1240,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
 
       {/* Fallback River Surface เมื่อเครื่องไม่รองรับ WebGL */}
       {!webglReady && (
-        <div className="w-full h-[64%] absolute bottom-0 inset-x-0 bg-gradient-to-b from-[#2a1f16] via-[#1c140e] to-[#140e09] z-5" />
+        <div className="w-full h-[64%] absolute bottom-0 inset-x-0 bg-gradient-to-b from-[#0a4f5c] via-[#0e8fa3] to-[#073b46] z-5" />
       )}
 
       {/* Layer 2: สถาปัตยกรรมพื้นหลังเดิม (ตึกฟักทอง ม.อ. + วัด/เจดีย์ + ทิวเขาคอหงส์ + โคมไฟตลิ่ง) */}
@@ -1505,7 +1505,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         <div className="fixed inset-0 bg-[#1c140d]/70 flex items-center justify-center p-4 z-50 animate-ui-fade">
           <div className="bg-[#fdfaf4] border border-amber-900/15 text-[#231912] rounded-3xl p-6 max-w-sm w-full text-center relative shadow-2xl animate-ui-modal">
             <div className="flex items-center justify-center mb-3">
-              <div className="w-28 h-28 rounded-2xl bg-[radial-gradient(circle_at_50%_60%,#332417_0%,#1c140e_85%)] border border-amber-900/20 flex items-center justify-center overflow-hidden shadow-inner">
+              <div className="w-28 h-28 rounded-2xl bg-[radial-gradient(circle_at_50%_60%,#149cb3_0%,#0a4f5c_85%)] border border-cyan-900/25 flex items-center justify-center overflow-hidden shadow-inner">
                 <KrathongThumb3D
                   baseType={selectedKrathong.base_type}
                   flowerType={selectedKrathong.flower_type}

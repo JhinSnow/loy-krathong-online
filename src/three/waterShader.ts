@@ -115,10 +115,10 @@ const WATER_FRAGMENT_SHADER = /* glsl */ `
     float ndotv = max(dot(viewDir, normal), 0.0);
     float fresnel = clamp(0.16 + 0.84 * pow(1.0 - ndotv, 2.2), 0.0, 1.0);
 
-    // Silky warm ripple shading from dark troughs to warm taupe crests
+    // Silky ripple shading from deep turquoise troughs to bright aqua-turquoise crests
     float crestLight = smoothstep(-0.18, 0.32, normal.z);
-    vec3 waterColor = mix(uDeepColor, uShallowColor, crestLight * 0.85 + ridge * 0.25);
-    waterColor = mix(waterColor, uRippleHighlight, pow(crestLight, 1.8) * (0.34 + 0.44 * fresnel));
+    vec3 waterColor = mix(uDeepColor, uShallowColor, clamp(crestLight * 0.82 + ridge * 0.28, 0.0, 1.0));
+    waterColor = mix(waterColor, uRippleHighlight, pow(crestLight, 1.65) * (0.38 + 0.46 * fresnel));
 
     float distShore = max(0.0, vWorldPos.z - uShoreZ);
 
@@ -129,7 +129,7 @@ const WATER_FRAGMENT_SHADER = /* glsl */ `
       float flankLamps = 0.55 + 0.45 * cos(vWorldPos.x * 0.72);
       float rippleSlice = 0.35 + 0.65 * smoothstep(-0.08, 0.24, normal.z);
       float shoreShimmer = shoreMask * (0.48 + pumpkinGlow * 0.65 + flankLamps * 0.38) * rippleSlice;
-      waterColor += uShoreGold * shoreShimmer * 0.52;
+      waterColor += uShoreGold * shoreShimmer * 0.38;
 
       // Soft warm moon specular shimmer along right side
       float moonLane = exp(-pow((vWorldPos.x - 8.2) * 0.18, 2.0)) * smoothstep(2.0, -14.0, vWorldPos.z);
@@ -138,14 +138,14 @@ const WATER_FRAGMENT_SHADER = /* glsl */ `
       float moonWide = pow(max(dot(normal, halfVec), 0.0), 9.0) * 0.24;
       waterColor += uMoonColor * (moonSpec * 0.58 + moonWide * moonLane * 0.92);
     } else {
-      // Customizer preview mode: vertical golden reflection streaks dancing across dark ripples
+      // Customizer preview mode: vertical golden reflection streaks dancing across turquoise ripples
       float backGlow = smoothstep(3.4, -4.2, vWorldPos.z);
       float col1 = exp(-pow((vWorldPos.x + 1.45) * 1.9, 2.0));
       float col2 = exp(-pow((vWorldPos.x - 1.35) * 2.1, 2.0));
       float colMid = 0.35 + 0.65 * (0.5 + 0.5 * sin(vWorldPos.x * 1.65 + 0.4));
       float rippleSlice = 0.32 + 0.68 * smoothstep(-0.08, 0.24, normal.z);
       float streakIntensity = backGlow * (col1 * 0.72 + col2 * 0.65 + colMid * 0.24) * rippleSlice;
-      waterColor += uShoreGold * streakIntensity * 0.48;
+      waterColor += uShoreGold * streakIntensity * 0.36;
     }
 
     vec3 finalColor = waterColor;
@@ -225,9 +225,9 @@ export function createRealisticRiverWater(options: {
       uTextureMatrix: { value: textureMatrix },
       uTime: { value: 0 },
       uMoonDir: { value: new THREE.Vector3(0.42, 0.26, -0.87).normalize() },
-      uDeepColor: { value: new THREE.Color('#221f1c') },
-      uShallowColor: { value: new THREE.Color('#3b352e') },
-      uRippleHighlight: { value: new THREE.Color('#827463') },
+      uDeepColor: { value: new THREE.Color('#0a4f5c') },
+      uShallowColor: { value: new THREE.Color('#0e8fa3') },
+      uRippleHighlight: { value: new THREE.Color('#38e0eb') },
       uShoreGold: { value: new THREE.Color('#fbbf24') },
       uMoonColor: { value: new THREE.Color('#fef3c7') },
       uDistortionX: { value: isPreview ? 0.016 : 0.024 },
