@@ -33,6 +33,7 @@ interface SharedAssets {
   foldedGliebGeo: THREE.BufferGeometry;
   cuppedPetalGeo: THREE.BufferGeometry;
   rufflePetalGeo: THREE.BufferGeometry;
+  pumpkinRibGeo: THREE.BufferGeometry;
   jasmineBudGeo: THREE.BufferGeometry;
   baseCupGeo: THREE.CylinderGeometry;
   waistBandGeo: THREE.TorusGeometry;
@@ -413,6 +414,58 @@ function createHeartGeometry(): THREE.BufferGeometry {
   return markShared(geo);
 }
 
+function createPumpkinRibGeometry(): THREE.BufferGeometry {
+  // 1 กลีบหลังคาโค้งทรงเรเดียลของตึกฟักทอง คณะวิทยาศาสตร์ ม.อ. (ทรงจริงรอบวง 360° + ซุ้มโค้งเว้าลึก)
+  const radialSteps = 10;
+  const arcSteps = 8;
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+
+  for (let ri = 0; ri <= radialSteps; ri++) {
+    const u = ri / radialSteps; // 0 (วงแหวนกลาง) -> 1 (ชายคารอบนอก)
+    const z = 0.095 + u * (0.54 - 0.095);
+    const halfW = 0.022 + u * (0.102 - 0.022);
+
+    const crestBase = 0.25 + Math.sin(u * Math.PI * 0.85) * 0.055;
+    const crestNoseDrop = u > 0.74 ? Math.pow((u - 0.74) / 0.26, 1.8) * 0.105 : 0;
+    const yCrest = crestBase - crestNoseDrop;
+
+    const innerRoofValley = 0.21 + u * 0.025;
+    const outerPierDrop = u > 0.68 ? Math.pow((u - 0.68) / 0.32, 1.35) * 0.193 : 0;
+    const yValley = Math.max(0.042, innerRoofValley - outerPierDrop);
+
+    for (let ai = 0; ai <= arcSteps; ai++) {
+      const frac = ai / arcSteps;
+      const theta = (frac - 0.5) * Math.PI;
+      const x = Math.sin(theta) * halfW;
+      const archProfile = Math.cos(theta);
+      const y = yValley + (yCrest - yValley) * Math.pow(archProfile, 0.72);
+      const zOut = z + archProfile * 0.022 * Math.sin(u * Math.PI);
+      positions.push(x, y, zOut);
+      uvs.push(frac, u);
+    }
+  }
+
+  const stride = arcSteps + 1;
+  for (let ri = 0; ri < radialSteps; ri++) {
+    for (let ai = 0; ai < arcSteps; ai++) {
+      const a = ri * stride + ai;
+      const b = a + 1;
+      const d = (ri + 1) * stride + ai;
+      const e = d + 1;
+      indices.push(a, b, d, b, e, d);
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return markShared(geo);
+}
+
 function getSharedAssets(): SharedAssets {
   if (cachedAssets) return cachedAssets;
   const jasmineBudGeo = new THREE.SphereGeometry(0.03, 7, 6);
@@ -430,6 +483,7 @@ function getSharedAssets(): SharedAssets {
     foldedGliebGeo: createFoldedGliebGeometry(),
     cuppedPetalGeo: createCuppedPetalGeometry(),
     rufflePetalGeo: createRufflePetalGeometry(),
+    pumpkinRibGeo: createPumpkinRibGeometry(),
     jasmineBudGeo: markShared(jasmineBudGeo),
     baseCupGeo: markShared(new THREE.CylinderGeometry(0.91, 0.82, 0.24, 28)),
     waistBandGeo: markShared(new THREE.TorusGeometry(0.89, 0.022, 8, 32)),
@@ -776,74 +830,89 @@ function addCurvedSwanPair(parent: THREE.Group, matBody: THREE.Material, matBeak
 }
 
 function buildPumpkinBuilding3D(scaleFactor = 1): THREE.Group {
+  // ตึกฟักทอง คณะวิทยาศาสตร์ ม.อ. ทรงกลีบเรเดียล 360° 16 กลีบ สีขาวครีมอุ่น + ช่องทางเดินเข้ากลาง + ซุ้มโค้งเว้าลึกตามภาพจริง
   const g = new THREE.Group();
-  const matGoldDark = makeMat({ color: 0xb45309, metalness: 0.35, roughness: 0.4 });
-  const matGoldMid = makeMat({ color: 0xf59e0b, metalness: 0.3, roughness: 0.35 });
-  const matGoldBright = makeMat({
-    color: 0xfde68a,
-    emissive: 0xf59e0b,
-    emissiveIntensity: 0.22,
-    metalness: 0.28,
-    roughness: 0.32
+  const assets = getSharedAssets();
+
+  const matStonePlinth = makeMat({ color: 0xc8b9a3, roughness: 0.72, metalness: 0.04 });
+  const matInnerHall = makeMat({
+    color: 0x1b1511,
+    emissive: 0x5c2d0c,
+    emissiveIntensity: 0.28,
+    roughness: 0.72
   });
-  const matArchDark = makeMat({
-    color: 0x241509,
-    emissive: 0x451a03,
-    emissiveIntensity: 0.35,
-    roughness: 0.65
+  const matShell = makeMat({
+    color: 0xffffff,
+    roughness: 0.52,
+    metalness: 0.04,
+    emissive: 0x3b2a14,
+    emissiveIntensity: 0.06,
+    side: THREE.DoubleSide
   });
-  const matRim = makeMat({ color: 0xfde047, emissive: 0xf59e0b, emissiveIntensity: 0.28, roughness: 0.3 });
+  const matCanopy = makeMat({ color: 0xf7f1e5, roughness: 0.48, metalness: 0.05 });
 
-  const tier1 = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.6, 0.07, 20), matGoldDark);
-  tier1.position.y = 0.035;
-  g.add(tier1);
+  // 1. ฐานลานวงกลมรับตึกฟักทอง
+  const plinth = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.59, 0.042, 32), matStonePlinth);
+  plinth.position.y = 0.021;
+  g.add(plinth);
 
-  const tier2 = new THREE.Mesh(new THREE.CylinderGeometry(0.49, 0.52, 0.055, 20), matGoldBright);
-  tier2.position.y = 0.095;
-  g.add(tier2);
+  // 2. ผนังกระจกโถงมืดชั้นในใต้ซุ้มโค้ง (มองเห็นลอดเข้าซุ้มโค้งรอบอาคาร)
+  const innerHall = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.46, 0.19, 28), matInnerHall);
+  innerHall.position.y = 0.135;
+  g.add(innerHall);
 
-  const lobeAngles = [-0.95, -0.62, -0.31, 0, 0.31, 0.62, 0.95];
-  const lobeHeights = [0.34, 0.42, 0.48, 0.53, 0.48, 0.42, 0.34];
-  const lobeGeo = new THREE.SphereGeometry(0.16, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.55);
+  // 3. หลังคากลีบฟักทองเรเดียล 15 กลีบ (เว้นช่องที่ 0 ไว้เป็นซุ้มทางเดินเข้าด้านหน้า = 16 ช่องรอบวง 360°)
+  const totalSlots = 16;
+  const openSlot = 0;
+  const angBase = 0.18;
+  const ribInst = new THREE.InstancedMesh(assets.pumpkinRibGeo, matShell, totalSlots - 1);
+  const dummy = new THREE.Object3D();
+  const cObj = new THREE.Color();
+  let rIdx = 0;
 
-  lobeAngles.forEach((ang, idx) => {
-    const isCenter = idx === 3;
-    const lobeMat = isCenter ? matGoldBright : idx % 2 === 0 ? matGoldDark : matGoldMid;
-    const lobe = new THREE.Mesh(lobeGeo, lobeMat);
-    const h = lobeHeights[idx];
-    lobe.scale.set(isCenter ? 1.15 : 0.95, h / 0.16, 1.35);
-    lobe.position.set(Math.sin(ang) * 0.28, 0.12, Math.cos(ang) * 0.05);
-    lobe.rotation.z = -ang * 0.32;
-    g.add(lobe);
-  });
-
-  const coreDome = new THREE.Mesh(
-    new THREE.SphereGeometry(0.45, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.5),
-    matGoldMid
-  );
-  coreDome.scale.set(1.06, 0.88, 0.72);
-  coreDome.position.y = 0.12;
-  g.add(coreDome);
-
-  const pinnacle = new THREE.Mesh(new THREE.ConeGeometry(0.048, 0.14, 8), matRim);
-  pinnacle.position.y = 0.59;
-  g.add(pinnacle);
-
-  for (const zDir of [1, -1]) {
-    for (let i = -2; i <= 2; i++) {
-      const archX = i * 0.145;
-      const archH = i === 0 ? 0.14 : 0.115;
-      const archW = i === 0 ? 0.055 : 0.045;
-      const archVoid = new THREE.Mesh(new THREE.CylinderGeometry(archW, archW, archH, 8), matArchDark);
-      archVoid.position.set(archX, 0.12 + archH * 0.45, zDir * 0.26);
-      archVoid.scale.z = 0.55;
-      g.add(archVoid);
-
-      const frameRing = new THREE.Mesh(new THREE.TorusGeometry(archW * 1.15, 0.01, 5, 10, Math.PI), matRim);
-      frameRing.position.set(archX, 0.12 + archH * 0.9, zDir * 0.285);
-      g.add(frameRing);
-    }
+  for (let i = 0; i < totalSlots; i++) {
+    if (i === openSlot) continue;
+    const ang = angBase + (i * Math.PI * 2) / totalSlots;
+    dummy.position.set(0, 0, 0);
+    dummy.rotation.set(0, ang, 0);
+    dummy.scale.setScalar(1);
+    dummy.updateMatrix();
+    ribInst.setMatrixAt(rIdx, dummy.matrix);
+    cObj.setHex(i % 2 === 0 ? 0xf7f1e5 : 0xf0e7d6);
+    ribInst.setColorAt(rIdx, cObj);
+    rIdx++;
   }
+  ribInst.instanceMatrix.needsUpdate = true;
+  if (ribInst.instanceColor) ribInst.instanceColor.needsUpdate = true;
+  g.add(ribInst);
+
+  // 4. วงแหวน Skylight กึ่งกลางหลังคา
+  const skylightCore = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.095, 0.06, 20), matInnerHall);
+  skylightCore.position.y = 0.24;
+  g.add(skylightCore);
+
+  const skylightRim = new THREE.Mesh(new THREE.TorusGeometry(0.10, 0.012, 6, 24), matCanopy);
+  skylightRim.rotation.x = Math.PI / 2;
+  skylightRim.position.y = 0.255;
+  g.add(skylightRim);
+
+  // 5. ช่องทางเดินเข้ากลาง + หลังคาแผ่นเรียบด้านหน้า (สอดรับกับช่องเปิดที่เว้นไว้ตามภาพถ่ายมุมสูง)
+  const entranceGroup = new THREE.Group();
+  entranceGroup.rotation.y = angBase;
+
+  const doorway = new THREE.Mesh(new THREE.BoxGeometry(0.095, 0.13, 0.15), matInnerHall);
+  doorway.position.set(0, 0.105, 0.36);
+  entranceGroup.add(doorway);
+
+  const canopy = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.018, 0.16), matCanopy);
+  canopy.position.set(0, 0.175, 0.44);
+  entranceGroup.add(canopy);
+
+  const walkway = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.01, 0.26), matStonePlinth);
+  walkway.position.set(0, 0.047, 0.45);
+  entranceGroup.add(walkway);
+
+  g.add(entranceGroup);
 
   g.scale.setScalar(scaleFactor);
   return g;

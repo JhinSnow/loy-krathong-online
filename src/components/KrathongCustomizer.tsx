@@ -1,9 +1,21 @@
 // src/components/KrathongCustomizer.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import type { UserType } from '../types';
 import { Krathong3DPreview } from './Krathong3DPreview';
 import { ShareCardModal } from './ShareCardModal';
-import { Sparkles, Eye, Image as ImageIcon, Dices, Volume2, VolumeX, MessageSquareHeart, RotateCcw } from 'lucide-react';
+import {
+  Sparkles,
+  Eye,
+  Image as ImageIcon,
+  Dices,
+  Volume2,
+  VolumeX,
+  MessageSquareHeart,
+  RotateCcw,
+  Check,
+  ArrowLeft,
+  ArrowRight
+} from 'lucide-react';
 import {
   MIN_DECOR_SCALE,
   MAX_DECOR_SCALE,
@@ -33,11 +45,24 @@ interface KrathongCustomizerProps {
   onSuccessFloating: (krathongId: string, userType: UserType) => void;
 }
 
+type WizardStep = 'base' | 'decor' | 'float';
+
+interface IdeaPreset {
+  id: string;
+  label: string;
+  baseType: string;
+  flowerType: string;
+  candleColor: string;
+  accessories: string[];
+  centerScale?: number;
+}
+
 export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
   onBackToRiver,
   onNavigateWishes,
   onSuccessFloating
 }) => {
+  const [wizardStep, setWizardStep] = useState<WizardStep>('base');
   const [userType, setUserType] = useState<UserType>('student');
   const [ownerName, setOwnerName] = useState('');
   const [wishMessage, setWishMessage] = useState('');
@@ -47,17 +72,6 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
   const [selectedAccessories, setSelectedAccessories] = useState<string[]>([]);
   const [centerScale, setCenterScale] = useState<number>(1);
   const [accessoryScales, setAccessoryScales] = useState<Record<string, number>>({});
-  const [activeDecorTab, setActiveDecorTab] = useState<'base' | 'flower' | 'candle' | 'accessory'>('base');
-  const [isDesktopPreview, setIsDesktopPreview] = useState<boolean>(() =>
-    typeof window !== 'undefined' ? window.innerWidth >= 768 : true
-  );
-
-  useEffect(() => {
-    const mq = window.matchMedia('(min-width: 768px)');
-    const onChange = (ev: MediaQueryListEvent) => setIsDesktopPreview(ev.matches);
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
-  }, []);
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -70,14 +84,90 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
 
   // 1. ฐานกระทง 8 รูปแบบ
   const bases = [
-    { id: 'banana_leaf', name: 'ใบตองดั้งเดิม', icon: '🍃' },
-    { id: 'banana_gold', name: 'ใบตองยอดฉัตรทอง', icon: '👑' },
-    { id: 'lotus', name: 'บัวหลวงชมพู', icon: '🪷' },
-    { id: 'lotus_crystal', name: 'บัวแก้วคริสตัล', icon: '💎' },
-    { id: 'coconut', name: 'กะลารักษ์โลก', icon: '🥥' },
-    { id: 'bread', name: 'ขนมปังแฟนซี', icon: '🍞' },
-    { id: 'ice_swan', name: 'น้ำแข็งหงส์คู่', icon: '🦢' },
-    { id: 'peacock_royal', name: 'นกยูงทองคำ', icon: '🦚' },
+    { id: 'banana_leaf', shortName: 'ใบตอง', name: 'ใบตองดั้งเดิม', icon: '🍃', swatch: '#65a30d' },
+    { id: 'banana_gold', shortName: 'ยอดฉัตรทอง', name: 'ใบตองยอดฉัตรทอง', icon: '👑', swatch: '#047857' },
+    { id: 'lotus', shortName: 'ดอกบัว', name: 'บัวหลวงชมพู', icon: '🪷', swatch: '#f472b6' },
+    { id: 'lotus_crystal', shortName: 'บัวแก้ว', name: 'บัวแก้วคริสตัล', icon: '💎', swatch: '#38bdf8' },
+    { id: 'coconut', shortName: 'กะลา', name: 'กะลารักษ์โลก', icon: '🥥', swatch: '#78350f' },
+    { id: 'bread', shortName: 'ขนมปัง', name: 'ขนมปังแฟนซี', icon: '🍞', swatch: '#d97706' },
+    { id: 'ice_swan', shortName: 'หงส์คู่', name: 'น้ำแข็งหงส์คู่', icon: '🦢', swatch: '#7dd3fc' },
+    { id: 'peacock_royal', shortName: 'นกยูงทอง', name: 'นกยูงทองคำ', icon: '🦚', swatch: '#ca8a04' }
+  ];
+
+  // ไอเดียเริ่มต้น (แตะเลือกแล้วแต่งต่อได้ทุกชิ้น ตามภาพตัวอย่างที่ 4)
+  const ideaPresets: IdeaPreset[] = [
+    {
+      id: 'classic',
+      label: 'คลาสสิก',
+      baseType: 'banana_leaf',
+      flowerType: 'lotus_flower',
+      candleColor: 'yellow',
+      accessories: [],
+      centerScale: 1
+    },
+    {
+      id: 'sweet_pink',
+      label: 'หวานชมพู',
+      baseType: 'lotus',
+      flowerType: 'lotus_flower',
+      candleColor: 'pink',
+      accessories: ['heart_sign'],
+      centerScale: 1.05
+    },
+    {
+      id: 'psu_pumpkin',
+      label: 'ตึกฟักทอง ม.อ.',
+      baseType: 'banana_gold',
+      flowerType: 'pumpkin',
+      candleColor: 'yellow',
+      accessories: ['sparkler'],
+      centerScale: 1.1
+    },
+    {
+      id: 'gold_fortune',
+      label: 'ทองมงคล',
+      baseType: 'peacock_royal',
+      flowerType: 'marigold',
+      candleColor: 'yellow',
+      accessories: ['lucky_coin', 'sky_lantern'],
+      centerScale: 1.1
+    },
+    {
+      id: 'eco_natural',
+      label: 'รักษ์โลก',
+      baseType: 'coconut',
+      flowerType: 'jasmine',
+      candleColor: 'emerald',
+      accessories: ['butterfly'],
+      centerScale: 1
+    },
+    {
+      id: 'swan_love',
+      label: 'หงส์คู่รัก',
+      baseType: 'ice_swan',
+      flowerType: 'crystal_heart',
+      candleColor: 'cyan',
+      accessories: ['butterfly'],
+      centerScale: 1.05
+    },
+    {
+      id: 'golden_peacock',
+      label: 'นกยูงทอง',
+      baseType: 'peacock_royal',
+      flowerType: 'gold_pagoda',
+      candleColor: 'yellow',
+      accessories: ['flag_thai'],
+      centerScale: 1
+    },
+    {
+      id: 'bread_fancy',
+      label: 'ขนมปังแฟนซี',
+      baseType: 'bread',
+      flowerType: 'mixed_garland',
+      candleColor: 'orange',
+      accessories: ['sparkler', 'butterfly'],
+      centerScale: 1
+    }
   ];
 
   // 2. ดอกไม้ประดับ (8 ชนิด) และของตกแต่งใส่ตรงกลางกระทงแทนดอกไม้ (8 แบบ)
@@ -91,19 +181,19 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
     { id: 'lotus_flower', name: 'ดอกบัวชมพู', color: '#f43f5e', icon: '🪷', category: 'flower' },
     { id: 'marigold', name: 'ดาวเรืองทอง', color: '#fbbf24', icon: '🌼', category: 'flower' },
     { id: 'orchid', name: 'กล้วยไม้ม่วง', color: '#c084fc', icon: '🌺', category: 'flower' },
-    { id: 'jasmine', name: 'มะลิร้อยมาลัย', color: '#f8fafc', icon: '🤍', category: 'flower' },
+    { id: 'jasmine', name: 'มะลิร้อยมาลัย', color: '#e2e8f0', icon: '🤍', category: 'flower' },
     { id: 'rose', name: 'กุหลาบแดง', color: '#e11d48', icon: '🌹', category: 'flower' },
     { id: 'dok_kem', name: 'ดอกเข็มส้ม', color: '#fb923c', icon: '🏵️', category: 'flower' },
     { id: 'anchan', name: 'อัญชันคราม', color: '#6366f1', icon: '🪻', category: 'flower' },
     { id: 'mixed_garland', name: 'มาลัย 5 สี', color: '#10b981', icon: '💐', category: 'flower' },
     { id: 'pumpkin', name: 'ตึกฟักทอง ม.อ.', color: '#f59e0b', icon: '🏛️', category: 'centerpiece' },
     { id: 'noppamas_crown', name: 'ชฎาทองนพมาศ', color: '#fbbf24', icon: '👑', category: 'centerpiece' },
-    { id: 'elephant_gold', name: 'ช้างเผือกมงคล', color: '#fef3c7', icon: '🐘', category: 'centerpiece' },
+    { id: 'elephant_gold', name: 'ช้างเผือกมงคล', color: '#fde68a', icon: '🐘', category: 'centerpiece' },
     { id: 'golden_swan', name: 'หงส์ทองคู่บารมี', color: '#fde047', icon: '🦢', category: 'centerpiece' },
     { id: 'lotus_lamp', name: 'โคมบัวแก้วทิพย์', color: '#f472b6', icon: '🪷', category: 'centerpiece' },
     { id: 'gold_pagoda', name: 'เจดีย์ทองมงคล', color: '#eab308', icon: '🛕', category: 'centerpiece' },
     { id: 'royal_barge', name: 'เรือสุพรรณหงส์', color: '#d97706', icon: '🛶', category: 'centerpiece' },
-    { id: 'crystal_heart', name: 'หัวใจเพชรคู่รัก', color: '#ec4899', icon: '💎', category: 'centerpiece' },
+    { id: 'crystal_heart', name: 'หัวใจเพชรคู่รัก', color: '#ec4899', icon: '💎', category: 'centerpiece' }
   ];
 
   // 3. แสงเทียนนำทาง 8 สี
@@ -115,7 +205,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
     { id: 'pink', name: 'สีชมพู (ความรัก)', hex: '#f472b6' },
     { id: 'emerald', name: 'สีเขียว (สุขภาพ)', hex: '#34d399' },
     { id: 'purple', name: 'สีม่วง (ปัญญา)', hex: '#c084fc' },
-    { id: 'rainbow', name: 'เทียนคู่สายรุ้ง', hex: '#ec4899' },
+    { id: 'rainbow', name: 'เทียนคู่สายรุ้ง', hex: '#ec4899' }
   ];
 
   // 4. ของตกแต่งเสริมพิเศษปักรอบกระทง 8 แบบ
@@ -127,10 +217,9 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
     { id: 'lucky_coin', name: 'เหรียญทองนำโชค', icon: '🪙' },
     { id: 'flag_thai', name: 'ธงราวงานวัด', icon: '🎏' },
     { id: 'butterfly', name: 'ผีเสื้อแสงจันทร์', icon: '🦋' },
-    { id: 'none', name: 'ธูปเทียนปกติ', icon: '🕯️' },
+    { id: 'none', name: 'ธูปเทียนปกติ', icon: '🕯️' }
   ];
 
-  // คำอธิษฐานยอดฮิตกดเลือกได้ทันที
   const quickWishes = [
     'ขอขมาพระแม่คงคา ขอให้เกรด 4.00 ทุกวิชา สมหวังทุกประการ ✨',
     'ขอให้สุขภาพแข็งแรง การงานก้าวหน้า เงินทองไหลมาเทมา 🌕',
@@ -138,7 +227,15 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
     'ขอให้ทุกข์โศกโรคภัยลอยไปกับสายน้ำ มีแต่รอยยิ้มและความสำเร็จ 🪷'
   ];
 
-  // สลับเลือก/ยกเลิกของตกแต่งเสริม (เลือกได้หลายชิ้นพร้อมกัน)
+  const handleApplyIdeaPreset = (preset: IdeaPreset) => {
+    setBaseType(preset.baseType);
+    setFlowerType(preset.flowerType);
+    setCandleColor(preset.candleColor);
+    setSelectedAccessories(preset.accessories);
+    setCenterScale(preset.centerScale ?? 1);
+    setAccessoryScales({});
+  };
+
   const handleToggleAccessory = (accId: string) => {
     if (accId === 'none') {
       setSelectedAccessories([]);
@@ -154,7 +251,6 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
     setAccessoryScales((prev) => ({ ...prev, [accId]: scale }));
   };
 
-  // สุ่มแต่งกระทงมงคลด้วยปุ่มเดียว (สุ่มของประดับ 1-3 ชิ้นพร้อมกัน)
   const handleRandomizeDesign = () => {
     setBaseType(bases[Math.floor(Math.random() * bases.length)].id);
     setFlowerType(flowers[Math.floor(Math.random() * flowers.length)].id);
@@ -164,7 +260,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
 
     const decorPool = accessories.filter((a) => a.id !== 'none').map((a) => a.id);
     const shuffled = [...decorPool].sort(() => 0.5 - Math.random());
-    const pickCount = Math.floor(Math.random() * 3) + 1; // สุ่ม 1 ถึง 3 ชิ้น
+    const pickCount = Math.floor(Math.random() * 3) + 1;
     setSelectedAccessories(shuffled.slice(0, pickCount));
   };
 
@@ -183,10 +279,12 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
     const cleanWish = sanitizeInputText(wishMessage, 150);
 
     if (!cleanName) {
+      setWizardStep('float');
       setErrorMsg('กรุณาระบุชื่อหรือนามแฝงของคุณ');
       return;
     }
     if (!cleanWish) {
+      setWizardStep('float');
       setErrorMsg('กรุณาระบุคำอวยพรหรือคำขอขมา');
       return;
     }
@@ -246,7 +344,6 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
         if (!supaErr && supaData) {
           createdId = supaData.id;
         } else if (supaErr) {
-          // กรณีตาราง krathongs บน Supabase ไม่มีคอลัมน์ status ให้ลองบันทึกอีกครั้งโดยไม่ส่งฟิลด์ status
           const { data: retryData, error: retryErr } = await supabase
             .from('krathongs')
             .insert([
@@ -287,14 +384,14 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
           });
 
           if (res.status === 400 || res.status === 429) {
-            const errData = await res.json().catch(() => ({})) as any;
+            const errData = (await res.json().catch(() => ({}))) as any;
             setErrorMsg(errData.error || 'ไม่สามารถส่งข้อมูลได้ กรุณาลองใหม่อีกครั้ง');
             setLoading(false);
             return;
           }
 
           if (res.ok) {
-            const data = await res.json() as any;
+            const data = (await res.json()) as any;
             createdId = data.id;
           }
         } catch {}
@@ -302,7 +399,7 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
 
       const finalId = createdId || `local-${Date.now()}`;
 
-      // 6. บันทึกลง LocalStorage เสมอ เพื่อให้ทั้งหน้าแม่น้ำและหน้า Admin Dashboard แสดงกระทงใบใหม่ทันที 100%
+      // 6. บันทึกลง LocalStorage เสมอ
       saveLocalKrathongRecord({
         id: finalId,
         user_type: safeUserType,
@@ -341,583 +438,634 @@ export const KrathongCustomizer: React.FC<KrathongCustomizerProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-[#140e09] text-[#fffbeb] flex flex-col py-2.5 sm:py-3 px-3 sm:px-6 lg:px-8 overflow-x-clip">
-      {/* Top Bar */}
-      <div className="max-w-5xl mx-auto w-full flex items-center justify-between gap-2 pb-2.5 sm:pb-3 border-b border-amber-500/25 shrink-0">
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+    <div className="h-dvh w-screen overflow-hidden flex flex-col md:flex-row bg-[#1c1815]">
+      {/* ฝั่งซ้าย (เดสก์ท็อป) / ด้านบน (มือถือ): ฉากผิวน้ำ 3D เต็มพื้นที่ + แคปซูลนำทางด้านบน */}
+      <div className="relative w-full h-[44dvh] shrink-0 md:h-full md:flex-1 overflow-hidden">
+        <Krathong3DPreview
+          baseType={baseType}
+          flowerType={flowerType}
+          candleColor={combinedCandleValue}
+          fullBleed
+        />
+
+        {/* มุมบนซ้าย: โลโก้ผู้จัดงาน + ชื่อเทศกาลแบบแคปซูลครีมอุ่น */}
+        <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-20 flex items-center gap-2 bg-[#fdfaf4]/92 backdrop-blur-sm px-2.5 sm:px-3 py-1.5 rounded-2xl border border-amber-900/15 shadow-md text-[#231912]">
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#241911] flex items-center justify-center p-1 shrink-0">
+            <img
+              src="/logo-final-notext-white.png"
+              alt="SAM SCI 69 Logo"
+              className="w-full h-full object-contain select-none pointer-events-none"
+            />
+          </div>
+          <div className="leading-tight pr-0.5">
+            <p className="text-[11px] sm:text-xs font-extrabold tracking-tight text-[#231912] whitespace-nowrap">
+              เทศกาลลอยกระทงออนไลน์
+            </p>
+            <p className="text-[9px] sm:text-[10px] font-medium text-[#7c5d3a] whitespace-nowrap">
+              กระทง 3D ลอยด้วยกัน
+            </p>
+          </div>
+        </div>
+
+        {/* มุมบนขวา: แคปซูลเมนูสายน้ำ / คำอวยพร / เปียโน / การ์ด */}
+        <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 flex flex-wrap items-center justify-end gap-1.5 max-w-[54vw]">
           <button
             type="button"
             onClick={onBackToRiver}
-            className="flex items-center space-x-1.5 text-amber-200/80 hover:text-amber-100 transition text-xs sm:text-sm py-1.5 px-2.5 sm:px-3 rounded-lg bg-[#26190e]/80 border border-amber-500/30 hover:border-amber-400 cursor-pointer shrink-0"
+            className="px-2.5 py-1.5 rounded-full bg-[#fdfaf4]/92 hover:bg-white text-[#231912] border border-amber-900/15 shadow-md text-[11px] sm:text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
           >
-            <Eye className="w-4 h-4" />
-            <span className="hidden sm:inline">ดูหน้าสายน้ำ</span>
-            <span className="sm:hidden">สายน้ำ</span>
+            <Eye className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+            <span>สายน้ำ</span>
           </button>
 
           <button
             type="button"
             onClick={onNavigateWishes}
-            className="flex items-center space-x-1.5 text-amber-200 hover:text-amber-100 transition text-xs sm:text-sm py-1.5 px-2.5 sm:px-3 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/40 cursor-pointer shrink-0 font-semibold"
+            className="px-2.5 py-1.5 rounded-full bg-[#fdfaf4]/92 hover:bg-white text-[#231912] border border-amber-900/15 shadow-md text-[11px] sm:text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
           >
-            <MessageSquareHeart className="w-4 h-4 text-amber-300" />
-            <span className="hidden sm:inline">รวมคำอวยพร</span>
-            <span className="sm:hidden">คำอวยพร</span>
+            <MessageSquareHeart className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+            <span className="hidden sm:inline">คำอวยพร</span>
           </button>
-        </div>
 
-        <h2 className="hidden md:block text-base lg:text-lg font-bold text-amber-100 text-center truncate">
-          รังสรรค์กระทงออนไลน์ 🪷
-        </h2>
-
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <button
             type="button"
             onClick={handleToggleAudio}
             title={isAudioPlaying ? 'ปิดเสียงเพลงเปียโน' : 'เปิดเสียงเพลงลอยกระทง (เปียโน)'}
             aria-label={isAudioPlaying ? 'ปิดเสียงเพลงเปียโน' : 'เปิดเสียงเพลงลอยกระทง (เปียโน)'}
-            className={`flex items-center space-x-1 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-semibold border shadow-sm transition cursor-pointer ${
+            className={`px-2.5 py-1.5 rounded-full border shadow-md text-[11px] sm:text-xs font-semibold flex items-center gap-1 transition cursor-pointer ${
               isAudioPlaying
-                ? 'bg-amber-500/20 border-amber-400 text-amber-100'
-                : 'bg-[#2a1d11] hover:bg-[#382617] border-amber-400/35 text-amber-200/85'
+                ? 'bg-amber-100 border-amber-500 text-[#231912]'
+                : 'bg-[#fdfaf4]/92 hover:bg-white border-amber-900/15 text-[#231912]'
             }`}
           >
             {isAudioPlaying ? (
-              <Volume2 className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+              <Volume2 className="w-3.5 h-3.5 text-amber-700 shrink-0" />
             ) : (
-              <VolumeX className="w-3.5 h-3.5 text-amber-200/80 shrink-0" />
+              <VolumeX className="w-3.5 h-3.5 text-[#7c5d3a] shrink-0" />
             )}
-            <span className="hidden md:inline">{isAudioPlaying ? 'เปียโน: เปิด' : 'เพลงเปียโน'}</span>
+            <span className="hidden md:inline">เปียโน</span>
           </button>
+
           <button
             type="button"
             onClick={() => setShowShareModal(true)}
-            className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 bg-[#2a1d11] hover:bg-[#382617] text-amber-200 rounded-xl text-xs font-semibold border border-amber-400/40 shadow-sm transition cursor-pointer"
+            className="px-2.5 py-1.5 rounded-full bg-[#fdfaf4]/92 hover:bg-white text-[#231912] border border-amber-900/15 shadow-md text-[11px] sm:text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
           >
-            <ImageIcon className="w-3.5 h-3.5 text-amber-300" />
-            <span className="hidden sm:inline">การ์ดรูปภาพ</span>
-            <span className="sm:hidden">การ์ด</span>
+            <ImageIcon className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+            <span className="hidden sm:inline">การ์ด</span>
           </button>
-          <img
-            src="/logo-final-notext-white.png"
-            alt="SAM SCI 69 Logo"
-            className="h-7 sm:h-9 w-auto object-contain opacity-95 select-none pointer-events-none"
-          />
         </div>
       </div>
 
-      {/* Main Builder Container */}
-      <div className="max-w-5xl mx-auto w-full grid grid-cols-1 md:grid-cols-12 gap-3.5 sm:gap-6 items-start py-3 sm:py-4 pb-10">
-        {/* Left Side: Sticky Real-time 3D Live Preview (Compact Horizontal on Mobile, Full Vertical on Desktop) */}
-        <div className="md:col-span-5 sticky top-2 z-30 md:top-4 flex flex-col items-center justify-center p-2.5 sm:p-5 md:p-6 bg-[#1f150d] rounded-2xl md:rounded-3xl border border-amber-400/35 shadow-xl relative overflow-hidden">
-          {!isDesktopPreview ? (
-            /* Mobile Compact Sticky 3D Preview (< md) */
-            <div className="flex items-center gap-3 w-full">
-              <div className="w-28 h-28 shrink-0 rounded-2xl bg-[#17100a]/85 border border-amber-500/25 flex items-center justify-center overflow-hidden">
-                <Krathong3DPreview
-                  baseType={baseType}
-                  flowerType={flowerType}
-                  candleColor={combinedCandleValue}
-                  compact
-                />
-              </div>
-              <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-                <div className="flex items-center justify-between gap-1.5">
-                  <span className="text-[10px] text-amber-300 font-semibold uppercase tracking-wide truncate">
-                    กระทง 3D
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleRandomizeDesign}
-                    className="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-amber-400/20 hover:bg-amber-400/35 border border-amber-400/50 text-amber-200 text-[10px] font-semibold transition active:scale-95 cursor-pointer shrink-0"
-                  >
-                    <Dices className="w-3 h-3 text-amber-300" />
-                    <span>สุ่มแบบ</span>
-                  </button>
-                </div>
-                <div className="flex flex-wrap items-center gap-1">
-                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-[#17100a]/90 border border-amber-500/30 text-amber-200 truncate max-w-[115px]">
-                    {bases.find((b) => b.id === baseType)?.icon} {bases.find((b) => b.id === baseType)?.name}
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-[#17100a]/90 border border-amber-500/30 text-amber-200 truncate max-w-[115px]">
-                    {flowers.find((f) => f.id === flowerType)?.icon || '🌸'} {flowers.find((f) => f.id === flowerType)?.name}
-                    {Math.abs(centerScale - 1) >= 0.01 ? ` ${Math.round(centerScale * 100)}%` : ''}
-                  </span>
-                  {selectedAccessories.length > 0 && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 border border-amber-400/50 text-amber-100">
-                      +{selectedAccessories.length} ของเสริม
-                    </span>
-                  )}
-                </div>
-                <div className="w-full bg-[#fffbeb] rounded-xl px-2.5 py-1.5 border border-amber-400 text-left shadow-sm">
-                  <p className="font-bold text-amber-900 text-[11px] truncate">
-                    {ownerName || 'ชื่อของคุณจะปรากฏที่นี่'}
-                  </p>
-                  <p className="text-[10px] text-stone-800 italic truncate">
-                    "{wishMessage || 'คำอธิษฐานหรือคำขอขมา...'}"
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            /* Desktop Vertical 3D Live Preview (>= md) */
-            <div className="flex flex-col items-center w-full">
-              <div className="w-full flex items-center justify-between mb-2">
-                <span className="text-[11px] text-amber-300 font-medium tracking-wide uppercase">
-                  ตัวอย่างกระทง 3D (Live 3D Preview)
-                </span>
+      {/* ฝั่งขวา (เดสก์ท็อป) / ด้านล่าง (มือถือ): แผงควบคุมครีมอุ่น 3 ขั้นตอนตามภาพตัวอย่างที่ 4 */}
+      <div className="w-full flex-1 md:flex-none md:w-[395px] lg:w-[425px] md:h-full bg-[#fdfaf4] text-[#231912] rounded-t-3xl md:rounded-none -mt-3 md:mt-0 relative z-20 flex flex-col overflow-hidden shadow-2xl border-t md:border-t-0 md:border-l border-amber-900/15">
+        {/* แถบ Progress Tabs 3 ขั้นตอนปักหมุดด้านบน */}
+        <div className="px-4 pt-3.5 pb-2.5 border-b border-amber-900/10 bg-[#fdfaf4] shrink-0">
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { id: 'base', num: '1', label: 'เลือกฐาน' },
+              { id: 'decor', num: '2', label: 'แต่ง' },
+              { id: 'float', num: '3', label: 'ลอย' }
+            ].map((step) => {
+              const isActive = wizardStep === step.id;
+              return (
                 <button
+                  key={step.id}
                   type="button"
-                  onClick={handleRandomizeDesign}
-                  className="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-amber-400/20 hover:bg-amber-400/35 border border-amber-400/50 text-amber-200 text-[11px] font-semibold transition active:scale-95 cursor-pointer"
+                  onClick={() => setWizardStep(step.id as WizardStep)}
+                  className={`py-2 px-2 rounded-2xl border text-center transition cursor-pointer flex flex-col items-center justify-center ${
+                    isActive
+                      ? 'bg-[#241911] text-[#fffbeb] border-[#241911] shadow-sm'
+                      : 'bg-white text-[#574536] border-amber-900/12 hover:border-amber-600/40'
+                  }`}
                 >
-                  <Dices className="w-3.5 h-3.5 text-amber-300" />
-                  <span>สุ่มแบบสวยๆ</span>
-                </button>
-              </div>
-
-              <div className="my-2 w-full flex items-center justify-center">
-                <Krathong3DPreview
-                  baseType={baseType}
-                  flowerType={flowerType}
-                  candleColor={combinedCandleValue}
-                />
-              </div>
-
-              {/* Current Design Badges */}
-              <div className="flex flex-wrap items-center justify-center gap-1.5 my-2">
-                <span className="px-2 py-0.5 rounded-full text-[10px] bg-[#17100a]/90 border border-amber-500/30 text-amber-200">
-                  {bases.find((b) => b.id === baseType)?.icon} {bases.find((b) => b.id === baseType)?.name}
-                </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] bg-[#17100a]/90 border border-amber-500/30 text-amber-200">
-                  {flowers.find((f) => f.id === flowerType)?.icon || '🌸'} {flowers.find((f) => f.id === flowerType)?.name}
-                  {Math.abs(centerScale - 1) >= 0.01 ? ` (${Math.round(centerScale * 100)}%)` : ''}
-                </span>
-                {selectedAccessories.length === 0 ? (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-[#17100a]/90 border border-amber-500/30 text-amber-200">
-                    🕯️ ธูปเทียนปกติ
+                  <span
+                    className={`w-5 h-5 rounded-full text-[11px] font-bold flex items-center justify-center mb-0.5 ${
+                      isActive ? 'bg-amber-400 text-[#241911]' : 'bg-[#f4ecdd] text-[#574536]'
+                    }`}
+                  >
+                    {step.num}
                   </span>
-                ) : (
-                  selectedAccessories.map((accId) => {
-                    const found = accessories.find((a) => a.id === accId);
-                    const s = accessoryScales[accId] ?? 1;
-                    return found ? (
-                      <span
-                        key={accId}
-                        className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 border border-amber-400/50 text-amber-100"
-                      >
-                        {found.icon} {found.name}
-                        {Math.abs(s - 1) >= 0.01 ? ` (${Math.round(s * 100)}%)` : ''}
-                      </span>
-                    ) : null;
-                  })
-                )}
-              </div>
-
-              {/* Speech Bubble Preview */}
-              <div className="w-full bg-[#fffbeb] rounded-2xl p-4 border-2 border-amber-400 text-center mt-1 shadow-md">
-                <p className="font-bold text-amber-900 text-sm">
-                  {ownerName || 'ชื่อของคุณจะปรากฏที่นี่'}
-                </p>
-                <p className="text-xs text-stone-800 italic mt-0.5 break-words line-clamp-2">
-                  "{wishMessage || 'คำขอขมาพระแม่คงคาหรือคำอธิษฐาน...'}"
-                </p>
-              </div>
-            </div>
-          )}
+                  <span className="text-[11px] font-bold leading-none">{step.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Right Side: Form Controls */}
-        <div className="md:col-span-7 bg-[#1f150d] p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl border border-amber-500/30 shadow-xl">
-          <form onSubmit={handleFloatSubmit} className="space-y-4">
+        {/* ฟอร์มเนื้อหาแบ่ง 3 ขั้นตอน (Scrollable Body + Sticky Action Footer) */}
+        <form onSubmit={handleFloatSubmit} className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 space-y-5">
             {errorMsg && (
-              <div className="p-2.5 bg-red-500/20 border border-red-500/40 rounded-xl text-red-200 text-xs text-center">
+              <div className="p-2.5 bg-rose-50 border border-rose-300 rounded-xl text-rose-700 text-xs font-semibold text-center">
                 {errorMsg}
               </div>
             )}
 
-            {/* 1. ประเภทผู้ใช้งาน (บังคับ) */}
-            <div>
-              <label className="block text-xs font-semibold text-amber-200 mb-1.5">
-                1. ประเภทผู้ใช้งาน <span className="text-amber-400">*</span>
-              </label>
-              <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
-                {[
-                  { id: 'student', label: 'นักศึกษา' },
-                  { id: 'staff', label: 'บุคลากร' },
-                  { id: 'general', label: 'บุคคลทั่วไป' },
-                ].map((type) => (
-                  <button
-                    key={type.id}
-                    type="button"
-                    onClick={() => setUserType(type.id as UserType)}
-                    className={`py-2 px-1 text-[11px] sm:text-xs font-medium rounded-xl border transition text-center truncate cursor-pointer ${
-                      userType === type.id
-                        ? 'bg-amber-500/20 border-amber-400 text-amber-100 font-bold shadow-sm'
-                        : 'bg-[#17100a]/85 border-amber-500/20 text-amber-100/75 hover:border-amber-400/50'
-                    }`}
-                  >
-                    {type.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* 2. ชื่อ & คำอวยพร */}
-            <div className="space-y-2.5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* ---------------- STEP 1: เลือกฐาน + เริ่มจากไอเดีย + สุ่มให้หน่อย ---------------- */}
+            {wizardStep === 'base' && (
+              <div className="space-y-5">
                 <div>
-                  <label className="block text-xs font-semibold text-amber-200 mb-1">
-                    ชื่อ / นามแฝง <span className="text-amber-400">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    maxLength={40}
-                    value={ownerName}
-                    onChange={(e) => setOwnerName(e.target.value)}
-                    placeholder="เช่น มะลิวัลย์, เด็กวิศวะ"
-                    className="w-full bg-[#17100a]/90 border border-amber-500/35 rounded-xl px-3 py-2 text-base sm:text-sm text-amber-50 placeholder-amber-200/40 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-amber-200 mb-1">
-                    คำอธิษฐาน / คำขอขมา <span className="text-amber-400">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    maxLength={150}
-                    value={wishMessage}
-                    onChange={(e) => setWishMessage(e.target.value)}
-                    placeholder="ขอขมาพระแม่คงคา ขอให้ชีวิตราบรื่น..."
-                    className="w-full bg-[#17100a]/90 border border-amber-500/35 rounded-xl px-3 py-2 text-base sm:text-sm text-amber-50 placeholder-amber-200/40 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
-                  />
-                </div>
-              </div>
-
-              {/* ปุ่มเลือกคำอธิษฐานด่วน */}
-              <div className="flex flex-wrap gap-1.5">
-                {quickWishes.map((w, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => setWishMessage(w)}
-                    className="text-[10px] px-2.5 py-1 rounded-full bg-[#17100a]/75 hover:bg-amber-500/20 text-amber-200/80 hover:text-amber-100 border border-amber-500/25 transition truncate max-w-full cursor-pointer"
-                  >
-                    💬 {w.slice(0, 34)}...
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* แถบสลับหมวดของตกแต่งเฉพาะมือถือ ลดการเลื่อนขึ้น-ลงบ่อย */}
-            <div className="md:hidden pt-1">
-              <p className="text-[11px] font-semibold text-amber-200 mb-1.5">
-                เลือกปรับแต่งกระทง (กดสลับหมวดได้เลยไม่ต้องเลื่อนจอ):
-              </p>
-              <div className="grid grid-cols-4 gap-1 bg-[#17100a]/85 p-1 rounded-2xl border border-amber-500/25">
-                {[
-                  { id: 'base', label: '1. ฐาน' },
-                  { id: 'flower', label: '2. ดอก/ตึก' },
-                  { id: 'candle', label: '3. เทียน' },
-                  {
-                    id: 'accessory',
-                    label:
-                      selectedAccessories.length > 0
-                        ? `4. เสริม (${selectedAccessories.length})`
-                        : '4. เสริม'
-                  }
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() =>
-                      setActiveDecorTab(tab.id as 'base' | 'flower' | 'candle' | 'accessory')
-                    }
-                    className={`py-2 px-1 rounded-xl text-[11px] font-semibold transition text-center truncate cursor-pointer ${
-                      activeDecorTab === tab.id
-                        ? 'bg-amber-500 text-stone-950 shadow-sm'
-                        : 'text-amber-200/80 hover:text-amber-100'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* 3. เลือกฐานกระทง (8 แบบ) */}
-            <div className={activeDecorTab === 'base' ? 'block' : 'hidden md:block'}>
-              <label className="block text-xs font-semibold text-amber-200 mb-1.5">
-                2. เลือกฐานกระทง (8 สไตล์)
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {bases.map((b) => (
-                  <button
-                    key={b.id}
-                    type="button"
-                    onClick={() => setBaseType(b.id)}
-                    className={`p-2 rounded-xl border text-left transition flex flex-col items-center text-center cursor-pointer ${
-                      baseType === b.id
-                        ? 'bg-amber-500/20 border-amber-400 text-amber-100 shadow-sm font-bold'
-                        : 'bg-[#17100a]/85 border-amber-500/20 text-amber-100/75 hover:border-amber-400/50'
-                    }`}
-                  >
-                    <span className="text-lg sm:text-xl mb-0.5">{b.icon}</span>
-                    <span className="text-[11px] leading-tight">{b.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* 4. ดอกไม้ประดับ หรือ ของตกแต่งตรงกลางกระทง */}
-            <div className={`space-y-2.5 ${activeDecorTab === 'flower' ? 'block' : 'hidden md:block'}`}>
-              <label className="block text-xs font-semibold text-amber-200">
-                3. เลือกดอกไม้ หรือ ของตกแต่งกลางกระทง
-              </label>
-
-              <div>
-                <p className="text-[11px] font-medium text-amber-200/80 mb-1.5">
-                  🌸 ดอกไม้ประดับกลางกระทง (8 ชนิด)
-                </p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
-                  {flowers
-                    .filter((fl) => fl.category === 'flower')
-                    .map((fl) => (
-                      <button
-                        key={fl.id}
-                        type="button"
-                        onClick={() => setFlowerType(fl.id)}
-                        className={`py-2 px-2 rounded-xl border text-[11px] font-medium transition flex items-center justify-center space-x-1.5 cursor-pointer ${
-                          flowerType === fl.id
-                            ? 'bg-amber-500/20 border-amber-400 text-amber-100 font-semibold shadow-sm'
-                            : 'bg-[#17100a]/85 border-amber-500/20 text-amber-100/75 hover:border-amber-400/50'
-                        }`}
-                      >
-                        <span
-                          className="w-2.5 h-2.5 rounded-full shrink-0 border border-white/40"
-                          style={{
-                            background:
-                              fl.id === 'mixed_garland'
-                                ? 'conic-gradient(#fbbf24, #f43f5e, #c084fc, #38bdf8, #34d399)'
-                                : fl.color
-                          }}
-                        />
-                        <span className="truncate">{fl.name}</span>
-                      </button>
-                    ))}
-                </div>
-              </div>
-
-              <div>
-                <p className="text-[11px] font-medium text-amber-300 mb-1.5">
-                  🏛️ ของตกแต่งใส่ตรงกลางกระทง แทนดอกไม้ (8 แบบ)
-                </p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
-                  {flowers
-                    .filter((fl) => fl.category === 'centerpiece')
-                    .map((fl) => (
-                      <button
-                        key={fl.id}
-                        type="button"
-                        onClick={() => setFlowerType(fl.id)}
-                        className={`py-2 px-2 rounded-xl border text-[11px] font-medium transition flex items-center justify-center space-x-1.5 cursor-pointer ${
-                          flowerType === fl.id
-                            ? 'bg-amber-500/20 border-amber-400 text-amber-100 font-semibold shadow-sm'
-                            : 'bg-[#17100a]/85 border-amber-500/20 text-amber-100/75 hover:border-amber-400/50'
-                        }`}
-                      >
-                        <span className="text-sm shrink-0">{fl.icon}</span>
-                        <span className="truncate">{fl.name}</span>
-                      </button>
-                    ))}
-                </div>
-              </div>
-
-              {/* ตัวปรับขนาดดอกไม้ / ของตกแต่งตรงกลาง (60%–160%) */}
-              <div className="p-3 rounded-2xl bg-[#17100a]/85 border border-amber-500/25 space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-semibold text-amber-200">
-                    ปรับขนาดดอกไม้ / ของตกแต่งกลางกระทง:
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-amber-300 tabular-nums">
-                      {Math.round(centerScale * 100)}%
-                    </span>
-                    {Math.abs(centerScale - 1) >= 0.01 && (
-                      <button
-                        type="button"
-                        onClick={() => setCenterScale(1)}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/30 border border-amber-400/40 text-[10px] text-amber-200 cursor-pointer"
-                      >
-                        <RotateCcw className="w-2.5 h-2.5" />
-                        <span>รีเซ็ต</span>
-                      </button>
-                    )}
+                  <div className="flex items-center justify-between mb-1">
+                    <h2 className="text-sm font-extrabold text-[#231912]">1. เลือกฐานกระทง (8 สไตล์)</h2>
                   </div>
-                </div>
-                <input
-                  type="range"
-                  min={MIN_DECOR_SCALE}
-                  max={MAX_DECOR_SCALE}
-                  step={SCALE_STEP}
-                  value={centerScale}
-                  onChange={(e) => setCenterScale(Number(e.target.value))}
-                  aria-label="ปรับขนาดของตกแต่งกลางกระทง"
-                  className="w-full accent-amber-400 cursor-pointer"
-                />
-                <div className="flex justify-between text-[10px] text-amber-200/60">
-                  <span>เล็ก (60%)</span>
-                  <span>มาตรฐาน (100%)</span>
-                  <span>ใหญ่พิเศษ (160%)</span>
-                </div>
-              </div>
-            </div>
+                  <p className="text-[11px] text-[#7c5d3a] mb-3">
+                    ฐานที่ของตกแต่งทุกชิ้นจะวางอยู่ — เลือกก่อน แล้วค่อยแต่ง
+                  </p>
 
-            {/* 5. แสงเทียนนำทาง (8 สีมงคล) */}
-            <div className={activeDecorTab === 'candle' ? 'block' : 'hidden md:block'}>
-              <label className="block text-xs font-semibold text-amber-200 mb-1.5">
-                4. แสงเทียนนำทาง (8 สีมงคล)
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
-                {candles.map((cd) => (
-                  <button
-                    key={cd.id}
-                    type="button"
-                    onClick={() => setCandleColor(cd.id)}
-                    className={`py-2 px-2 rounded-xl border text-[11px] font-medium transition flex items-center justify-center space-x-1.5 cursor-pointer ${
-                      candleColor === cd.id
-                        ? 'bg-amber-500/20 border-amber-400 text-amber-100 font-semibold shadow-sm'
-                        : 'bg-[#17100a]/85 border-amber-500/20 text-amber-100/75 hover:border-amber-400/50'
-                    }`}
-                  >
-                    <span
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{
-                        background:
-                          cd.id === 'rainbow'
-                            ? 'linear-gradient(135deg, #f472b6, #fde047, #38bdf8)'
-                            : cd.hex
-                      }}
-                    />
-                    <span className="truncate">{cd.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* 6. ของตกแต่งเสริมพิเศษบนยอดกระทง (เลือกได้หลายชิ้นพร้อมกัน) */}
-            <div className={activeDecorTab === 'accessory' ? 'block' : 'hidden md:block'}>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-semibold text-amber-200">
-                  5. ของตกแต่งเสริมพิเศษ (ปักรอบกระทง) <span className="text-amber-300/90 font-normal">(เลือกได้หลายชิ้น ✨)</span>
-                </label>
-                {selectedAccessories.length > 0 && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-200 border border-amber-400/40">
-                    เลือกแล้ว {selectedAccessories.length} ชิ้น
-                  </span>
-                )}
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
-                {accessories.map((acc) => {
-                  const isSelected =
-                    acc.id === 'none'
-                      ? selectedAccessories.length === 0
-                      : selectedAccessories.includes(acc.id);
-                  return (
-                    <button
-                      key={acc.id}
-                      type="button"
-                      onClick={() => handleToggleAccessory(acc.id)}
-                      className={`py-2 px-2 rounded-xl border text-[11px] font-medium transition flex items-center justify-center space-x-1.5 cursor-pointer ${
-                        isSelected
-                          ? 'bg-amber-500/20 border-amber-400 text-amber-100 font-semibold shadow-sm'
-                          : 'bg-[#17100a]/85 border-amber-500/20 text-amber-100/75 hover:border-amber-400/50'
-                      }`}
-                    >
-                      <span className="text-sm">{acc.icon}</span>
-                      <span className="truncate">{acc.name}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* ตัวปรับขนาดของตกแต่งเสริมแต่ละชิ้นแยกกัน (60%–160%) */}
-              {selectedAccessories.length > 0 && (
-                <div className="mt-3 p-3 rounded-2xl bg-[#17100a]/85 border border-amber-500/25 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-amber-200">
-                      ปรับขนาดของตกแต่งเสริมแต่ละชิ้น (60%–160%):
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setAccessoryScales({})}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#2a1d11] hover:bg-amber-500/20 border border-amber-500/35 text-[10px] text-amber-200/85 cursor-pointer"
-                    >
-                      <RotateCcw className="w-2.5 h-2.5" />
-                      <span>รีเซ็ตทั้งหมด</span>
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    {selectedAccessories.map((accId) => {
-                      const info = accessories.find((a) => a.id === accId);
-                      const currentScale = accessoryScales[accId] ?? 1;
+                  <div className="grid grid-cols-4 gap-2">
+                    {bases.map((b) => {
+                      const isSelected = baseType === b.id;
                       return (
-                        <div key={accId} className="space-y-1">
-                          <div className="flex items-center justify-between text-[11px]">
-                            <span className="text-amber-100 font-medium">
-                              {info?.icon || '✨'} {info?.name || accId}
+                        <button
+                          key={b.id}
+                          type="button"
+                          onClick={() => setBaseType(b.id)}
+                          className={`relative p-2 rounded-2xl border bg-white text-center transition flex flex-col items-center justify-center cursor-pointer ${
+                            isSelected
+                              ? 'ring-2 ring-[#241911] border-[#241911] shadow-sm'
+                              : 'border-amber-900/12 hover:border-amber-600/45'
+                          }`}
+                        >
+                          {isSelected && (
+                            <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[#241911] text-[#fffbeb] flex items-center justify-center shadow">
+                              <Check className="w-3 h-3" />
                             </span>
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-amber-300 tabular-nums">
-                                {Math.round(currentScale * 100)}%
-                              </span>
-                              {Math.abs(currentScale - 1) >= 0.01 && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleAccessoryScaleChange(accId, 1)}
-                                  className="text-[10px] text-amber-300/80 hover:text-amber-200 underline cursor-pointer"
-                                >
-                                  100%
-                                </button>
-                              )}
-                            </div>
+                          )}
+                          <div
+                            className="w-10 h-10 rounded-xl flex items-center justify-center text-xl mb-1 border border-amber-900/10"
+                            style={{ backgroundColor: `${b.swatch}1a` }}
+                          >
+                            {b.icon}
                           </div>
-                          <input
-                            type="range"
-                            min={MIN_DECOR_SCALE}
-                            max={MAX_DECOR_SCALE}
-                            step={SCALE_STEP}
-                            value={currentScale}
-                            onChange={(e) =>
-                              handleAccessoryScaleChange(accId, Number(e.target.value))
-                            }
-                            aria-label={`ปรับขนาด ${info?.name || accId}`}
-                            className="w-full accent-amber-400 cursor-pointer"
-                          />
-                        </div>
+                          <span className="text-[11px] font-bold text-[#2a1f16] leading-tight line-clamp-1">
+                            {b.shortName}
+                          </span>
+                        </button>
                       );
                     })}
                   </div>
                 </div>
-              )}
-            </div>
 
-            {/* Submit Button */}
-            <div className="pt-2">
+                {/* เริ่มจากไอเดีย (8 Presets ตามภาพตัวอย่างที่ 4) */}
+                <div className="pt-2 border-t border-amber-900/10">
+                  <h3 className="text-base font-extrabold text-[#231912]">เริ่มจากไอเดีย</h3>
+                  <p className="text-[11px] text-[#7c5d3a] mb-3">แตะแล้วแต่งต่อได้ทุกชิ้น</p>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {ideaPresets.map((preset) => {
+                      const isMatch =
+                        baseType === preset.baseType &&
+                        flowerType === preset.flowerType &&
+                        candleColor === preset.candleColor;
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => handleApplyIdeaPreset(preset)}
+                          className={`py-2.5 px-3 rounded-xl border text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                            isMatch
+                              ? 'bg-[#241911] text-[#fffbeb] border-[#241911] shadow-sm'
+                              : 'bg-white hover:bg-amber-50/75 border-amber-900/12 text-[#2a1f16] shadow-2xs'
+                          }`}
+                        >
+                          <span>{preset.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-3">
+                    <button
+                      type="button"
+                      onClick={handleRandomizeDesign}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white hover:bg-amber-50 border border-amber-900/20 text-xs font-semibold text-[#2a1f16] shadow-2xs transition active:scale-95 cursor-pointer"
+                    >
+                      <Dices className="w-3.5 h-3.5 text-amber-700" />
+                      <span>สุ่มให้หน่อย</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ---------------- STEP 2: แต่งดอกไม้ / ตึกฟักทอง / เทียน / ของเสริม + สไลเดอร์ขนาด ---------------- */}
+            {wizardStep === 'decor' && (
+              <div className="space-y-5">
+                {/* ดอกไม้ประดับกลางกระทง */}
+                <div>
+                  <label className="block text-xs font-bold text-[#231912] mb-2">
+                    🌸 ดอกไม้ประดับกลางกระทง (8 ชนิด)
+                  </label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {flowers
+                      .filter((fl) => fl.category === 'flower')
+                      .map((fl) => {
+                        const isSelected = flowerType === fl.id;
+                        return (
+                          <button
+                            key={fl.id}
+                            type="button"
+                            onClick={() => setFlowerType(fl.id)}
+                            className={`py-2 px-2.5 rounded-xl border text-xs font-semibold transition flex items-center gap-2 cursor-pointer ${
+                              isSelected
+                                ? 'bg-[#241911] text-[#fffbeb] border-[#241911] shadow-sm'
+                                : 'bg-white hover:bg-amber-50/70 border-amber-900/12 text-[#2a1f16]'
+                            }`}
+                          >
+                            <span
+                              className="w-3 h-3 rounded-full shrink-0 border border-black/15"
+                              style={{
+                                background:
+                                  fl.id === 'mixed_garland'
+                                    ? 'conic-gradient(#fbbf24, #f43f5e, #c084fc, #38bdf8, #34d399)'
+                                    : fl.color
+                              }}
+                            />
+                            <span className="truncate">{fl.name}</span>
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
+
+                {/* ของตกแต่งกลางกระทงแทนดอกไม้ (รวมตึกฟักทอง ม.อ.) */}
+                <div>
+                  <label className="block text-xs font-bold text-[#231912] mb-2">
+                    🏛️ ของตกแต่งใส่ตรงกลางกระทง แทนดอกไม้ (8 แบบ)
+                  </label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {flowers
+                      .filter((fl) => fl.category === 'centerpiece')
+                      .map((fl) => {
+                        const isSelected = flowerType === fl.id;
+                        return (
+                          <button
+                            key={fl.id}
+                            type="button"
+                            onClick={() => setFlowerType(fl.id)}
+                            className={`py-2 px-2.5 rounded-xl border text-xs font-semibold transition flex items-center gap-2 cursor-pointer ${
+                              isSelected
+                                ? 'bg-[#241911] text-[#fffbeb] border-[#241911] shadow-sm'
+                                : 'bg-white hover:bg-amber-50/70 border-amber-900/12 text-[#2a1f16]'
+                            }`}
+                          >
+                            <span className="text-sm shrink-0">{fl.icon}</span>
+                            <span className="truncate">{fl.name}</span>
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
+
+                {/* สไลเดอร์ปรับขนาดของตกแต่งตรงกลาง (60%-160%) */}
+                <div className="p-3 rounded-2xl bg-[#f4ecdd] border border-amber-900/12 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-bold text-[#2a1f16]">
+                      ปรับขนาดดอกไม้ / ของตกแต่งกลาง:
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-extrabold text-amber-800 tabular-nums">
+                        {Math.round(centerScale * 100)}%
+                      </span>
+                      {Math.abs(centerScale - 1) >= 0.01 && (
+                        <button
+                          type="button"
+                          onClick={() => setCenterScale(1)}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white hover:bg-amber-50 border border-amber-900/20 text-[10px] font-semibold text-[#2a1f16] cursor-pointer"
+                        >
+                          <RotateCcw className="w-2.5 h-2.5" />
+                          <span>รีเซ็ต</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min={MIN_DECOR_SCALE}
+                    max={MAX_DECOR_SCALE}
+                    step={SCALE_STEP}
+                    value={centerScale}
+                    onChange={(e) => setCenterScale(Number(e.target.value))}
+                    aria-label="ปรับขนาดของตกแต่งกลางกระทง"
+                    className="w-full accent-[#241911] cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[10px] text-[#7c5d3a]">
+                    <span>เล็ก (60%)</span>
+                    <span>มาตรฐาน (100%)</span>
+                    <span>ใหญ่พิเศษ (160%)</span>
+                  </div>
+                </div>
+
+                {/* แสงเทียนนำทาง */}
+                <div>
+                  <label className="block text-xs font-bold text-[#231912] mb-2">
+                    🕯️ แสงเทียนนำทาง (8 สีมงคล)
+                  </label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {candles.map((cd) => {
+                      const isSelected = candleColor === cd.id;
+                      return (
+                        <button
+                          key={cd.id}
+                          type="button"
+                          onClick={() => setCandleColor(cd.id)}
+                          className={`py-2 px-2.5 rounded-xl border text-xs font-semibold transition flex items-center gap-2 cursor-pointer ${
+                            isSelected
+                              ? 'bg-[#241911] text-[#fffbeb] border-[#241911] shadow-sm'
+                              : 'bg-white hover:bg-amber-50/70 border-amber-900/12 text-[#2a1f16]'
+                          }`}
+                        >
+                          <span
+                            className="w-3 h-3 rounded-full shrink-0 border border-black/15"
+                            style={{
+                              background:
+                                cd.id === 'rainbow'
+                                  ? 'linear-gradient(135deg, #f472b6, #fde047, #38bdf8)'
+                                  : cd.hex
+                            }}
+                          />
+                          <span className="truncate">{cd.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* ของตกแต่งเสริมพิเศษปักรอบกระทง */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-xs font-bold text-[#231912]">
+                      ✨ ของตกแต่งเสริมรอบกระทง <span className="font-normal text-[#7c5d3a]">(เลือกได้หลายชิ้น)</span>
+                    </label>
+                    {selectedAccessories.length > 0 && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-400/50 font-bold">
+                        เลือกแล้ว {selectedAccessories.length} ชิ้น
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {accessories.map((acc) => {
+                      const isSelected =
+                        acc.id === 'none'
+                          ? selectedAccessories.length === 0
+                          : selectedAccessories.includes(acc.id);
+                      return (
+                        <button
+                          key={acc.id}
+                          type="button"
+                          onClick={() => handleToggleAccessory(acc.id)}
+                          className={`py-2 px-2.5 rounded-xl border text-xs font-semibold transition flex items-center gap-2 cursor-pointer ${
+                            isSelected
+                              ? 'bg-[#241911] text-[#fffbeb] border-[#241911] shadow-sm'
+                              : 'bg-white hover:bg-amber-50/70 border-amber-900/12 text-[#2a1f16]'
+                          }`}
+                        >
+                          <span className="text-sm">{acc.icon}</span>
+                          <span className="truncate">{acc.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* ตัวปรับขนาดของตกแต่งเสริมแต่ละชิ้นแยกกัน (60%-160%) */}
+                  {selectedAccessories.length > 0 && (
+                    <div className="mt-3 p-3 rounded-2xl bg-[#f4ecdd] border border-amber-900/12 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-[#2a1f16]">
+                          ปรับขนาดของตกแต่งเสริมรายชิ้น:
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setAccessoryScales({})}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white hover:bg-amber-50 border border-amber-900/20 text-[10px] font-semibold text-[#2a1f16] cursor-pointer"
+                        >
+                          <RotateCcw className="w-2.5 h-2.5" />
+                          <span>รีเซ็ตทั้งหมด</span>
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        {selectedAccessories.map((accId) => {
+                          const info = accessories.find((a) => a.id === accId);
+                          const currentScale = accessoryScales[accId] ?? 1;
+                          return (
+                            <div key={accId} className="space-y-1">
+                              <div className="flex items-center justify-between text-[11px]">
+                                <span className="text-[#231912] font-semibold">
+                                  {info?.icon || '✨'} {info?.name || accId}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-extrabold text-amber-800 tabular-nums">
+                                    {Math.round(currentScale * 100)}%
+                                  </span>
+                                  {Math.abs(currentScale - 1) >= 0.01 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAccessoryScaleChange(accId, 1)}
+                                      className="text-[10px] text-[#7c5d3a] hover:text-[#231912] underline cursor-pointer"
+                                    >
+                                      100%
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                              <input
+                                type="range"
+                                min={MIN_DECOR_SCALE}
+                                max={MAX_DECOR_SCALE}
+                                step={SCALE_STEP}
+                                value={currentScale}
+                                onChange={(e) =>
+                                  handleAccessoryScaleChange(accId, Number(e.target.value))
+                                }
+                                aria-label={`ปรับขนาด ${info?.name || accId}`}
+                                className="w-full accent-[#241911] cursor-pointer"
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ---------------- STEP 3: เขียนชื่อ คำอวยพร & ปล่อยกระทง ---------------- */}
+            {wizardStep === 'float' && (
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-sm font-extrabold text-[#231912] mb-1">
+                    3. เขียนคำอธิษฐานและปล่อยกระทง
+                  </h2>
+                  <p className="text-[11px] text-[#7c5d3a]">
+                    คำอธิษฐานจะลอยคู่กระทง 3D บนแม่น้ำ และอ่านได้ในหน้ารวมคำอวยพร
+                  </p>
+                </div>
+
+                {/* ประเภทผู้ใช้งาน */}
+                <div>
+                  <label className="block text-xs font-bold text-[#231912] mb-1.5">
+                    ประเภทผู้ใช้งาน <span className="text-amber-700">*</span>
+                  </label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[
+                      { id: 'student', label: 'นักศึกษา' },
+                      { id: 'staff', label: 'บุคลากร' },
+                      { id: 'general', label: 'บุคคลทั่วไป' }
+                    ].map((type) => (
+                      <button
+                        key={type.id}
+                        type="button"
+                        onClick={() => setUserType(type.id as UserType)}
+                        className={`py-2 px-1 text-xs font-semibold rounded-xl border transition text-center truncate cursor-pointer ${
+                          userType === type.id
+                            ? 'bg-[#241911] border-[#241911] text-[#fffbeb] shadow-sm'
+                            : 'bg-white border-amber-900/15 text-[#574536] hover:border-amber-600/45'
+                        }`}
+                      >
+                        {type.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* ชื่อ & คำอวยพร */}
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-[#231912] mb-1">
+                      ชื่อ / นามแฝง <span className="text-amber-700">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      maxLength={40}
+                      value={ownerName}
+                      onChange={(e) => setOwnerName(e.target.value)}
+                      placeholder="เช่น มะลิวัลย์, เด็กวิทยา ม.อ."
+                      className="w-full bg-white border border-amber-900/20 rounded-xl px-3 py-2.5 text-sm text-[#231912] placeholder-[#9c8671] focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#231912] mb-1">
+                      คำอธิษฐาน / คำขอขมา <span className="text-amber-700">*</span>
+                    </label>
+                    <textarea
+                      required
+                      rows={3}
+                      maxLength={150}
+                      value={wishMessage}
+                      onChange={(e) => setWishMessage(e.target.value)}
+                      placeholder="ขอขมาพระแม่คงคา ขอให้ชีวิตราบรื่น..."
+                      className="w-full bg-white border border-amber-900/20 rounded-xl px-3 py-2 text-sm text-[#231912] placeholder-[#9c8671] focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-600 resize-none"
+                    />
+                  </div>
+
+                  {/* คำอธิษฐานด่วน */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {quickWishes.map((w, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setWishMessage(w)}
+                        className="text-[10px] px-2.5 py-1 rounded-full bg-white hover:bg-amber-50 text-[#574536] border border-amber-900/15 transition truncate max-w-full cursor-pointer"
+                      >
+                        💬 {w.slice(0, 32)}...
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* พรีวิวป้ายคำอธิษฐานและสรุปของตกแต่งที่เลือก */}
+                <div className="bg-[#fffbeb] rounded-2xl p-3.5 border-2 border-amber-400 text-center shadow-sm space-y-2">
+                  <p className="font-bold text-amber-900 text-sm">
+                    {ownerName || 'ชื่อของคุณจะปรากฏที่นี่'}
+                  </p>
+                  <p className="text-xs text-stone-800 italic break-words line-clamp-2">
+                    "{wishMessage || 'คำขอขมาพระแม่คงคาหรือคำอธิษฐาน...'}"
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-1 pt-1">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-900 border border-amber-300/70 font-semibold">
+                      {bases.find((b) => b.id === baseType)?.icon} {bases.find((b) => b.id === baseType)?.shortName}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-900 border border-amber-300/70 font-semibold">
+                      {flowers.find((f) => f.id === flowerType)?.icon || '🌸'} {flowers.find((f) => f.id === flowerType)?.name}
+                      {Math.abs(centerScale - 1) >= 0.01 ? ` ${Math.round(centerScale * 100)}%` : ''}
+                    </span>
+                    {selectedAccessories.map((accId) => {
+                      const info = accessories.find((a) => a.id === accId);
+                      return info ? (
+                        <span
+                          key={accId}
+                          className="px-2 py-0.5 rounded-full text-[10px] bg-amber-50 text-amber-800 border border-amber-300/60"
+                        >
+                          {info.icon} {info.name}
+                        </span>
+                      ) : null;
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Sticky Bottom Action Footer */}
+          <div className="px-4 py-3 border-t border-amber-900/10 bg-[#fdfaf4] shrink-0">
+            {wizardStep === 'base' && (
               <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex items-center justify-center space-x-2 py-3.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-2xl shadow-md border border-amber-300/60 transition active:scale-98 text-sm sm:text-base cursor-pointer"
+                type="button"
+                onClick={() => setWizardStep('decor')}
+                className="w-full py-3 rounded-2xl bg-[#241911] hover:bg-[#38271a] text-[#fffbeb] font-bold text-sm flex items-center justify-center gap-2 shadow-md transition active:scale-[0.99] cursor-pointer"
               >
-                <Sparkles className="w-4 h-4 text-stone-900" />
-                <span>{loading ? 'กำลังส่งข้อมูล...' : 'ปล่อยกระทงลงน้ำ 🌊'}</span>
+                <span>ต่อไป: แต่งกระทง</span>
+                <ArrowRight className="w-4 h-4" />
               </button>
-            </div>
-          </form>
-        </div>
+            )}
+
+            {wizardStep === 'decor' && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setWizardStep('base')}
+                  className="px-4 py-3 rounded-2xl bg-white hover:bg-amber-50 border border-amber-900/20 text-[#3e2e22] font-semibold text-xs sm:text-sm flex items-center gap-1 transition cursor-pointer shrink-0"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>ย้อนกลับ</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWizardStep('float')}
+                  className="flex-1 py-3 rounded-2xl bg-[#241911] hover:bg-[#38271a] text-[#fffbeb] font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md transition active:scale-[0.99] cursor-pointer"
+                >
+                  <span>ต่อไป: เขียนคำอธิษฐาน & ลอย</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {wizardStep === 'float' && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setWizardStep('decor')}
+                  className="px-4 py-3 rounded-2xl bg-white hover:bg-amber-50 border border-amber-900/20 text-[#3e2e22] font-semibold text-xs sm:text-sm flex items-center gap-1 transition cursor-pointer shrink-0"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>ย้อนกลับ</span>
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-stone-950 font-extrabold text-sm flex items-center justify-center gap-2 shadow-md border border-amber-300/70 transition active:scale-[0.99] cursor-pointer disabled:opacity-60"
+                >
+                  <Sparkles className="w-4 h-4 text-stone-900" />
+                  <span>{loading ? 'กำลังส่งข้อมูล...' : 'ปล่อยกระทงลงน้ำ 🌊'}</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </form>
       </div>
 
       {/* Social Card Modal */}

@@ -1,5 +1,5 @@
 // src/three/waterShader.ts
-// Realistic GLSL Rippling River Shader (ริ้วคลื่นแนวนอนสมจริง + เงาตลิ่งสีทอง + เงากระทงสะท้อนแตกเป็นคลื่น 60 FPS)
+// Realistic GLSL Rippling Water Shader (Pure-ASCII GLSL for 100% WebGL/ANGLE compatibility)
 
 import * as THREE from 'three';
 
@@ -35,7 +35,7 @@ const WATER_VERTEX_SHADER = /* glsl */ `
   void main() {
     vUv = uv;
     vec4 worldPos = modelMatrix * vec4(position, 1.0);
-    // ขยับยอดคลื่นเบาๆ บนผิวน้ำให้สัมพันธ์กับกระทงที่ลอย
+    // Gentle real vertical surface ripple matching floating krathongs
     float waveLift = sin(worldPos.x * 0.8 + uTime * 1.1) * cos(worldPos.z * 2.4 - uTime * 1.6) * 0.018;
     worldPos.y += waveLift;
 
@@ -66,34 +66,34 @@ const WATER_FRAGMENT_SHADER = /* glsl */ `
   varying vec3 vWorldPos;
   varying vec2 vUv;
 
-  // คำนวณคลื่นริ้วแนวนอนหลายความถี่ (Anisotropic Horizontal River Ripples แบบภาพตัวอย่าง)
+  // Multi-octave anisotropic horizontal river ripple normal and ridge height
   vec4 getWaterWave(vec2 p, float t) {
     float dx = 0.0;
     float dz = 0.0;
     float ridge = 0.0;
 
-    // Layer 1: ลอนคลื่นแนวนอนหลักไหลช้าๆ ไปทางขวา
+    // Layer 1: Primary horizontal swells drifting slowly rightward
     float a1 = p.z * 3.8 + p.x * 0.45 - t * 1.15;
     float c1 = cos(a1);
     dx += c1 * 0.055;
     dz += c1 * 0.26;
     ridge += 0.5 + 0.5 * sin(a1);
 
-    // Layer 2: ระลอกคลื่นขวางความถี่กลาง
+    // Layer 2: Mid-frequency cross ripples
     float a2 = p.z * 8.6 - p.x * 0.90 + t * 1.55;
     float c2 = cos(a2);
     dx += c2 * -0.068;
     dz += c2 * 0.30;
     ridge += 0.5 + 0.5 * sin(a2);
 
-    // Layer 3: ริ้วน้ำละเอียดรับแสงทอง
+    // Layer 3: Fine horizontal light-catching ripples
     float a3 = p.z * 16.5 + p.x * 2.10 - t * 2.25;
     float c3 = cos(a3);
     dx += c3 * 0.075;
     dz += c3 * 0.28;
     ridge += 0.5 + 0.5 * sin(a3);
 
-    // Layer 4: คลื่นกระเพื่อมระดับไมโคร
+    // Layer 4: High-frequency micro surface shimmer
     float a4 = p.z * 29.0 - p.x * 3.80 + t * 2.85;
     float c4 = cos(a4);
     dx += c4 * -0.055;
@@ -109,53 +109,55 @@ const WATER_FRAGMENT_SHADER = /* glsl */ `
     float ridge = wave.w;
     vec3 viewDir = normalize(cameraPosition - vWorldPos);
 
-    // Fresnel (ยิ่งมองมุมเฉียง ยิ่งเห็นเงาสะท้อนริ้วคลื่นชัดเจน)
+    // Fresnel term increases reflection readability at grazing angles
     float ndotv = max(dot(viewDir, normal), 0.0);
-    float fresnel = clamp(0.14 + 0.86 * pow(1.0 - ndotv, 2.3), 0.0, 1.0);
+    float fresnel = clamp(0.16 + 0.84 * pow(1.0 - ndotv, 2.2), 0.0, 1.0);
 
-    // พื้นผิวน้ำโทนชาโคล-น้ำตาลอุ่นพร้อมริ้วแสงอ่อนบนสันคลื่น (เห็นความเป็นน้ำชัดเจนทั่วทั้งผืนน้ำ)
+    // Silky warm ripple shading from dark troughs to warm taupe crests
     float crestLight = smoothstep(-0.18, 0.32, normal.z);
-    vec3 waterColor = mix(uDeepColor, uShallowColor, crestLight * 0.82 + ridge * 0.28);
-    waterColor = mix(waterColor, uRippleHighlight, pow(crestLight, 2.0) * (0.28 + 0.42 * fresnel));
+    vec3 waterColor = mix(uDeepColor, uShallowColor, crestLight * 0.85 + ridge * 0.25);
+    waterColor = mix(waterColor, uRippleHighlight, pow(crestLight, 1.8) * (0.34 + 0.44 * fresnel));
 
-    // แสงสะท้อนสีเหลืองทองจากตลิ่ง / ตึกฟักทอง / พื้นหลัง
+    float distShore = max(0.0, vWorldPos.z - uShoreZ);
+
+    // Warm golden light reflections on water surface
     if (uIsPreview < 0.5) {
-      float distShore = max(0.0, vWorldPos.z - uShoreZ);
-      float shoreMask = exp(-distShore * 0.24);
-      // แนวแสงทองสว่างกลางฉาก (ตึกฟักทอง) + เส้นแสงจากวัดและโคมไฟริมตลิ่งสองฝั่ง
+      float shoreMask = exp(-distShore * 0.22);
       float pumpkinGlow = exp(-abs(vWorldPos.x) * 0.16) * 1.15;
       float flankLamps = 0.55 + 0.45 * cos(vWorldPos.x * 0.72);
       float rippleSlice = 0.35 + 0.65 * smoothstep(-0.08, 0.24, normal.z);
       float shoreShimmer = shoreMask * (0.48 + pumpkinGlow * 0.65 + flankLamps * 0.38) * rippleSlice;
       waterColor += uShoreGold * shoreShimmer * 0.52;
 
-      // แสงจันทร์สีทองอ่อนตกกระทบทอดเป็นเส้นแนวขวา
+      // Soft warm moon specular shimmer along right side
       float moonLane = exp(-pow((vWorldPos.x - 8.2) * 0.18, 2.0)) * smoothstep(2.0, -14.0, vWorldPos.z);
       vec3 halfVec = normalize(uMoonDir + viewDir);
-      float moonSpec = pow(max(dot(normal, halfVec), 0.0), 36.0);
-      float moonWide = pow(max(dot(normal, halfVec), 0.0), 9.0) * 0.22;
-      waterColor += uMoonColor * (moonSpec * 0.55 + moonWide * moonLane * 0.9);
+      float moonSpec = pow(max(dot(normal, halfVec), 0.0), 34.0);
+      float moonWide = pow(max(dot(normal, halfVec), 0.0), 9.0) * 0.24;
+      waterColor += uMoonColor * (moonSpec * 0.58 + moonWide * moonLane * 0.92);
     } else {
-      // โหมดหน้าตกแต่งกระทง: แสงสะท้อนริ้วสีทองอุ่นพริ้วไหวรอบกระทง (แบบภาพตัวอย่างที่ 2)
-      float backGlow = smoothstep(2.2, -3.6, vWorldPos.z);
-      float streakWave = 0.45 + 0.55 * sin(vWorldPos.x * 1.75 + 0.6) * cos(vWorldPos.z * 0.8);
-      float rippleSlice = smoothstep(-0.06, 0.24, normal.z);
-      waterColor += uShoreGold * backGlow * streakWave * rippleSlice * 0.26;
+      // Customizer preview mode: vertical golden reflection streaks dancing across dark ripples
+      float backGlow = smoothstep(3.4, -4.2, vWorldPos.z);
+      float col1 = exp(-pow((vWorldPos.x + 1.45) * 1.9, 2.0));
+      float col2 = exp(-pow((vWorldPos.x - 1.35) * 2.1, 2.0));
+      float colMid = 0.35 + 0.65 * (0.5 + 0.5 * sin(vWorldPos.x * 1.65 + 0.4));
+      float rippleSlice = 0.32 + 0.68 * smoothstep(-0.08, 0.24, normal.z);
+      float streakIntensity = backGlow * (col1 * 0.72 + col2 * 0.65 + colMid * 0.24) * rippleSlice;
+      waterColor += uShoreGold * streakIntensity * 0.48;
     }
 
     vec3 finalColor = waterColor;
 
-    // เงากระทง 3 มิติสะท้อนในน้ำแตกตามริ้วคลื่นแนวนอน (Planar Reflection)
+    // Inverted 3D krathong planar reflection broken horizontally by water ripples
     if (uHasReflection > 0.5 && abs(vReflCoord.w) > 0.001) {
       vec2 projUv = vReflCoord.xy / vReflCoord.w;
       float damp = 1.0 / (1.0 + abs(vReflCoord.w) * 0.028);
-      vec2 distort = vec2(normal.z * uDistortionX + normal.x * 0.035, normal.z * uDistortionZ) * damp;
+      vec2 distort = vec2(normal.z * uDistortionX + normal.x * 0.025, normal.z * uDistortionZ) * damp;
       vec2 distortedUv = clamp(projUv + distort, vec2(0.002), vec2(0.998));
       vec4 reflSample = texture2D(uReflectionMap, distortedUv);
 
-      // ผสมเงาสะท้อนกลับหัวของกระทงให้ชัดเจนเหมือนน้ำจริง (ภาพตัวอย่างที่ 1)
-      float reflWeight = reflSample.a * clamp(0.62 + fresnel * 0.28, 0.0, 0.88);
-      finalColor = mix(finalColor, reflSample.rgb * 0.90, reflWeight);
+      float reflWeight = reflSample.a * clamp(0.68 + fresnel * 0.25, 0.0, 0.90);
+      finalColor = mix(finalColor, reflSample.rgb * 0.95, reflWeight);
     }
 
     float alpha = 1.0;
@@ -163,6 +165,9 @@ const WATER_FRAGMENT_SHADER = /* glsl */ `
       float radial = length(vWorldPos.xz);
       alpha = 1.0 - smoothstep(uPondRadius * 0.72, uPondRadius, radial);
       if (alpha <= 0.01) discard;
+    } else if (uIsPreview < 0.5) {
+      // Softly feather top horizon edge into skyline without a hard line
+      alpha = smoothstep(0.0, 1.15, distShore);
     }
 
     gl_FragColor = vec4(finalColor, alpha);
@@ -218,9 +223,9 @@ export function createRealisticRiverWater(options: {
       uTextureMatrix: { value: textureMatrix },
       uTime: { value: 0 },
       uMoonDir: { value: new THREE.Vector3(0.42, 0.26, -0.87).normalize() },
-      uDeepColor: { value: new THREE.Color('#181411') },
-      uShallowColor: { value: new THREE.Color('#2b231c') },
-      uRippleHighlight: { value: new THREE.Color('#6e573e') },
+      uDeepColor: { value: new THREE.Color('#221f1c') },
+      uShallowColor: { value: new THREE.Color('#3b352e') },
+      uRippleHighlight: { value: new THREE.Color('#827463') },
       uShoreGold: { value: new THREE.Color('#fbbf24') },
       uMoonColor: { value: new THREE.Color('#fef3c7') },
       uDistortionX: { value: isPreview ? 0.016 : 0.024 },
@@ -233,7 +238,8 @@ export function createRealisticRiverWater(options: {
     },
     vertexShader: WATER_VERTEX_SHADER,
     fragmentShader: WATER_FRAGMENT_SHADER,
-    transparent: isCircularPond
+    transparent: true,
+    depthWrite: true
   });
 
   const mesh = new THREE.Mesh(geometry, material);

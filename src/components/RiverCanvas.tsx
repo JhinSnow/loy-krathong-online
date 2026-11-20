@@ -617,7 +617,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
 
     const syncSkyCanvasSize = () => {
       if (!skyCanvas) return;
-      const skyH = Math.max(120, Math.ceil(h * 0.44));
+      const skyH = Math.max(120, Math.ceil(h * 0.39));
       skyCanvas.width = w;
       skyCanvas.height = skyH;
     };
@@ -712,8 +712,8 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       camera.updateProjectionMatrix();
       camera.updateMatrixWorld();
 
-      // ตำแหน่งเส้นขอบน้ำจริง (y = 38% จากด้านบนจอ ตรงกับ bottom-[62%] ของตึกฟักทองพอดี)
-      const zHorizon = projectNdcYToRiverZ(camera, 1 - 2 * 0.38);
+      // ตำแหน่งเส้นขอบน้ำจริง (y = 37.8% จากด้านบนจอ ซิงก์รอยต่อแบบนุ่มนวลกับฐานตึกฟักทอง)
+      const zHorizon = projectNdcYToRiverZ(camera, 1 - 2 * 0.378);
       const zFar = projectNdcYToRiverZ(camera, aspect < 1 ? 0.14 : 0.15);
       const zNear = projectNdcYToRiverZ(camera, aspect < 1 ? -0.34 : -0.45);
 
@@ -726,7 +726,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         aspect
       };
 
-      water.mesh.position.set(0, 0, zHorizon + 22 - 0.15);
+      water.mesh.position.set(0, 0, zHorizon + 22 - 0.1);
       water.setShoreZ(zHorizon);
 
       const maxDpr = w < 768 ? 1.25 : 1.5;
@@ -833,12 +833,12 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       const sw = skyCanvas.width;
       const sh = skyCanvas.height;
 
-      // ท้องฟ้ายามค่ำคืนโทนอุ่นสีน้ำตาลทองอำพัน
+      // ท้องฟ้ายามค่ำคืนโทนอุ่นสีน้ำตาลทองนวล (กลมกลืนไร้แถบน้ำตาลขอบล่าง)
       const skyGrad = skyCtx.createLinearGradient(0, 0, 0, sh);
       skyGrad.addColorStop(0.0, '#120b06');
-      skyGrad.addColorStop(0.45, '#24160b');
-      skyGrad.addColorStop(0.82, '#3c2411');
-      skyGrad.addColorStop(1.0, '#663d18');
+      skyGrad.addColorStop(0.48, '#24160b');
+      skyGrad.addColorStop(0.84, '#362312');
+      skyGrad.addColorStop(1.0, '#221810');
       skyCtx.fillStyle = skyGrad;
       skyCtx.fillRect(0, 0, sw, sh);
 
@@ -1155,7 +1155,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       {/* Layer 1: ท้องฟ้ายามค่ำคืนโทนอุ่นสีเหลืองทอง + ดวงจันทร์ + ดาว + โคมลอย + พลุ */}
       <canvas
         ref={skyCanvasRef}
-        className="w-full h-[44%] absolute top-0 left-0 z-0 pointer-events-none"
+        className="w-full h-[39%] absolute top-0 left-0 z-0 pointer-events-none"
       />
 
       {/* Fallback River Surface เมื่อเครื่องไม่รองรับ WebGL */}

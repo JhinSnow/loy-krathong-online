@@ -98,6 +98,12 @@ export const ThaiArchitectureSkyline: React.FC = () => {
             <stop offset="75%" stopColor="#78350f" stopOpacity="0.62" />
             <stop offset="100%" stopColor="#160f09" stopOpacity="0.92" />
           </linearGradient>
+
+          {/* Soft Horizon Blend Gradient (ไร้ขอบคั่นแข็งระหว่างพื้นหลังกับผิวน้ำ 3D) */}
+          <linearGradient id="horizonFadeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#1f1710" stopOpacity="0.65" />
+            <stop offset="100%" stopColor="#1f1710" stopOpacity="0" />
+          </linearGradient>
         </defs>
 
         {/* ----------------- 0. เลเยอร์ภูเขาและขอบฟ้าชั้นหลังสุด (Distant Mountain Silhouette - ทิวเขาคอหงส์ Opacity 45%) ----------------- */}
@@ -260,9 +266,8 @@ export const ThaiArchitectureSkyline: React.FC = () => {
           <path d="M 1340 275 L 1420 215 L 1500 275 Z" />
           <path d="M 1310 320 L 1310 280 L 1420 230 L 1530 280 L 1530 320 Z" />
 
-          {/* ----------------- แนวกำแพงแก้ว/ฐานตลิ่งทอดยาวต่อเนื่องตลอดแนวหน้าจอ (เชื่อมต่อกัน 100% ไม่เว้นช่องว่างตรงกลาง) ----------------- */}
-          <rect x="0" y="302" width="1600" height="18" fill="#26190e" stroke="#f59e0b" strokeWidth="1" />
-          <line x1="0" y1="316" x2="1600" y2="316" stroke="#fde047" strokeWidth="2.2" opacity="0.92" />
+          {/* ----------------- รอยต่อนุ่มนวลสู่ผิวน้ำ 3D (นำกำแพงคั่นแข็งออกทั้งหมด) ----------------- */}
+          <rect x="0" y="296" width="1600" height="24" fill="url(#horizonFadeGrad)" stroke="none" />
 
           {[80, 180, 320, 440, 1160, 1280, 1400, 1500].map((pos, i) => (
             <g key={i} transform={`translate(${pos}, 288)`}>
