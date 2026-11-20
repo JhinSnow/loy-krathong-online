@@ -61,6 +61,10 @@ interface FloatingKrathong3DEntry {
   scale: number;
   phase: number;
   justLaunched: boolean;
+  lastSx?: number;
+  lastSy?: number;
+  lastOp?: number;
+  lastHidden?: boolean;
 }
 
 interface RiverBounds {
@@ -636,6 +640,8 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
     let cachedMoonX = 0;
     let cachedMoonY = 0;
     let cachedMoonR = 0;
+    const skyBackdropCanvas = typeof document !== 'undefined' ? document.createElement('canvas') : null;
+    const skyBackdropCtx = skyBackdropCanvas ? skyBackdropCanvas.getContext('2d') : null;
 
     // Pre-render offscreen sky lantern sprite once so renderLoop uses fast drawImage instead of per-frame radial gradients
     const lanternSprite = typeof document !== 'undefined' ? document.createElement('canvas') : null;
@@ -684,6 +690,23 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       cachedHaloGrad.addColorStop(0, 'rgba(254, 240, 138, 0.55)');
       cachedHaloGrad.addColorStop(0.45, 'rgba(245, 158, 11, 0.20)');
       cachedHaloGrad.addColorStop(1, 'rgba(245, 158, 11, 0)');
+
+      if (skyBackdropCanvas && skyBackdropCtx) {
+        skyBackdropCanvas.width = w;
+        skyBackdropCanvas.height = skyH;
+        skyBackdropCtx.fillStyle = cachedSkyGrad;
+        skyBackdropCtx.fillRect(0, 0, w, skyH);
+
+        skyBackdropCtx.fillStyle = cachedHaloGrad;
+        skyBackdropCtx.beginPath();
+        skyBackdropCtx.arc(cachedMoonX, cachedMoonY, cachedMoonR * 3.6, 0, Math.PI * 2);
+        skyBackdropCtx.fill();
+
+        skyBackdropCtx.fillStyle = '#fef3c7';
+        skyBackdropCtx.beginPath();
+        skyBackdropCtx.arc(cachedMoonX, cachedMoonY, cachedMoonR, 0, Math.PI * 2);
+        skyBackdropCtx.fill();
+      }
     };
 
     if (renderer && mount) {
@@ -715,8 +738,8 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       water = createRealisticRiverWater({
         width: 90,
         depth: 44,
-        reflectionWidth: w < 768 ? 256 : 512,
-        reflectionHeight: w < 768 ? 160 : 256,
+        reflectionWidth: w < 768 ? 224 : 384,
+        reflectionHeight: w < 768 ? 128 : 192,
         isCircularPond: false,
         hasReflection: true,
         isPreview: false
@@ -810,6 +833,8 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
 
+    const hitCenterVec = new THREE.Vector3();
+
     const handleSceneClick = (ev: MouseEvent) => {
       const targetEl = renderer?.domElement || skyCanvas;
       if (!targetEl) return;
@@ -820,20 +845,26 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         pointer.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
         raycaster.setFromCamera(pointer, camera);
 
-        const hits = raycaster.intersectObjects(krathongContainer.children, true);
-        if (hits.length > 0) {
-          let obj: THREE.Object3D | null = hits[0].object;
-          while (obj && !obj.userData?.krathongId) {
-            obj = obj.parent;
-          }
-          const hitId = obj?.userData?.krathongId;
-          if (hitId) {
-            const found = krathongsRef.current.find((k) => k.id === hitId);
-            if (found) {
-              setSelectedKrathong(found);
-              return;
+        // Fast O(N) bounding-sphere hit-testing on active krathongs (avoids raycasting 15,000+ triangles)
+        const entries = sceneEntriesRef.current;
+        let bestEntry: FloatingKrathong3DEntry | null = null;
+        let bestCamDist = Infinity;
+        for (let i = 0; i < entries.length; i++) {
+          const entry = entries[i];
+          hitCenterVec.set(entry.worldX, 0.28 * entry.scale, entry.worldZ);
+          const hitRadius = 1.05 * entry.scale;
+          const distSq = raycaster.ray.distanceSqToPoint(hitCenterVec);
+          if (distSq <= hitRadius * hitRadius) {
+            const camDist = camera.position.distanceToSquared(hitCenterVec);
+            if (camDist < bestCamDist) {
+              bestCamDist = camDist;
+              bestEntry = entry;
             }
           }
+        }
+        if (bestEntry) {
+          setSelectedKrathong(bestEntry.item);
+          return;
         }
       }
 
@@ -904,11 +935,25 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       const sw = skyCanvas.width;
       const sh = skyCanvas.height;
 
-      // ท้องฟ้ายามค่ำคืนโทนอุ่นสีน้ำตาลทองนวล (กลมกลืนไร้แถบน้ำตาลขอบล่าง)
-      skyCtx.fillStyle = cachedSkyGrad || '#120b06';
-      skyCtx.fillRect(0, 0, sw, sh);
+      // วาดพื้นหลังท้องฟ้ายามค่ำคืน + พระจันทร์วันเพ็ญจาก Offscreen Cache ในคำสั่งเดียว
+      if (skyBackdropCanvas && skyBackdropCanvas.width === sw && skyBackdropCanvas.height === sh) {
+        skyCtx.drawImage(skyBackdropCanvas, 0, 0);
+      } else {
+        skyCtx.fillStyle = cachedSkyGrad || '#120b06';
+        skyCtx.fillRect(0, 0, sw, sh);
+        if (cachedHaloGrad) {
+          skyCtx.fillStyle = cachedHaloGrad;
+          skyCtx.beginPath();
+          skyCtx.arc(cachedMoonX, cachedMoonY, cachedMoonR * 3.6, 0, Math.PI * 2);
+          skyCtx.fill();
+        }
+        skyCtx.fillStyle = '#fef3c7';
+        skyCtx.beginPath();
+        skyCtx.arc(cachedMoonX, cachedMoonY, cachedMoonR, 0, Math.PI * 2);
+        skyCtx.fill();
+      }
 
-      // ดวงดาวระยิบระยับสีทองนวล (ใช้ fillStyle คงที่และปรับ globalAlpha แทนการสร้างสตริงใหม่ทุกเฟรม)
+      // ดวงดาวระยิบระยับสีทองนวล (ใช้ fillRect สำหรับดาวดวงเล็กเพื่อลด overhead ของ path/arc)
       const stars = starsRef.current;
       skyCtx.fillStyle = '#fef3c7';
       for (let i = 0; i < stars.length; i++) {
@@ -922,24 +967,18 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
           s.delta = Math.abs(s.delta);
         }
         skyCtx.globalAlpha = s.alpha;
-        skyCtx.beginPath();
-        skyCtx.arc(s.xFrac * sw, s.yFrac * sh, s.size, 0, Math.PI * 2);
-        skyCtx.fill();
+        const sx = s.xFrac * sw;
+        const sy = s.yFrac * sh;
+        if (s.size < 1.35) {
+          const d = s.size * 1.75;
+          skyCtx.fillRect(sx - d * 0.5, sy - d * 0.5, d, d);
+        } else {
+          skyCtx.beginPath();
+          skyCtx.arc(sx, sy, s.size, 0, Math.PI * 2);
+          skyCtx.fill();
+        }
       }
       skyCtx.globalAlpha = 1;
-
-      // พระจันทร์วันเพ็ญสีเหลืองทองนวล + แสงรัศมีอุ่น (Cached Gradient)
-      if (cachedHaloGrad) {
-        skyCtx.fillStyle = cachedHaloGrad;
-        skyCtx.beginPath();
-        skyCtx.arc(cachedMoonX, cachedMoonY, cachedMoonR * 3.6, 0, Math.PI * 2);
-        skyCtx.fill();
-      }
-
-      skyCtx.fillStyle = '#fef3c7';
-      skyCtx.beginPath();
-      skyCtx.arc(cachedMoonX, cachedMoonY, cachedMoonR, 0, Math.PI * 2);
-      skyCtx.fill();
 
       // โคมลอยสีทองอุ่นบนท้องฟ้า (วาดจาก Offscreen Sprite ลด save/restore & createRadialGradient)
       const lanterns = lanternsRef.current;
@@ -1127,14 +1166,32 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
             projVec.project(camera);
 
             if (projVec.z > 1 || projVec.z < -1 || projVec.x < -1.12 || projVec.x > 1.12) {
-              labelEl.style.opacity = '0';
-              labelEl.style.pointerEvents = 'none';
+              if (!entry.lastHidden) {
+                labelEl.style.opacity = '0';
+                labelEl.style.pointerEvents = 'none';
+                entry.lastHidden = true;
+              }
             } else {
               const sx = (projVec.x * 0.5 + 0.5) * w;
               const sy = (-projVec.y * 0.5 + 0.5) * h;
-              labelEl.style.transform = `translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0) translate(-50%, -100%)`;
-              labelEl.style.opacity = String(Math.min(1, entry.opacity * 0.96));
-              labelEl.style.pointerEvents = 'auto';
+              const op = Math.min(1, entry.opacity * 0.96);
+              if (
+                entry.lastHidden ||
+                Math.abs(sx - (entry.lastSx ?? -999)) >= 0.22 ||
+                Math.abs(sy - (entry.lastSy ?? -999)) >= 0.22
+              ) {
+                labelEl.style.transform = `translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0) translate(-50%, -100%)`;
+                entry.lastSx = sx;
+                entry.lastSy = sy;
+              }
+              if (entry.lastHidden || Math.abs(op - (entry.lastOp ?? -1)) >= 0.02) {
+                labelEl.style.opacity = op.toFixed(2);
+                entry.lastOp = op;
+              }
+              if (entry.lastHidden !== false) {
+                labelEl.style.pointerEvents = 'auto';
+                entry.lastHidden = false;
+              }
             }
           }
         }
@@ -1145,10 +1202,12 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
           syncLabelItems();
         }
 
-        // 5. อัปเดต Shader ผิวน้ำ + เรนเดอร์ Planar Reflection ที่ 30Hz (ลดภาระ GPU ลงครึ่งหนึ่ง)
+        // 5. อัปเดต Shader ผิวน้ำ + เรนเดอร์ Planar Reflection (ซ่อนกลีบดอกไม้เล็กๆ ระหว่างวาดเงาสะท้อนเพื่อลด Draw Calls)
         water.update(elapsedSec);
-        if (frameCount === 0 || reflectionDirty || frameCount % 2 === 0) {
+        if (frameCount === 0 || reflectionDirty || frameCount % 3 === 0) {
+          if (petalInst) petalInst.visible = false;
           water.renderReflection(renderer, scene, camera);
+          if (petalInst) petalInst.visible = true;
           reflectionDirty = false;
         }
         frameCount++;

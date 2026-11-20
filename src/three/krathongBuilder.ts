@@ -46,6 +46,10 @@ interface SharedAssets {
   waistBandGeo: THREE.TorusGeometry;
   deckPadGeo: THREE.CylinderGeometry;
   candleStickGeo: THREE.CylinderGeometry;
+  flameOuterGeo: THREE.ConeGeometry;
+  flameInnerGeo: THREE.ConeGeometry;
+  coconutBowlGeo: THREE.SphereGeometry;
+  breadBunGeo: THREE.SphereGeometry;
   incenseStemGeo: THREE.CylinderGeometry;
   incenseTipGeo: THREE.SphereGeometry;
   heartGeo: THREE.BufferGeometry;
@@ -497,6 +501,10 @@ function getSharedAssets(): SharedAssets {
     waistBandGeo: markShared(new THREE.TorusGeometry(0.89, 0.022, 8, 32)),
     deckPadGeo: markShared(new THREE.CylinderGeometry(0.79, 0.80, 0.06, 28)),
     candleStickGeo: markShared(new THREE.CylinderGeometry(0.064, 0.072, 0.40, 14)),
+    flameOuterGeo: markShared(new THREE.ConeGeometry(0.052, 0.16, 8)),
+    flameInnerGeo: markShared(new THREE.ConeGeometry(0.025, 0.09, 6)),
+    coconutBowlGeo: markShared(new THREE.SphereGeometry(0.90, 24, 14, 0, Math.PI * 2, Math.PI * 0.5, Math.PI * 0.5)),
+    breadBunGeo: markShared(new THREE.SphereGeometry(0.18, 10, 8)),
     incenseStemGeo: markShared(new THREE.CylinderGeometry(0.011, 0.012, 0.64, 6)),
     incenseTipGeo: markShared(new THREE.SphereGeometry(0.016, 6, 6)),
     heartGeo: createHeartGeometry(),
@@ -642,12 +650,34 @@ const CENTERPIECE_MODELS = new Set([
   'crystal_heart'
 ]);
 
+const sharedMatCache = new Map<string, THREE.MeshStandardMaterial>();
+
 function makeMat(params: THREE.MeshStandardMaterialParameters): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({
+  const key = [
+    params.color ?? 0xffffff,
+    params.map?.uuid ?? '',
+    params.bumpMap?.uuid ?? '',
+    params.bumpScale ?? '',
+    params.roughness ?? 0.48,
+    params.metalness ?? 0.06,
+    params.emissive ?? 0x000000,
+    params.emissiveIntensity ?? 1,
+    params.transparent ? 1 : 0,
+    params.opacity ?? 1,
+    params.side ?? THREE.FrontSide
+  ].join('|');
+
+  const cached = sharedMatCache.get(key);
+  if (cached) return cached;
+
+  const mat = new THREE.MeshStandardMaterial({
     roughness: 0.48,
     metalness: 0.06,
     ...params
   });
+  mat.userData.shared = true;
+  sharedMatCache.set(key, mat);
+  return mat;
 }
 
 // =========================================================================
@@ -1448,16 +1478,15 @@ export function buildKrathong3D(options: BuildKrathong3DOptions): {
 
   if (baseKey === 'coconut') {
     const bowl = new THREE.Mesh(
-      new THREE.SphereGeometry(0.90, 24, 14, 0, Math.PI * 2, Math.PI * 0.5, Math.PI * 0.5),
+      assets.coconutBowlGeo,
       makeMat({ color: 0x5c3a21, map: assets.coconutTex, roughness: 0.5, side: THREE.DoubleSide })
     );
     bowl.scale.y = 0.44;
     bowl.position.y = 0.22;
     group.add(bowl);
   } else if (baseKey === 'bread') {
-    const bunGeo = new THREE.SphereGeometry(0.18, 10, 8);
     const bunMat = makeMat({ color: 0xffffff, map: assets.breadTex, roughness: 0.55 });
-    const bunInst = new THREE.InstancedMesh(bunGeo, bunMat, 14);
+    const bunInst = new THREE.InstancedMesh(assets.breadBunGeo, bunMat, 14);
     const dummy = new THREE.Object3D();
     const cObj = new THREE.Color(0xffffff);
     for (let i = 0; i < 14; i++) {
@@ -1620,7 +1649,7 @@ export function buildKrathong3D(options: BuildKrathong3DOptions): {
     candleGroup.add(wax);
 
     const flameOuter = new THREE.Mesh(
-      new THREE.ConeGeometry(0.052, 0.16, 8),
+      assets.flameOuterGeo,
       makeMat({
         color: flameColor,
         emissive: flameColor,
@@ -1633,7 +1662,7 @@ export function buildKrathong3D(options: BuildKrathong3DOptions): {
     candleGroup.add(flameOuter);
 
     const flameInner = new THREE.Mesh(
-      new THREE.ConeGeometry(0.025, 0.09, 6),
+      assets.flameInnerGeo,
       makeMat({ color: 0xffffff, emissive: 0xfffbeb, emissiveIntensity: 1.6 })
     );
     flameInner.position.set(cx, h + 0.08, 0.02);
@@ -1858,7 +1887,7 @@ export function disposeKrathong3D(root: THREE.Object3D): void {
       }
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
       mats.forEach((m) => {
-        if (!m) return;
+        if (!m || m.userData?.shared) return;
         const std = m as THREE.MeshStandardMaterial;
         if (std.map && !std.map.userData?.shared) std.map.dispose();
         if (std.bumpMap && !std.bumpMap.userData?.shared) std.bumpMap.dispose();

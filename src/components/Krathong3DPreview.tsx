@@ -207,7 +207,11 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
     const handleUserInteract = () => {
       targetCameraPosRef.current = null;
     };
+    const handleControlsChange = () => {
+      reflectionDirtyRef.current = true;
+    };
     controls.addEventListener('start', handleUserInteract);
+    controls.addEventListener('change', handleControlsChange);
 
     // สร้างโมเดลกระทงเริ่มต้นทันทีที่ mount
     const initProps = initialModelPropsRef.current;
@@ -325,9 +329,19 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
       }
 
       water.update(elapsedSec);
-      // Render reflection at 30Hz (and immediately whenever scene/model state changes)
-      if (frameCount === 0 || reflectionDirtyRef.current || frameCount % 2 === 0) {
+      // On-demand reflection during camera/model changes + gentle idle refresh (water shader ripples at 60 FPS)
+      if (
+        frameCount === 0 ||
+        reflectionDirtyRef.current ||
+        pulseStartRef.current !== null ||
+        targetCameraPosRef.current !== null ||
+        frameCount % 8 === 0
+      ) {
+        leafInst.visible = false;
+        bloomInst.visible = false;
         water.renderReflection(renderer, scene, camera);
+        leafInst.visible = true;
+        bloomInst.visible = true;
         reflectionDirtyRef.current = false;
       }
       frameCount++;
@@ -362,6 +376,7 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
       if (animId) cancelAnimationFrame(animId);
       resizeObserver?.disconnect();
       controls.removeEventListener('start', handleUserInteract);
+      controls.removeEventListener('change', handleControlsChange);
       controls.dispose();
       if (krathongGroupRef.current) {
         scene.remove(krathongGroupRef.current);
