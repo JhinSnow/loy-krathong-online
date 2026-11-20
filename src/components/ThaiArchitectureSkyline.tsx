@@ -101,10 +101,10 @@ const ThaiArchitectureSkylineBase: React.FC = () => {
             <stop offset="100%" stopColor="#24180e" stopOpacity="0.92" />
           </linearGradient>
 
-          {/* Soft Horizon Blend Gradient (ไร้ขอบคั่นแข็งระหว่างพื้นหลังกับผิวน้ำ 3D สี Turquoise Blue) */}
+          {/* Soft Horizon Blend Gradient (ไร้ขอบคั่นแข็งระหว่างพื้นหลังกับผิวน้ำ 3D สี Crystal Aqua Turquoise) */}
           <linearGradient id="horizonFadeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#0a4f5c" stopOpacity="0.65" />
-            <stop offset="100%" stopColor="#0a4f5c" stopOpacity="0" />
+            <stop offset="0%" stopColor="#0c7c94" stopOpacity="0.65" />
+            <stop offset="100%" stopColor="#0c7c94" stopOpacity="0" />
           </linearGradient>
         </defs>
 

@@ -135,50 +135,66 @@ const WATER_FRAGMENT_SHADER = /* glsl */ `
     float ndotv = max(dot(viewDir, normal), 0.0);
     float fresnel = clamp(0.16 + 0.84 * pow(1.0 - ndotv, 2.2), 0.0, 1.0);
 
-    // Four-stage dimensional turquoise shading from deep troughs to crisp crest ribbons
-    float slopeLight = smoothstep(-0.32, 0.36, normal.z);
-    float bodyMix = clamp(waveH * 0.62 + slopeLight * 0.48 - 0.10, 0.0, 1.0);
-    vec3 waterColor = mix(uDeepColor, uShallowColor, smoothstep(0.08, 0.82, bodyMix));
+    // Bright, crystal-clear turquoise water body with translucent depth & caustics
+    float slopeLight = clamp(normal.z * 1.45 + 0.52, 0.0, 1.0);
+    float bodyMix = clamp(waveH * 0.66 + slopeLight * 0.44, 0.0, 1.0);
+    vec3 waterColor = mix(uDeepColor, uShallowColor, bodyMix);
 
-    // Luminous aqua-turquoise wave slopes
-    float slopeCrest = smoothstep(0.46, 0.86, waveH * 0.58 + slopeLight * 0.52);
-    waterColor = mix(waterColor, uRippleHighlight, slopeCrest * (0.54 + 0.38 * fresnel));
+    // Subsurface crystal caustic glow so water looks luminous and clear, never murky
+    float causticA = sin(vWorldPos.x * 2.4 + vWorldPos.z * 3.3 - uTime * 1.65);
+    float causticB = cos(vWorldPos.z * 4.1 - vWorldPos.x * 1.85 + uTime * 1.35);
+    float caustic = clamp(0.5 + 0.5 * causticA * causticB, 0.0, 1.0);
+    waterColor = mix(waterColor, uRippleHighlight, caustic * 0.24);
 
-    // Crisp icy-aqua wavelet ribbon lines on wave peaks and concentric ring crests
-    float ribbonLine = pow(smoothstep(0.64, 0.94, waveH * 0.64 + slopeLight * 0.44), 2.1);
-    waterColor = mix(waterColor, uCrestFoam, ribbonLine * 0.56);
+    // Bright cyan-aqua slope & crest highlights so waves stand out vividly
+    float crestBand = smoothstep(0.42, 0.84, waveH);
+    float slopeBand = smoothstep(0.03, 0.28, abs(normal.z)) * 0.62;
+    waterColor = mix(waterColor, uRippleHighlight, clamp(crestBand * 0.72 + slopeBand, 0.0, 0.88));
+
+    // Crisp white-aqua wavelet ribbon lines on wave peaks and concentric ring crests
+    float ribbonA = sin(vWorldPos.z * 8.5 + vWorldPos.x * 0.9 - uTime * 2.3 + normal.x * 6.0);
+    float ribbonB = cos(vWorldPos.x * 2.6 - vWorldPos.z * 5.2 + uTime * 1.7 + normal.z * 5.0);
+    float ribbonLine = smoothstep(0.56, 0.92, ribbonA * 0.55 + ribbonB * 0.45) * smoothstep(0.38, 0.78, waveH);
+    float crestLine = pow(smoothstep(0.62, 0.94, waveH * 0.64 + slopeLight * 0.44), 2.0);
+    waterColor = mix(waterColor, uCrestFoam, clamp(ribbonLine * 0.68 + crestLine * 0.42, 0.0, 0.85));
+
+    // Gentle sky-aqua Fresnel lift without darkening the water
+    vec3 col = mix(waterColor, mix(uShallowColor, uRippleHighlight, 0.58), fresnel * 0.42);
 
     float distShore = max(0.0, vWorldPos.z - uShoreZ);
 
-    // Warm golden light reflections on water surface
+    // Crisp champagne-gold crest glints only (prevents yellow/cyan muddy mixing)
     if (uIsPreview < 0.5) {
       float shoreMask = exp(-distShore * 0.22);
-      float pumpkinGlow = exp(-abs(vWorldPos.x) * 0.16) * 1.15;
-      float flankLamps = 0.55 + 0.45 * cos(vWorldPos.x * 0.72);
-      float rippleSlice = 0.35 + 0.65 * smoothstep(-0.08, 0.24, normal.z);
-      float shoreShimmer = shoreMask * (0.48 + pumpkinGlow * 0.65 + flankLamps * 0.38) * rippleSlice;
-      waterColor += uShoreGold * shoreShimmer * 0.38;
+      float pumpkinGlow = exp(-abs(vWorldPos.x) * 0.16) * 0.95;
+      float flankLamps = 0.45 + 0.55 * cos(vWorldPos.x * 0.72);
+      float rippleSlice = pow(smoothstep(0.04, 0.35, normal.z), 2.2);
+      float shoreShimmer = shoreMask * (0.28 + pumpkinGlow * 0.55 + flankLamps * 0.30) * rippleSlice;
+      col += uShoreGold * shoreShimmer * 0.28;
 
-      // Soft warm moon specular shimmer along right side
-      float moonLane = exp(-pow((vWorldPos.x - 8.2) * 0.18, 2.0)) * smoothstep(2.0, -14.0, vWorldPos.z);
+      // Clean white-gold moon specular sparkle along right water lane
+      float moonLane = exp(-pow((vWorldPos.x - 8.2) * 0.18, 2.0)) * (1.0 - smoothstep(-14.0, 2.0, vWorldPos.z));
       vec3 halfVec = normalize(uMoonDir + viewDir);
-      float moonSpec = pow(max(dot(normal, halfVec), 0.0), 34.0);
-      float moonWide = pow(max(dot(normal, halfVec), 0.0), 9.0) * 0.24;
-      waterColor += uMoonColor * (moonSpec * 0.58 + moonWide * moonLane * 0.92);
+      float moonSpec = pow(max(dot(normal, halfVec), 0.0), 38.0);
+      float moonWide = pow(max(dot(normal, halfVec), 0.0), 10.0) * 0.20;
+      col += uMoonColor * (moonSpec * 0.62 + moonWide * moonLane * 0.85);
     } else {
-      // Customizer preview mode: vertical golden reflection streaks dancing across turquoise ripples
-      float backGlow = smoothstep(3.4, -4.2, vWorldPos.z);
-      float col1 = exp(-pow((vWorldPos.x + 1.45) * 1.9, 2.0));
-      float col2 = exp(-pow((vWorldPos.x - 1.35) * 2.1, 2.0));
-      float colMid = 0.35 + 0.65 * (0.5 + 0.5 * sin(vWorldPos.x * 1.65 + 0.4));
-      float rippleSlice = 0.32 + 0.68 * smoothstep(-0.08, 0.24, normal.z);
-      float streakIntensity = backGlow * (col1 * 0.72 + col2 * 0.65 + colMid * 0.24) * rippleSlice;
-      waterColor += uShoreGold * streakIntensity * 0.36;
+      // Customizer preview mode: crisp crest glints + bright concentric aura around krathong
+      float backGlow = 1.0 - smoothstep(-4.5, 3.4, vWorldPos.z);
+      float streak1 = 0.5 + 0.5 * sin(vWorldPos.x * 1.4 + uTime * 1.5 + normal.x * 8.0);
+      float streak2 = 0.5 + 0.5 * cos(vWorldPos.x * 2.7 - uTime * 1.2 + normal.z * 10.0);
+      float rippleSlice = pow(smoothstep(0.04, 0.34, normal.z), 2.0);
+      float shoreLight = backGlow * (0.30 + 0.70 * streak1 * streak2) * rippleSlice;
+      col += uShoreGold * shoreLight * 0.24;
+
+      float distCenter = length(vWorldPos.xz);
+      float centerGlow = exp(-distCenter * 0.32) * (0.68 + 0.32 * sin(distCenter * 12.0 - uTime * 3.0));
+      col += mix(uRippleHighlight, uCrestFoam, 0.45) * centerGlow * 0.26;
     }
 
-    vec3 finalColor = waterColor;
+    vec3 finalColor = col;
 
-    // Inverted 3D krathong planar reflection broken horizontally by water ripples
+    // Inverted 3D krathong planar reflection seen cleanly through crystal water
     if (uHasReflection > 0.5 && abs(vReflCoord.w) > 0.001) {
       vec2 projUv = vReflCoord.xy / vReflCoord.w;
       float damp = 1.0 / (1.0 + abs(vReflCoord.w) * 0.028);
@@ -186,9 +202,13 @@ const WATER_FRAGMENT_SHADER = /* glsl */ `
       vec2 distortedUv = clamp(projUv + distort, vec2(0.002), vec2(0.998));
       vec4 reflSample = texture2D(uReflectionMap, distortedUv);
 
-      float reflWeight = reflSample.a * clamp(0.68 + fresnel * 0.25, 0.0, 0.90);
-      finalColor = mix(finalColor, reflSample.rgb * 0.95, reflWeight);
+      float reflWeight = reflSample.a * clamp(0.62 + fresnel * 0.26, 0.0, 0.88);
+      finalColor = mix(finalColor, reflSample.rgb * 1.04 + waterColor * 0.14, reflWeight);
     }
+
+    // Subtle crisp sparkle on sharpest peaks
+    float peakSparkle = pow(clamp(normal.z * 0.5 + waveH * 0.5, 0.0, 1.0), 10.0);
+    finalColor += uCrestFoam * peakSparkle * 0.12;
 
     float alpha = 1.0;
     if (uIsCircularPond > 0.5) {
@@ -196,8 +216,14 @@ const WATER_FRAGMENT_SHADER = /* glsl */ `
       alpha = 1.0 - smoothstep(uPondRadius * 0.72, uPondRadius, radial);
       if (alpha <= 0.01) discard;
     } else if (uIsPreview < 0.5) {
-      // Softly feather top horizon edge into skyline without a hard line
+      // Gently blend top horizon into skyline while keeping water luminous
+      float horizon = 1.0 - smoothstep(0.0, 4.5, distShore);
+      finalColor = mix(finalColor, uDeepColor * 0.96 + uShallowColor * 0.14, horizon * 0.28);
       alpha = smoothstep(0.0, 1.15, distShore);
+    } else {
+      float edgeDist = length(vWorldPos.xz);
+      float vignette = smoothstep(4.2, 8.2, edgeDist);
+      finalColor = mix(finalColor, uDeepColor * 0.94, vignette * 0.20);
     }
 
     gl_FragColor = vec4(finalColor, alpha);
@@ -253,12 +279,12 @@ export function createRealisticRiverWater(options: {
       uTextureMatrix: { value: textureMatrix },
       uTime: { value: 0 },
       uMoonDir: { value: new THREE.Vector3(0.42, 0.26, -0.87).normalize() },
-      uDeepColor: { value: new THREE.Color('#063844') },
-      uShallowColor: { value: new THREE.Color('#0e8fa3') },
-      uRippleHighlight: { value: new THREE.Color('#5ef0fa') },
-      uCrestFoam: { value: new THREE.Color('#ccfaff') },
-      uShoreGold: { value: new THREE.Color('#fbbf24') },
-      uMoonColor: { value: new THREE.Color('#fef3c7') },
+      uDeepColor: { value: new THREE.Color('#0c7c94') },
+      uShallowColor: { value: new THREE.Color('#16bdd9') },
+      uRippleHighlight: { value: new THREE.Color('#67f5ff') },
+      uCrestFoam: { value: new THREE.Color('#e8feff') },
+      uShoreGold: { value: new THREE.Color('#fff7d6') },
+      uMoonColor: { value: new THREE.Color('#ffffff') },
       uDistortionX: { value: isPreview ? 0.025 : 0.034 },
       uDistortionZ: { value: isPreview ? 0.014 : 0.018 },
       uShoreZ: { value: shoreZ },
