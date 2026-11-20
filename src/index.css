@@ -118,6 +118,142 @@
   animation: uiSkeletonPulse 1.6s ease-in-out infinite;
 }
 
+@keyframes viewZoomInExit {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.055);
+  }
+}
+
+@keyframes viewZoomInEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.955);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes viewZoomOutExit {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.945);
+  }
+}
+
+@keyframes viewZoomOutEnter {
+  from {
+    opacity: 0;
+    transform: scale(1.055);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes viewFadeExit {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes panelSlideOutBottom {
+  from {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+  to {
+    transform: translate3d(0, 100%, 0);
+    opacity: 0;
+  }
+}
+
+@keyframes panelSlideOutRight {
+  from {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+  to {
+    transform: translate3d(100%, 0, 0);
+    opacity: 0;
+  }
+}
+
+@keyframes riverLaunchZoomOut {
+  0% {
+    transform: scale(1.52);
+    opacity: 0.22;
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes riverHudEnter {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-view-zoom-in-exit {
+  animation: viewZoomInExit 150ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+.animate-view-zoom-in-enter {
+  animation: viewZoomInEnter 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-view-zoom-out-exit {
+  animation: viewZoomOutExit 150ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+.animate-view-zoom-out-enter {
+  animation: viewZoomOutEnter 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-view-fade-exit {
+  animation: viewFadeExit 140ms ease-out both;
+}
+
+.animate-panel-launch-out {
+  animation: panelSlideOutBottom 440ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@media (min-width: 768px) {
+  .animate-panel-launch-out {
+    animation: panelSlideOutRight 440ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+}
+
+.animate-river-launch-zoom {
+  transform-origin: 36% 74%;
+  animation: riverLaunchZoomOut 1550ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+.animate-river-hud-enter {
+  animation: riverHudEnter 460ms cubic-bezier(0.16, 1, 0.3, 1) 360ms both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

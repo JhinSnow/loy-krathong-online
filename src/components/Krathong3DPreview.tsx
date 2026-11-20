@@ -26,6 +26,7 @@ interface Krathong3DPreviewProps {
   fullBleed?: boolean;
   paused?: boolean;
   pulseNonce?: number;
+  isLaunching?: boolean;
 }
 
 type CameraPreset = 'angled' | 'top';
@@ -33,6 +34,8 @@ type CameraPreset = 'angled' | 'top';
 const ANGLE_DEFAULT_POS = new THREE.Vector3(0, 2.08, 1.52);
 const TOP_VIEW_POS = new THREE.Vector3(0, 2.78, 0.36);
 const CAMERA_TARGET = new THREE.Vector3(0, 0.22, 0);
+const LAUNCH_CAM_END = new THREE.Vector3(-0.38, 3.65, 5.45);
+const LAUNCH_TARGET_END = new THREE.Vector3(0.35, 0.28, -1.35);
 
 function getStructureKey(
   baseType: string,
@@ -59,7 +62,8 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
   compact = false,
   fullBleed = false,
   paused = false,
-  pulseNonce = 0
+  pulseNonce = 0,
+  isLaunching = false
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [webglReady] = useState<boolean>(() => isWebGLAvailable());
@@ -87,6 +91,10 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
   const resumeLoopRef = useRef<(() => void) | null>(null);
   const pulseStartRef = useRef<number | null>(null);
   const prevPulseNonceRef = useRef<number>(pulseNonce);
+  const isLaunchingRef = useRef<boolean>(isLaunching);
+  const launchStartRef = useRef<number | null>(null);
+  const launchCamOriginRef = useRef<THREE.Vector3>(ANGLE_DEFAULT_POS.clone());
+  const launchTargetOriginRef = useRef<THREE.Vector3>(CAMERA_TARGET.clone());
 
   // ตั้งค่า Three.js Scene + Rippling Water + Floating Leaves/Blooms + OrbitControls
   useEffect(() => {
@@ -268,32 +276,57 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
       lastNow = now;
       elapsedSec += dt;
 
-      if (targetCameraPosRef.current) {
-        camera.position.lerp(targetCameraPosRef.current, 0.14);
-        if (camera.position.distanceTo(targetCameraPosRef.current) < 0.02) {
-          camera.position.copy(targetCameraPosRef.current);
-          targetCameraPosRef.current = null;
+      let launchEase = 0;
+      if (isLaunchingRef.current) {
+        if (launchStartRef.current === null) {
+          launchStartRef.current = now;
+          launchCamOriginRef.current.copy(camera.position);
+          launchTargetOriginRef.current.copy(controls.target);
         }
+        controls.enabled = false;
+        const lt = Math.min(1, (now - launchStartRef.current) / 900);
+        launchEase = lt < 0.5 ? 4 * lt * lt * lt : 1 - (-2 * lt + 2) ** 3 / 2;
+        camera.position.lerpVectors(launchCamOriginRef.current, LAUNCH_CAM_END, launchEase);
+        controls.target.lerpVectors(launchTargetOriginRef.current, LAUNCH_TARGET_END, launchEase);
+        camera.lookAt(controls.target);
+      } else {
+        controls.enabled = true;
+        if (targetCameraPosRef.current) {
+          camera.position.lerp(targetCameraPosRef.current, 0.14);
+          if (camera.position.distanceTo(targetCameraPosRef.current) < 0.02) {
+            camera.position.copy(targetCameraPosRef.current);
+            targetCameraPosRef.current = null;
+          }
+        }
+        controls.update();
       }
-
-      controls.update();
 
       const kGroup = krathongGroupRef.current;
       if (kGroup) {
-        kGroup.position.y = Math.sin(elapsedSec * 2.0) * 0.018;
-        kGroup.rotation.z = Math.sin(elapsedSec * 1.4) * 0.016;
-        kGroup.rotation.x = Math.cos(elapsedSec * 1.6) * 0.012;
+        if (isLaunchingRef.current && launchStartRef.current !== null) {
+          kGroup.position.x = 0.58 * launchEase;
+          kGroup.position.z = -1.78 * launchEase;
+          kGroup.position.y = Math.sin(elapsedSec * 2.5) * 0.022;
+          kGroup.rotation.z = Math.sin(elapsedSec * 1.4) * 0.016;
+          kGroup.rotation.x = Math.cos(elapsedSec * 1.6) * 0.012;
+          kGroup.rotation.y = launchEase * 0.32;
+          kGroup.scale.setScalar(1 - 0.16 * launchEase);
+        } else {
+          kGroup.position.y = Math.sin(elapsedSec * 2.0) * 0.018;
+          kGroup.rotation.z = Math.sin(elapsedSec * 1.4) * 0.016;
+          kGroup.rotation.x = Math.cos(elapsedSec * 1.6) * 0.012;
 
-        if (pulseStartRef.current !== null) {
-          const t = Math.min(1, (now - pulseStartRef.current) / 520);
-          const easeOut = 1 - (1 - t) ** 3;
-          kGroup.rotation.y = Math.PI * 0.55 * easeOut * (1 - t * 0.15) * (t < 1 ? Math.sin(t * Math.PI) : 0);
-          const pulseScale = 1 + Math.sin(t * Math.PI) * 0.065;
-          kGroup.scale.setScalar(pulseScale);
-          if (t >= 1) {
-            pulseStartRef.current = null;
-            kGroup.rotation.y = 0;
-            kGroup.scale.setScalar(1);
+          if (pulseStartRef.current !== null) {
+            const t = Math.min(1, (now - pulseStartRef.current) / 520);
+            const easeOut = 1 - (1 - t) ** 3;
+            kGroup.rotation.y = Math.PI * 0.55 * easeOut * (1 - t * 0.15) * (t < 1 ? Math.sin(t * Math.PI) : 0);
+            const pulseScale = 1 + Math.sin(t * Math.PI) * 0.065;
+            kGroup.scale.setScalar(pulseScale);
+            if (t >= 1) {
+              pulseStartRef.current = null;
+              kGroup.rotation.y = 0;
+              kGroup.scale.setScalar(1);
+            }
           }
         }
       }
@@ -335,6 +368,7 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
         reflectionDirtyRef.current ||
         pulseStartRef.current !== null ||
         targetCameraPosRef.current !== null ||
+        (isLaunchingRef.current && frameCount % 2 === 0) ||
         frameCount % 8 === 0
       ) {
         leafInst.visible = false;
@@ -409,6 +443,18 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
       resumeLoopRef.current?.();
     }
   }, [paused]);
+
+  useEffect(() => {
+    isLaunchingRef.current = isLaunching;
+    if (isLaunching) {
+      launchStartRef.current = null;
+      targetCameraPosRef.current = null;
+      reflectionDirtyRef.current = true;
+      resumeLoopRef.current?.();
+    } else {
+      launchStartRef.current = null;
+    }
+  }, [isLaunching]);
 
   useEffect(() => {
     latestCandleColorRef.current = candleColor;
@@ -499,7 +545,9 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
       {/* แคปซูลแนะนำการหมุนตรงกลางล่าง (ตามภาพตัวอย่างที่ 4) */}
       {!compact && (
         <span
-          className={`pointer-events-none px-3.5 py-1.5 rounded-full text-[11px] font-medium bg-[#fdfaf4]/95 text-[#2a1f16] border border-amber-900/15 shadow-md z-10 whitespace-nowrap ${
+          className={`pointer-events-none px-3.5 py-1.5 rounded-full text-[11px] font-medium bg-[#fdfaf4]/95 text-[#2a1f16] border border-amber-900/15 shadow-md z-10 whitespace-nowrap transition-opacity duration-200 ${
+            isLaunching ? 'opacity-0' : 'opacity-100'
+          } ${
             fullBleed
               ? 'hidden sm:inline-flex absolute bottom-4 left-1/2 -translate-x-1/2'
               : 'absolute bottom-2 left-2.5'
@@ -520,7 +568,9 @@ export const Krathong3DPreview: React.FC<Krathong3DPreviewProps> = ({
             : fullBleed
               ? 'bottom-4 right-3 sm:right-4 px-3 py-1.5 text-[11px] font-semibold'
               : 'bottom-2 right-2 px-2.5 py-1 text-[11px]'
-        } flex items-center space-x-1.5 rounded-full bg-[#fdfaf4]/95 hover:bg-white text-[#2a1f16] border border-amber-900/15 shadow-md transition-all duration-150 active:scale-95 cursor-pointer z-10`}
+        } flex items-center space-x-1.5 rounded-full bg-[#fdfaf4]/95 hover:bg-white text-[#2a1f16] border border-amber-900/15 shadow-md transition-all duration-200 active:scale-95 cursor-pointer z-10 ${
+          isLaunching ? 'opacity-0 pointer-events-none' : 'opacity-100'
+        }`}
       >
         <Rotate3D className={compact ? 'w-2.5 h-2.5 text-amber-700' : 'w-3.5 h-3.5 text-amber-700'} />
         <span>{compact ? (viewMode === 'angled' ? 'บน' : '3D') : viewMode === 'angled' ? 'มุมตรงด้านบน' : 'มุมเอียง 3D'}</span>

@@ -285,7 +285,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-[#1c140d]/75 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto animate-ui-fade">
+    <div className="fixed inset-0 bg-[#1c140d]/75 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto touch-auto animate-ui-fade">
       <div className="bg-[#fdfaf4] border border-amber-900/15 text-[#231912] rounded-3xl p-4 sm:p-6 max-w-2xl w-full relative shadow-2xl my-auto max-h-[94vh] flex flex-col animate-ui-modal">
         {isAdminTestMode && onClose && (
           <button
