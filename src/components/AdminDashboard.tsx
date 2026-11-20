@@ -163,19 +163,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
         }
       });
 
-      // ถ้าทั้ง LocalStorage และ Supabase ยังว่าง ลองดึงจาก Cloudflare API (ตรวจสอบ Content-Type ว่าต้องเป็น JSON เท่านั้น)
-      if (mergedKrathongsMap.size === 0) {
-        try {
-          const headers = getAdminAuthHeaders();
-          const listRes = await fetch('/api/krathongs?limit=100', { headers, credentials: 'include' });
-          if (listRes.ok && (listRes.headers.get('content-type') || '').includes('application/json')) {
-            const listData = await listRes.json();
-            if (Array.isArray(listData)) {
-              listData.forEach((item) => mergedKrathongsMap.set(item.id, item));
-            }
+      // ผสานข้อมูลกระทงและแบบประเมินจาก Cloudflare D1 API (รองรับสูงสุด 3,000+ รายการ หากมีเครื่องที่บันทึกผ่าน D1 Fallback)
+      try {
+        const headers = getAdminAuthHeaders();
+        const [listRes, evalRes] = await Promise.all([
+          fetch('/api/krathongs?status=all&limit=3000', { headers, credentials: 'include' }).catch(() => null),
+          fetch('/api/evaluations?limit=3000', { headers, credentials: 'include' }).catch(() => null)
+        ]);
+        if (listRes && listRes.ok && (listRes.headers.get('content-type') || '').includes('application/json')) {
+          const listData = await listRes.json();
+          if (Array.isArray(listData)) {
+            listData.forEach((item) => {
+              if (item?.id && !mergedKrathongsMap.has(item.id)) {
+                mergedKrathongsMap.set(item.id, item);
+              }
+            });
           }
-        } catch {}
-      }
+        }
+        if (evalRes && evalRes.ok && (evalRes.headers.get('content-type') || '').includes('application/json')) {
+          const evalData = await evalRes.json();
+          if (Array.isArray(evalData)) {
+            const existingEvalIds = new Set(supaEvals.map((e) => e.id));
+            evalData.forEach((row) => {
+              if (row?.id && !existingEvalIds.has(row.id)) {
+                supaEvals.push(row);
+                existingEvalIds.add(row.id);
+              }
+            });
+          }
+        }
+      } catch {}
 
       // นำสถานะ Override (อนุมัติ / ซ่อน / ลบ) มาประยุกต์กับทุกกระทง
       const allKrathongs = Array.from(mergedKrathongsMap.values())

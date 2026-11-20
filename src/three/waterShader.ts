@@ -135,31 +135,31 @@ const WATER_FRAGMENT_SHADER = /* glsl */ `
     float ndotv = max(dot(viewDir, normal), 0.0);
     float fresnel = clamp(0.16 + 0.84 * pow(1.0 - ndotv, 2.2), 0.0, 1.0);
 
-    // Bright, crystal-clear turquoise water body with translucent depth & caustics
+    // Deep Sea Blue (#00415a) water body with dimensional troughs (#002d40) and aqua wave crests
     float slopeLight = clamp(normal.z * 1.45 + 0.52, 0.0, 1.0);
-    float bodyMix = clamp(waveH * 0.66 + slopeLight * 0.44, 0.0, 1.0);
+    float bodyMix = smoothstep(0.10, 0.76, waveH * 0.64 + slopeLight * 0.44);
     vec3 waterColor = mix(uDeepColor, uShallowColor, bodyMix);
 
-    // Subsurface crystal caustic glow so water looks luminous and clear, never murky
+    // Subtle subsurface crystal caustic glow keeping #00415a clearly visible and dimensional
     float causticA = sin(vWorldPos.x * 2.4 + vWorldPos.z * 3.3 - uTime * 1.65);
     float causticB = cos(vWorldPos.z * 4.1 - vWorldPos.x * 1.85 + uTime * 1.35);
     float caustic = clamp(0.5 + 0.5 * causticA * causticB, 0.0, 1.0);
-    waterColor = mix(waterColor, uRippleHighlight, caustic * 0.24);
+    waterColor = mix(waterColor, uRippleHighlight, caustic * 0.16);
 
-    // Bright cyan-aqua slope & crest highlights so waves stand out vividly
-    float crestBand = smoothstep(0.42, 0.84, waveH);
-    float slopeBand = smoothstep(0.03, 0.28, abs(normal.z)) * 0.62;
-    waterColor = mix(waterColor, uRippleHighlight, clamp(crestBand * 0.72 + slopeBand, 0.0, 0.88));
+    // Luminous sea-blue slope & crest highlights (#0c7c9e) so waves stand out vividly over #00415a
+    float crestBand = smoothstep(0.46, 0.86, waveH);
+    float slopeBand = smoothstep(0.04, 0.30, abs(normal.z)) * 0.56;
+    waterColor = mix(waterColor, uRippleHighlight, clamp(crestBand * 0.68 + slopeBand, 0.0, 0.84));
 
-    // Crisp white-aqua wavelet ribbon lines on wave peaks and concentric ring crests
+    // Crisp bright aqua wavelet ribbon lines (#7be6ff) on wave peaks and concentric ring crests
     float ribbonA = sin(vWorldPos.z * 8.5 + vWorldPos.x * 0.9 - uTime * 2.3 + normal.x * 6.0);
     float ribbonB = cos(vWorldPos.x * 2.6 - vWorldPos.z * 5.2 + uTime * 1.7 + normal.z * 5.0);
-    float ribbonLine = smoothstep(0.56, 0.92, ribbonA * 0.55 + ribbonB * 0.45) * smoothstep(0.38, 0.78, waveH);
-    float crestLine = pow(smoothstep(0.62, 0.94, waveH * 0.64 + slopeLight * 0.44), 2.0);
-    waterColor = mix(waterColor, uCrestFoam, clamp(ribbonLine * 0.68 + crestLine * 0.42, 0.0, 0.85));
+    float ribbonLine = smoothstep(0.58, 0.92, ribbonA * 0.55 + ribbonB * 0.45) * smoothstep(0.40, 0.80, waveH);
+    float crestLine = pow(smoothstep(0.64, 0.94, waveH * 0.64 + slopeLight * 0.44), 2.0);
+    waterColor = mix(waterColor, uCrestFoam, clamp(ribbonLine * 0.64 + crestLine * 0.40, 0.0, 0.82));
 
-    // Gentle sky-aqua Fresnel lift without darkening the water
-    vec3 col = mix(waterColor, mix(uShallowColor, uRippleHighlight, 0.58), fresnel * 0.42);
+    // Gentle sky-aqua Fresnel lift without washing out the #00415a primary tone
+    vec3 col = mix(waterColor, mix(uShallowColor, uRippleHighlight, 0.52), fresnel * 0.34);
 
     float distShore = max(0.0, vWorldPos.z - uShoreZ);
 
@@ -279,10 +279,10 @@ export function createRealisticRiverWater(options: {
       uTextureMatrix: { value: textureMatrix },
       uTime: { value: 0 },
       uMoonDir: { value: new THREE.Vector3(0.42, 0.26, -0.87).normalize() },
-      uDeepColor: { value: new THREE.Color('#0c7c94') },
-      uShallowColor: { value: new THREE.Color('#16bdd9') },
-      uRippleHighlight: { value: new THREE.Color('#67f5ff') },
-      uCrestFoam: { value: new THREE.Color('#e8feff') },
+      uDeepColor: { value: new THREE.Color('#002d40') },
+      uShallowColor: { value: new THREE.Color('#00415a') },
+      uRippleHighlight: { value: new THREE.Color('#0c7c9e') },
+      uCrestFoam: { value: new THREE.Color('#7be6ff') },
       uShoreGold: { value: new THREE.Color('#fff7d6') },
       uMoonColor: { value: new THREE.Color('#ffffff') },
       uDistortionX: { value: isPreview ? 0.025 : 0.034 },

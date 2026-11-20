@@ -135,7 +135,7 @@ async function fetchApprovedWishes(myKrathongId?: string | null): Promise<{
       query = query.not('id', 'in', `(${hiddenUuidList.join(',')})`);
     }
 
-    const { data } = await query.order('created_at', { ascending: false }).limit(500);
+    const { data } = await query.order('created_at', { ascending: false }).limit(2000);
     if (Array.isArray(data)) {
       remoteItems = data;
     }
@@ -145,7 +145,7 @@ async function fetchApprovedWishes(myKrathongId?: string | null): Promise<{
 
   if (remoteItems.length === 0) {
     try {
-      const apiRes = await fetch('/api/krathongs?status=approved&limit=100');
+      const apiRes = await fetch('/api/krathongs?status=approved&limit=500');
       if (apiRes.ok && (apiRes.headers.get('content-type') || '').includes('application/json')) {
         const apiData = await apiRes.json();
         if (Array.isArray(apiData)) {
@@ -509,7 +509,7 @@ export const WishesGallery: React.FC<WishesGalleryProps> = ({
                     <div>
                       {/* Card Header: Krathong Miniature + Owner Metadata */}
                       <div className="flex items-center gap-3">
-                        <div className="w-24 h-24 shrink-0 rounded-2xl bg-[radial-gradient(circle_at_50%_60%,#22c7e0_0%,#0c7c94_88%)] border border-cyan-900/25 flex items-center justify-center overflow-hidden shadow-inner">
+                        <div className="w-24 h-24 shrink-0 rounded-2xl bg-[radial-gradient(circle_at_50%_60%,#0c7c9e_0%,#00415a_88%)] border border-cyan-900/25 flex items-center justify-center overflow-hidden shadow-inner">
                           <div className="scale-90">
                             <KrathongThumb3D
                               baseType={item.base_type}

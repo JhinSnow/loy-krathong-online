@@ -3,19 +3,57 @@ import {
   sanitizeText,
   filterProfanity,
   hashClientIP,
+  isAuthenticatedAdmin,
   getSecurityHeaders,
   VALID_USER_TYPES
 } from '../../utils/security';
 
 interface Env {
   DB: D1Database;
+  SESSION_SECRET?: string;
   IP_HASH_SECRET?: string;
   ALLOWED_ORIGIN?: string;
 }
 
-// Rate limit สั้นป้องกันการกดเบิ้ลจาก IP เดียวกันโดยไม่บล็อก WiFi มหาวิทยาลัย
+// Rate limit สั้นป้องกันการกดเบิ้ลจากเครื่องเดียวกันโดยไม่บล็อก WiFi มหาวิทยาลัย (Shared Campus NAT IP)
 const evalRateLimitMap = new Map<string, number>();
-const EVAL_COOLDOWN_MS = 3 * 1000; // 3 วินาทีต่อ 1 การประเมินต่อ IP (รองรับ Shared Campus NAT IP)
+const EVAL_COOLDOWN_MS = 3 * 1000; // 3 วินาทีต่อ 1 การประเมินต่อเครื่อง (IP + Device ID)
+
+export const onRequestGet: PagesFunction<Env> = async (context) => {
+  const { request, env } = context;
+  const headers = getSecurityHeaders(request, env);
+
+  const auth = await isAuthenticatedAdmin(request, env);
+  if (!auth.authenticated) {
+    return new Response(JSON.stringify({ error: 'ไม่ได้รับอนุญาตให้เข้าถึงข้อมูลแบบประเมิน' }), {
+      status: 403,
+      headers
+    });
+  }
+
+  const url = new URL(request.url);
+  const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 1000, 1), 5000);
+
+  try {
+    const { results } = await env.DB.prepare(`
+      SELECT id, krathong_id, user_type, rating, feedback, created_at
+      FROM evaluations
+      ORDER BY created_at DESC
+      LIMIT ?
+    `).bind(limit).all();
+
+    return new Response(JSON.stringify(results || []), {
+      status: 200,
+      headers
+    });
+  } catch (err) {
+    console.error('Get Evaluations Error:', err);
+    return new Response(JSON.stringify({ error: 'ไม่สามารถดึงข้อมูลแบบประเมินได้' }), {
+      status: 500,
+      headers
+    });
+  }
+};
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
@@ -23,18 +61,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   try {
     const clientIP = request.headers.get('cf-connecting-ip') || '127.0.0.1';
-    const ipHash = await hashClientIP(clientIP, env);
-
-    const lastEvalTime = evalRateLimitMap.get(ipHash) || 0;
-    if (Date.now() - lastEvalTime < EVAL_COOLDOWN_MS) {
-      return new Response(
-        JSON.stringify({ error: 'คุณเพิ่งส่งแบบประเมินไป ขอบคุณสำหรับความคิดเห็นครับ' }),
-        { status: 429, headers }
-      );
-    }
-
     const body = await request.json() as any;
     const { krathongId, userType, rating, feedback } = body;
+    const rawBodyDeviceId = String(body.deviceId || body.device_id || '')
+      .replace(/[^a-zA-Z0-9_-]/g, '')
+      .slice(0, 28);
 
     const numericRating = Math.round(Number(rating));
     if (!Number.isInteger(numericRating) || numericRating < 1 || numericRating > 5) {
@@ -49,6 +80,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     let cleanFeedback: string | null = null;
     let extractedStudentId = '';
+    let extractedDeviceId = rawBodyDeviceId;
     if (feedback) {
       const rawStr = String(feedback).trim();
       if (rawStr.startsWith('__EVAL_V2__:')) {
@@ -80,6 +112,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           const safeDid = String(parsed.did || parsed.device_id || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 16);
           const safeComment = sanitizeText(String(parsed.c || parsed.comment || ''), 140);
           extractedStudentId = safeSid;
+          if (safeDid) extractedDeviceId = safeDid;
 
           if (filterProfanity(safeComment) || filterProfanity(safeName)) {
             return new Response(JSON.stringify({ error: 'กรุณาใช้ถ้อยคำที่สุภาพในข้อเสนอแนะ' }), {
@@ -112,6 +145,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
     }
 
+    // ตรวจสอบ Cooldown 3 วินาทีแบบแยกตามเครื่อง (IP + Device ID / Student ID / Krathong ID) เพื่อรองรับ Campus WiFi 1,000+ คน
+    const uniqueClientUnit = extractedDeviceId || extractedStudentId || cleanKrathongId || 'anon';
+    const rateKey = await hashClientIP(`${clientIP}:${uniqueClientUnit}`, env);
+    const lastEvalTime = evalRateLimitMap.get(rateKey) || 0;
+    if (Date.now() - lastEvalTime < EVAL_COOLDOWN_MS) {
+      return new Response(
+        JSON.stringify({ error: 'คุณเพิ่งส่งแบบประเมินไป ขอบคุณสำหรับความคิดเห็นครับ' }),
+        { status: 429, headers }
+      );
+    }
+
     // ตรวจสอบรหัสนักศึกษาซ้ำใน D1 (เฉพาะนักศึกษาที่มีรหัสถูกต้อง)
     if (validUserType === 'student' && /^\d{8,13}$/.test(extractedStudentId)) {
       const existingStudent = await env.DB.prepare(
@@ -135,7 +179,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       VALUES (?, ?, ?, ?, ?)
     `).bind(evalId, cleanKrathongId, validUserType, numericRating, cleanFeedback).run();
 
-    evalRateLimitMap.set(ipHash, Date.now());
+    if (evalRateLimitMap.size > 5000) {
+      evalRateLimitMap.clear();
+    }
+    evalRateLimitMap.set(rateKey, Date.now());
 
     return new Response(JSON.stringify({ success: true, id: evalId }), {
       status: 201,

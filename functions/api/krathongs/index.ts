@@ -18,15 +18,20 @@ interface Env {
   ALLOWED_ORIGIN?: string;
 }
 
+// Short-lived Edge memory cache (2s TTL) to coalesce concurrent public reads during 1,000+ user bursts
+let approvedCache: { expiresAt: number; limit: number; jsonBody: string } | null = null;
+const APPROVED_CACHE_TTL_MS = 2000;
+
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { env, request } = context;
   const headers = getSecurityHeaders(request, env);
   const url = new URL(request.url);
   const requestedStatus = url.searchParams.get('status') || 'approved';
-  const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 50, 1), 100);
+  const rawLimit = Number(url.searchParams.get('limit')) || 50;
 
   // หากร้องขอดูกระทงที่ยังไม่อนุมัติ (pending / rejected / all) ต้องเป็น Admin เท่านั้น
   let statusFilter = 'approved';
+  let isAdminRequest = false;
   if (requestedStatus !== 'approved') {
     const auth = await isAuthenticatedAdmin(request, env);
     if (!auth.authenticated) {
@@ -35,21 +40,50 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         headers
       });
     }
-    if (['pending', 'rejected', 'approved'].includes(requestedStatus)) {
+    isAdminRequest = true;
+    if (['pending', 'rejected', 'approved', 'all'].includes(requestedStatus)) {
       statusFilter = requestedStatus;
     }
   }
 
-  try {
-    const { results } = await env.DB.prepare(`
-      SELECT id, user_type, owner_name, wish_message, base_type, flower_type, candle_color, status, created_at
-      FROM krathongs
-      WHERE status = ?
-      ORDER BY created_at DESC
-      LIMIT ?
-    `).bind(statusFilter, limit).all();
+  const maxAllowedLimit = isAdminRequest ? 5000 : 500;
+  const limit = Math.min(Math.max(rawLimit, 1), maxAllowedLimit);
 
-    return new Response(JSON.stringify(results || []), {
+  try {
+    // Serve from 2-second coalesced Edge cache for public approved requests
+    const now = Date.now();
+    if (!isAdminRequest && statusFilter === 'approved' && approvedCache && approvedCache.expiresAt > now && approvedCache.limit >= limit) {
+      if (approvedCache.limit === limit) {
+        return new Response(approvedCache.jsonBody, { status: 200, headers });
+      }
+    }
+
+    const queryResult =
+      statusFilter === 'all'
+        ? await env.DB.prepare(`
+            SELECT id, user_type, owner_name, wish_message, base_type, flower_type, candle_color, status, created_at
+            FROM krathongs
+            ORDER BY created_at DESC
+            LIMIT ?
+          `).bind(limit).all()
+        : await env.DB.prepare(`
+            SELECT id, user_type, owner_name, wish_message, base_type, flower_type, candle_color, status, created_at
+            FROM krathongs
+            WHERE status = ?
+            ORDER BY created_at DESC
+            LIMIT ?
+          `).bind(statusFilter, limit).all();
+
+    const jsonBody = JSON.stringify(queryResult.results || []);
+    if (!isAdminRequest && statusFilter === 'approved') {
+      approvedCache = {
+        expiresAt: now + APPROVED_CACHE_TTL_MS,
+        limit,
+        jsonBody
+      };
+    }
+
+    return new Response(jsonBody, {
       status: 200,
       headers
     });
@@ -89,9 +123,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const candleColor = isValidCandleField(rawCandleColor) ? rawCandleColor : 'yellow';
 
     const clientIP = request.headers.get('cf-connecting-ip') || '127.0.0.1';
-    const ipHash = await hashClientIP(clientIP, env);
+    const rawDeviceId = String(body.deviceId || body.device_id || '')
+      .replace(/[^a-zA-Z0-9_-]/g, '')
+      .slice(0, 28);
+    // ผูก IP + Device ID เพื่อให้ผู้เข้าร่วมงาน 1,000+ คนบน Campus WiFi เดียวกันลอยพร้อมกันได้โดยไม่บล็อกกันเอง
+    const rateIdentifier = rawDeviceId ? `${clientIP}:${rawDeviceId}` : `${clientIP}:${String(rawOwnerName).trim().slice(0, 20)}`;
+    const ipHash = await hashClientIP(rateIdentifier, env);
 
-    // Cooldown สั้น 3 วินาที ต่อ IP (ป้องกันการกดเบิ้ล โดยไม่บล็อกผู้ใช้อื่นบน Campus WiFi เดียวกัน)
+    // Cooldown สั้น 3 วินาที ต่อเครื่อง (ป้องกันการกดเบิ้ลรัวจากเครื่องเดิม โดยไม่บล็อกผู้ใช้อื่นบน Campus WiFi เดียวกัน)
     const recentCheck = await env.DB.prepare(
       `SELECT created_at FROM krathongs 
        WHERE ip_hash = ? AND created_at > datetime('now', '-3 seconds') 
@@ -139,6 +178,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       baseType, flowerType, candleColor,
       status, ipHash
     ).run();
+
+    // Invalidate Edge cache immediately when a new approved krathong arrives
+    if (status === 'approved') {
+      approvedCache = null;
+    }
 
     return new Response(JSON.stringify({
       success: true,

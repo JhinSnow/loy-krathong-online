@@ -6,6 +6,32 @@ interface Env {
   ALLOWED_ORIGIN?: string;
 }
 
+// Shared isolate-level cache (2.5s TTL) so hundreds of concurrent SSE viewers share 1 D1 query
+let sharedRecentBatch: { fetchedAt: number; items: any[] } = {
+  fetchedAt: 0,
+  items: []
+};
+const STREAM_CACHE_TTL_MS = 2500;
+
+async function getRecentApprovedKrathongs(env: Env, sinceIso: string): Promise<any[]> {
+  const now = Date.now();
+  if (now - sharedRecentBatch.fetchedAt >= STREAM_CACHE_TTL_MS) {
+    const windowFloor = new Date(now - 15000).toISOString();
+    const { results } = await env.DB.prepare(`
+      SELECT id, user_type, owner_name, wish_message, base_type, flower_type, candle_color, created_at
+      FROM krathongs
+      WHERE status = 'approved' AND created_at > ?
+      ORDER BY created_at ASC
+      LIMIT 40
+    `).bind(windowFloor).all();
+    sharedRecentBatch = {
+      fetchedAt: now,
+      items: results || []
+    };
+  }
+  return sharedRecentBatch.items.filter((item) => String(item.created_at || '') > sinceIso);
+}
+
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { env, request } = context;
   let lastCheckedTime = new Date(Date.now() - 4000).toISOString();
@@ -32,16 +58,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           return;
         }
         try {
-          const { results } = await env.DB.prepare(`
-            SELECT id, user_type, owner_name, wish_message, base_type, flower_type, candle_color, created_at
-            FROM krathongs
-            WHERE status = 'approved' AND created_at > ?
-            ORDER BY created_at ASC
-            LIMIT 25
-          `).bind(lastCheckedTime).all();
+          const results = await getRecentApprovedKrathongs(env, lastCheckedTime);
 
-          if (results && results.length > 0) {
-            lastCheckedTime = new Date().toISOString();
+          if (results.length > 0) {
+            const latestCreatedAt = String(results[results.length - 1].created_at || new Date().toISOString());
+            lastCheckedTime = latestCreatedAt;
             for (const item of results) {
               const data = JSON.stringify(item);
               controller.enqueue(encoder.encode(`event: new_krathong\ndata: ${data}\n\n`));

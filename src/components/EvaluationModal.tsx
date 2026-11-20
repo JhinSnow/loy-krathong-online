@@ -200,7 +200,8 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
               krathongId,
               userType: safeUserType,
               rating: roundedOverallRating,
-              feedback: encodedPayload
+              feedback: encodedPayload,
+              deviceId
             })
           });
           if (apiRes.status === 409) {
