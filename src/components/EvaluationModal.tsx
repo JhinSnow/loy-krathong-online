@@ -1,5 +1,5 @@
 // src/components/EvaluationModal.tsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Star,
   CheckCircle2,
@@ -62,7 +62,11 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
   const [studentId, setStudentId] = useState<string>(() =>
     isAdminTestMode ? '' : getBoundStudentId() || ''
   );
-  const [scores, setScores] = useState<number[]>(() => Array(10).fill(5));
+  const [scores, setScores] = useState<(number | null)[]>(() =>
+    Array<number | null>(EVALUATION_QUESTIONS.length).fill(null)
+  );
+  const [showMissingHighlights, setShowMissingHighlights] = useState<boolean>(false);
+  const [focusedMissingIdx, setFocusedMissingIdx] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>('');
@@ -70,6 +74,19 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
   const [showSkipEscape, setShowSkipEscape] = useState<boolean>(() =>
     isAdminTestMode ? false : Boolean(getBoundStudentId())
   );
+
+  const studentIdSectionRef = useRef<HTMLDivElement | null>(null);
+  const studentIdInputRef = useRef<HTMLInputElement | null>(null);
+  const questionRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const highlightTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (highlightTimerRef.current !== null) {
+        window.clearTimeout(highlightTimerRef.current);
+      }
+    };
+  }, []);
 
   const boundStudentIdOnDevice = useMemo(
     () => (isAdminTestMode ? null : getBoundStudentId()),
@@ -83,18 +100,32 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
   };
 
   const handleScoreChange = (questionIndex: number, scoreValue: number) => {
-    setScores((prev) => {
-      const next = [...prev];
-      next[questionIndex] = scoreValue;
-      return next;
-    });
+    const next = [...scores];
+    next[questionIndex] = scoreValue;
+    setScores(next);
+    if (next.every((s) => s !== null)) {
+      setShowMissingHighlights(false);
+    }
+    if (focusedMissingIdx === questionIndex) {
+      setFocusedMissingIdx(null);
+    }
+    setErrorMsg('');
   };
 
   const handleSetAllScores = (scoreValue: number) => {
-    setScores(Array(10).fill(scoreValue));
+    setScores(Array<number | null>(EVALUATION_QUESTIONS.length).fill(scoreValue));
+    setShowMissingHighlights(false);
+    setFocusedMissingIdx(null);
+    setErrorMsg('');
   };
 
-  const currentAverage = (scores.reduce((a, b) => a + b, 0) / 10).toFixed(2);
+  const answeredScores = scores.filter((s): s is number => s !== null);
+  const answeredCount = answeredScores.length;
+  const totalQuestions = EVALUATION_QUESTIONS.length;
+  const currentAverage =
+    answeredCount > 0
+      ? (answeredScores.reduce((a, b) => a + b, 0) / answeredCount).toFixed(2)
+      : null;
 
   const handleSubmit = async () => {
     setErrorMsg('');
@@ -115,12 +146,39 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
       return;
     }
 
-    if (isStudent) {
-      if (!/^\d{8,13}$/.test(cleanStudentId)) {
-        setErrorMsg('กรุณากรอกรหัสนักศึกษาให้ถูกต้อง (ตัวเลข 8–13 หลัก เช่น 6610110245)');
-        return;
-      }
+    if (isStudent && !/^\d{8,13}$/.test(cleanStudentId)) {
+      setErrorMsg('กรุณากรอกรหัสนักศึกษาให้ถูกต้อง (ตัวเลข 8–13 หลัก เช่น 6610110245)');
+      studentIdSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      studentIdInputRef.current?.focus();
+      return;
+    }
 
+    const firstMissingIdx = scores.findIndex((s) => s === null);
+    if (firstMissingIdx !== -1) {
+      const missingNums = scores.reduce<number[]>(
+        (acc, val, i) => (val === null ? [...acc, i + 1] : acc),
+        []
+      );
+      setShowMissingHighlights(true);
+      setFocusedMissingIdx(firstMissingIdx);
+      if (highlightTimerRef.current !== null) {
+        window.clearTimeout(highlightTimerRef.current);
+      }
+      highlightTimerRef.current = window.setTimeout(() => {
+        setFocusedMissingIdx(null);
+        highlightTimerRef.current = null;
+      }, 2200);
+      setErrorMsg(
+        `กรุณาเลือกคะแนนประเมินให้ครบทั้ง ${totalQuestions} ข้อ (ยังไม่ได้เลือกข้อที่ ${missingNums.join(', ')})`
+      );
+      questionRefs.current[firstMissingIdx]?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
+      return;
+    }
+
+    if (isStudent) {
       // เช็กการกรอกแทนเพื่อน (1 อุปกรณ์ ต่อ 1 รหัสนักศึกษา — ข้ามเฉพาะโหมดทดสอบของ Admin)
       const boundId = getBoundStudentId();
       if (!isAdminTestMode && boundId && boundId !== cleanStudentId) {
@@ -182,10 +240,13 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
         }
       }
 
-      const avgNumber = Number((scores.reduce((a, b) => a + b, 0) / 10).toFixed(2));
+      const completedScores = scores.filter((s): s is number => s !== null);
+      const avgNumber = Number(
+        (completedScores.reduce((a, b) => a + b, 0) / completedScores.length).toFixed(2)
+      );
       const roundedOverallRating = Math.min(Math.max(Math.round(avgNumber), 1), 5);
       const encodedPayload = encodeEvaluationPayload(
-        scores,
+        completedScores,
         cleanStudentId,
         cleanComment,
         '',
@@ -243,7 +304,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
             );
             return;
           }
-        } catch (_) {}
+        } catch {}
       }
 
       // 3. บันทึกลง Local Storage และผูกสิทธิ์ 1 เครื่อง = 1 รหัสนักศึกษา หลังผ่านการตรวจครบถ้วน
@@ -255,7 +316,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
         student_name: '',
         faculty: derivedFaculty,
         device_id: deviceId,
-        scores,
+        scores: completedScores,
         average_score: avgNumber,
         comment: cleanComment,
         created_at: new Date().toISOString()
@@ -369,7 +430,10 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
 
             {/* ช่องกรอกบังคับเฉพาะกลุ่มนักศึกษาเพื่อบันทึก Transcript (เก็บเฉพาะรหัสนักศึกษา) */}
             {selectedUserType === 'student' && (
-              <div className="pt-2.5 border-t border-amber-900/10 space-y-2 animate-ui-step">
+              <div
+                ref={studentIdSectionRef}
+                className="pt-2.5 border-t border-amber-900/10 space-y-2 animate-ui-step"
+              >
                 <div className="flex flex-wrap items-center justify-between gap-1.5">
                   <p className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#231912]">
                     <GraduationCap className="w-3.5 h-3.5 text-amber-700 shrink-0" />
@@ -387,6 +451,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                     รหัสนักศึกษา <span className="text-rose-600">*</span>
                   </label>
                   <input
+                    ref={studentIdInputRef}
                     type="text"
                     inputMode="numeric"
                     value={studentId}
@@ -409,10 +474,23 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
           <div className="bg-white border border-amber-900/12 rounded-2xl p-3.5 sm:p-4 space-y-3 shadow-2xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-amber-900/10">
               <div>
-                <h4 className="text-xs font-bold text-[#231912] flex items-center gap-1.5">
-                  <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
-                  <span>ส่วนที่ 2: ประเมินความพึงพอใจ 10 ด้าน (ระดับ 1 - 5)</span>
-                </h4>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h4 className="text-xs font-bold text-[#231912] flex items-center gap-1.5">
+                    <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
+                    <span>ส่วนที่ 2: ประเมินความพึงพอใจ 10 ด้าน (ระดับ 1 - 5)</span>
+                  </h4>
+                  <span
+                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                      answeredCount === totalQuestions
+                        ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                        : showMissingHighlights
+                          ? 'bg-rose-50 border-rose-300 text-rose-700'
+                          : 'bg-amber-50 border-amber-300/70 text-amber-900'
+                    }`}
+                  >
+                    ตอบแล้ว {answeredCount}/{totalQuestions} ข้อ
+                  </span>
+                </div>
                 <p className="text-[10px] text-[#7c5d3a] mt-0.5">
                   เกณฑ์: 5 = มากที่สุด | 4 = มาก | 3 = ปานกลาง | 2 = น้อย | 1 = น้อยที่สุด
                 </p>
@@ -438,18 +516,43 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
             <div className="space-y-2">
               {EVALUATION_QUESTIONS.map((q, idx) => {
                 const currentVal = scores[idx];
+                const isMissingError = showMissingHighlights && currentVal === null;
+                const isFocusedMissing = focusedMissingIdx === idx && currentVal === null;
                 return (
                   <div
                     key={q.id}
-                    className="p-2.5 sm:p-3 rounded-xl bg-[#fdfaf4] border border-amber-900/10 hover:border-amber-600/35 transition flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                    ref={(el) => {
+                      questionRefs.current[idx] = el;
+                    }}
+                    className={`p-2.5 sm:p-3 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
+                      isFocusedMissing
+                        ? 'bg-rose-50 border-rose-500 ring-2 ring-rose-400/80 shadow-md'
+                        : isMissingError
+                          ? 'bg-rose-50/75 border-rose-400 ring-1 ring-rose-300'
+                          : 'bg-[#fdfaf4] border-amber-900/10 hover:border-amber-600/35'
+                    }`}
                   >
                     <div className="text-left flex-1 pr-2">
                       <span className="text-[11px] sm:text-xs font-semibold text-[#231912] leading-snug">
                         {q.id}. {q.title}
                       </span>
-                      <span className="ml-2 inline-block text-[10px] text-amber-800 font-semibold">
-                        ({RATING_LABELS[currentVal]})
-                      </span>
+                      {currentVal !== null ? (
+                        <span className="ml-2 inline-block text-[10px] text-amber-800 font-semibold">
+                          ({RATING_LABELS[currentVal]})
+                        </span>
+                      ) : isMissingError ? (
+                        <span
+                          className={`ml-2 inline-block text-[10px] text-rose-600 font-bold ${
+                            isFocusedMissing ? 'animate-pulse' : ''
+                          }`}
+                        >
+                          (กรุณาเลือกคะแนน)
+                        </span>
+                      ) : (
+                        <span className="ml-2 inline-block text-[10px] text-[#9c8671] font-medium">
+                          (ยังไม่ได้เลือก)
+                        </span>
+                      )}
                     </div>
 
                     {/* ปุ่มเลือกคะแนน 1 - 5 */}
@@ -460,6 +563,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                           <button
                             key={scoreNum}
                             type="button"
+                            aria-pressed={isSelected}
                             onClick={() => handleScoreChange(idx, scoreNum)}
                             title={`${scoreNum} - ${RATING_LABELS[scoreNum]}`}
                             className={`w-8 h-8 sm:w-9 sm:h-8 rounded-lg text-xs font-bold border transition-all duration-150 active:scale-90 flex items-center justify-center cursor-pointer ${
@@ -481,9 +585,19 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
             {/* สรุปคะแนนเฉลี่ยปัจจุบัน */}
             <div className="flex items-center justify-between pt-2 px-1 text-xs">
               <span className="text-[#7c5d3a] font-medium">ค่าเฉลี่ยความพึงพอใจของคุณ (x̄):</span>
-              <span className="font-extrabold text-amber-800 text-sm">
-                {currentAverage} / 5.00 ({RATING_LABELS[Math.round(Number(currentAverage))]})
-              </span>
+              {currentAverage === null ? (
+                <span className="font-semibold text-[#9c8671] text-xs sm:text-sm">
+                  - / 5.00 (ยังไม่ได้ให้คะแนน)
+                </span>
+              ) : answeredCount < totalQuestions ? (
+                <span className="font-extrabold text-amber-800 text-sm">
+                  {currentAverage} / 5.00 (ตอบแล้ว {answeredCount}/{totalQuestions} ข้อ)
+                </span>
+              ) : (
+                <span className="font-extrabold text-amber-800 text-sm">
+                  {currentAverage} / 5.00 ({RATING_LABELS[Math.round(Number(currentAverage))]})
+                </span>
+              )}
             </div>
           </div>
 
