@@ -35,8 +35,10 @@ const WATER_VERTEX_SHADER = /* glsl */ `
   void main() {
     vUv = uv;
     vec4 worldPos = modelMatrix * vec4(position, 1.0);
-    // Gentle real vertical surface ripple matching floating krathongs
-    float waveLift = sin(worldPos.x * 0.8 + uTime * 1.1) * cos(worldPos.z * 2.4 - uTime * 1.6) * 0.018;
+    // Gentle two-layer vertical surface ripple matching floating krathongs
+    float waveLift =
+      sin(worldPos.x * 0.95 + uTime * 1.35) * cos(worldPos.z * 2.6 - uTime * 1.85) * 0.022 +
+      sin(worldPos.z * 5.2 + worldPos.x * 1.4 - uTime * 2.2) * 0.010;
     worldPos.y += waveLift;
 
     vWorldPos = worldPos.xyz;
@@ -52,6 +54,7 @@ const WATER_FRAGMENT_SHADER = /* glsl */ `
   uniform vec3 uDeepColor;
   uniform vec3 uShallowColor;
   uniform vec3 uRippleHighlight;
+  uniform vec3 uCrestFoam;
   uniform vec3 uShoreGold;
   uniform vec3 uMoonColor;
   uniform float uDistortionX;
@@ -66,59 +69,84 @@ const WATER_FRAGMENT_SHADER = /* glsl */ `
   varying vec3 vWorldPos;
   varying vec2 vUv;
 
-  // Multi-octave anisotropic horizontal river ripple normal and ridge height
+  // Domain-warped multi-octave turquoise river wavelets plus preview concentric rings
   vec4 getWaterWave(vec2 p, float t) {
+    vec2 wp = uIsPreview > 0.5 ? p * 2.15 : p * 1.22;
+
     float dx = 0.0;
     float dz = 0.0;
-    float ridge = 0.0;
+    float signedWave = 0.0;
 
-    // Layer 1: Primary horizontal swells drifting slowly rightward
-    float a1 = p.z * 3.8 + p.x * 0.45 - t * 1.15;
+    float warp1 = sin(wp.x * 0.85 + t * 0.55) * 0.75;
+    float warp2 = cos(wp.z * 1.60 - t * 0.70) * 0.65;
+
+    // Layer 1: Primary curved swells
+    float a1 = wp.z * 3.4 + wp.x * 0.65 + warp1 - t * 1.35;
     float c1 = cos(a1);
-    dx += c1 * 0.055;
-    dz += c1 * 0.26;
-    ridge += 0.5 + 0.5 * sin(a1);
+    dx += c1 * 0.14;
+    dz += c1 * 0.34;
+    signedWave += sin(a1) * 0.42;
 
-    // Layer 2: Mid-frequency cross ripples
-    float a2 = p.z * 8.6 - p.x * 0.90 + t * 1.55;
+    // Layer 2: Interlocking angled wavelets
+    float a2 = wp.z * 7.8 - wp.x * 1.35 + warp2 + t * 1.80;
     float c2 = cos(a2);
-    dx += c2 * -0.068;
-    dz += c2 * 0.30;
-    ridge += 0.5 + 0.5 * sin(a2);
+    dx += c2 * -0.16;
+    dz += c2 * 0.38;
+    signedWave += sin(a2) * 0.36;
 
-    // Layer 3: Fine horizontal light-catching ripples
-    float a3 = p.z * 16.5 + p.x * 2.10 - t * 2.25;
+    // Layer 3: Crisp medium-fine sunlit ripples
+    float a3 = wp.z * 14.8 + wp.x * 2.50 - warp1 * 0.6 - t * 2.45;
     float c3 = cos(a3);
-    dx += c3 * 0.075;
-    dz += c3 * 0.28;
-    ridge += 0.5 + 0.5 * sin(a3);
+    dx += c3 * 0.17;
+    dz += c3 * 0.35;
+    signedWave += sin(a3) * 0.28;
 
     // Layer 4: High-frequency micro surface shimmer (river mode only)
     if (uIsPreview < 0.5) {
-      float a4 = p.z * 29.0 - p.x * 3.80 + t * 2.85;
+      float a4 = wp.z * 28.0 - wp.x * 4.20 + t * 3.05;
       float c4 = cos(a4);
-      dx += c4 * -0.055;
-      dz += c4 * 0.22;
+      dx += c4 * -0.11;
+      dz += c4 * 0.26;
+      signedWave += sin(a4) * 0.16;
+    } else {
+      // Concentric water ripple rings radiating outward from krathong base
+      float r = length(p);
+      float ringEnv = smoothstep(0.42, 0.85, r) * exp(-max(r - 0.72, 0.0) * 0.65);
+      float ringPhase = r * 14.5 - t * 3.5;
+      float ringSin = sin(ringPhase) * ringEnv;
+      float ringCos = cos(ringPhase) * ringEnv;
+      vec2 radDir = p / max(r, 0.001);
+      dx += radDir.x * ringCos * 0.32;
+      dz += radDir.y * ringCos * 0.32;
+      signedWave += ringSin * 0.36;
     }
 
     vec3 n = normalize(vec3(-dx, 1.0, -dz));
-    return vec4(n, ridge / 3.0);
+    return vec4(n, clamp(0.5 + 0.5 * signedWave, 0.0, 1.0));
   }
 
   void main() {
     vec4 wave = getWaterWave(vWorldPos.xz, uTime);
     vec3 normal = wave.xyz;
-    float ridge = wave.w;
+    float waveH = wave.w;
     vec3 viewDir = normalize(cameraPosition - vWorldPos);
 
     // Fresnel term increases reflection readability at grazing angles
     float ndotv = max(dot(viewDir, normal), 0.0);
     float fresnel = clamp(0.16 + 0.84 * pow(1.0 - ndotv, 2.2), 0.0, 1.0);
 
-    // Silky ripple shading from deep turquoise troughs to bright aqua-turquoise crests
-    float crestLight = smoothstep(-0.18, 0.32, normal.z);
-    vec3 waterColor = mix(uDeepColor, uShallowColor, clamp(crestLight * 0.82 + ridge * 0.28, 0.0, 1.0));
-    waterColor = mix(waterColor, uRippleHighlight, pow(crestLight, 1.65) * (0.38 + 0.46 * fresnel));
+    // Four-stage dimensional turquoise shading from deep troughs to crisp crest ribbons
+    float slopeLight = smoothstep(-0.32, 0.36, normal.z);
+    float bodyMix = clamp(waveH * 0.62 + slopeLight * 0.48 - 0.10, 0.0, 1.0);
+    vec3 waterColor = mix(uDeepColor, uShallowColor, smoothstep(0.08, 0.82, bodyMix));
+
+    // Luminous aqua-turquoise wave slopes
+    float slopeCrest = smoothstep(0.46, 0.86, waveH * 0.58 + slopeLight * 0.52);
+    waterColor = mix(waterColor, uRippleHighlight, slopeCrest * (0.54 + 0.38 * fresnel));
+
+    // Crisp icy-aqua wavelet ribbon lines on wave peaks and concentric ring crests
+    float ribbonLine = pow(smoothstep(0.64, 0.94, waveH * 0.64 + slopeLight * 0.44), 2.1);
+    waterColor = mix(waterColor, uCrestFoam, ribbonLine * 0.56);
 
     float distShore = max(0.0, vWorldPos.z - uShoreZ);
 
@@ -205,7 +233,7 @@ export function createRealisticRiverWater(options: {
 
   const geometry = isCircularPond
     ? new THREE.CircleGeometry(pondRadius, 40)
-    : new THREE.PlaneGeometry(width, depth, isPreview ? 16 : 48, isPreview ? 16 : 36);
+    : new THREE.PlaneGeometry(width, depth, isPreview ? 24 : 56, isPreview ? 24 : 40);
   geometry.rotateX(-Math.PI / 2);
 
   const reflectionTarget = new THREE.WebGLRenderTarget(reflectionWidth, reflectionHeight, {
@@ -225,13 +253,14 @@ export function createRealisticRiverWater(options: {
       uTextureMatrix: { value: textureMatrix },
       uTime: { value: 0 },
       uMoonDir: { value: new THREE.Vector3(0.42, 0.26, -0.87).normalize() },
-      uDeepColor: { value: new THREE.Color('#0a4f5c') },
+      uDeepColor: { value: new THREE.Color('#063844') },
       uShallowColor: { value: new THREE.Color('#0e8fa3') },
-      uRippleHighlight: { value: new THREE.Color('#38e0eb') },
+      uRippleHighlight: { value: new THREE.Color('#5ef0fa') },
+      uCrestFoam: { value: new THREE.Color('#ccfaff') },
       uShoreGold: { value: new THREE.Color('#fbbf24') },
       uMoonColor: { value: new THREE.Color('#fef3c7') },
-      uDistortionX: { value: isPreview ? 0.016 : 0.024 },
-      uDistortionZ: { value: isPreview ? 0.008 : 0.012 },
+      uDistortionX: { value: isPreview ? 0.025 : 0.034 },
+      uDistortionZ: { value: isPreview ? 0.014 : 0.018 },
       uShoreZ: { value: shoreZ },
       uHasReflection: { value: hasReflection ? 1.0 : 0.0 },
       uIsCircularPond: { value: isCircularPond ? 1.0 : 0.0 },

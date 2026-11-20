@@ -11,6 +11,7 @@ export interface KrathongAnimHandles {
   butterflies: { leftWing: THREE.Object3D; rightWing: THREE.Object3D; root: THREE.Object3D; baseY: number }[];
   lanterns: { root: THREE.Object3D; baseY: number }[];
   waterHalo?: THREE.Mesh;
+  rippleRings?: { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial; phase: number }[];
 }
 
 export interface KrathongScaleTargets {
@@ -24,6 +25,7 @@ export interface BuildKrathong3DOptions {
   candleColor: string;
   isMine?: boolean;
   withFlameLight?: boolean;
+  withWaterRipples?: boolean;
 }
 
 interface SharedAssets {
@@ -48,6 +50,7 @@ interface SharedAssets {
   incenseTipGeo: THREE.SphereGeometry;
   heartGeo: THREE.BufferGeometry;
   haloGeo: THREE.RingGeometry;
+  rippleRingGeo: THREE.RingGeometry;
 }
 
 let cachedAssets: SharedAssets | null = null;
@@ -497,7 +500,8 @@ function getSharedAssets(): SharedAssets {
     incenseStemGeo: markShared(new THREE.CylinderGeometry(0.011, 0.012, 0.64, 6)),
     incenseTipGeo: markShared(new THREE.SphereGeometry(0.016, 6, 6)),
     heartGeo: createHeartGeometry(),
-    haloGeo: markShared(new THREE.RingGeometry(1.08, 1.18, 44))
+    haloGeo: markShared(new THREE.RingGeometry(1.08, 1.18, 44)),
+    rippleRingGeo: markShared(new THREE.RingGeometry(0.94, 0.995, 40))
   };
   return cachedAssets;
 }
@@ -1387,7 +1391,14 @@ export function buildKrathong3D(options: BuildKrathong3DOptions): {
   anim: KrathongAnimHandles;
   scaleTargets: KrathongScaleTargets;
 } {
-  const { baseType, flowerType, candleColor, isMine = false, withFlameLight = false } = options;
+  const {
+    baseType,
+    flowerType,
+    candleColor,
+    isMine = false,
+    withFlameLight = false,
+    withWaterRipples = false
+  } = options;
   const assets = getSharedAssets();
   const baseKey = resolveBaseKey(baseType);
   const bp = BASE_PALETTES[baseKey];
@@ -1769,6 +1780,26 @@ export function buildKrathong3D(options: BuildKrathong3DOptions): {
     anim.waterHalo = halo;
   }
 
+  // วงคลื่นน้ำเล็กๆ แผ่ออกจากฐานกระทง (เฉพาะกระทงลอยบนแม่น้ำหลัก)
+  if (withWaterRipples) {
+    const phases = [0, 0.5];
+    anim.rippleRings = phases.map((phase) => {
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0x99f6ff,
+        transparent: true,
+        opacity: 0.35,
+        side: THREE.DoubleSide,
+        depthWrite: false
+      });
+      const ring = new THREE.Mesh(assets.rippleRingGeo, mat);
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.y = 0.016;
+      ring.renderOrder = 2;
+      group.add(ring);
+      return { mesh: ring, mat, phase };
+    });
+  }
+
   return { group, anim, scaleTargets: { centerGroup, accessoryGroups } };
 }
 
@@ -1801,6 +1832,15 @@ export function animateKrathong3D(anim: KrathongAnimHandles, elapsedSec: number)
   if (anim.waterHalo) {
     const pulse = 1 + Math.sin(elapsedSec * 3.2) * 0.05;
     anim.waterHalo.scale.set(pulse, pulse, 1);
+  }
+  if (anim.rippleRings) {
+    for (let i = 0; i < anim.rippleRings.length; i++) {
+      const rr = anim.rippleRings[i];
+      const cycle = (elapsedSec * 0.55 + rr.phase) % 1;
+      const ringScale = 0.92 + cycle * 0.68;
+      rr.mesh.scale.set(ringScale, ringScale, 1);
+      rr.mat.opacity = Math.sin(cycle * Math.PI) * 0.42;
+    }
   }
 }
 

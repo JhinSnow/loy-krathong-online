@@ -858,7 +858,8 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         flowerType: item.flower_type,
         candleColor: item.candle_color,
         isMine,
-        withFlameLight: isMine
+        withFlameLight: isMine,
+        withWaterRipples: true
       });
 
       const bounds = boundsRef.current;
