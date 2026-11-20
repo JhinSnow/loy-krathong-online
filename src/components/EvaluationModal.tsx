@@ -7,7 +7,8 @@ import {
   UserCheck,
   Image as ImageIcon,
   GraduationCap,
-  ArrowRight
+  ArrowRight,
+  X
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { supabase } from '../utils/supabase';
@@ -37,12 +38,16 @@ interface EvaluationModalProps {
   krathongId: string | null;
   userType: string;
   onFinish: () => void;
+  isAdminTestMode?: boolean;
+  onClose?: () => void;
 }
 
 export const EvaluationModal: React.FC<EvaluationModalProps> = ({
   krathongId,
   userType: initialUserType,
-  onFinish
+  onFinish,
+  isAdminTestMode = false,
+  onClose
 }) => {
   const myKrathongRecord = useMemo(() => {
     const records = getLocalKrathongRecords();
@@ -50,19 +55,26 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
       const found = records.find((r) => r.id === krathongId);
       if (found) return found;
     }
-    return records[0] || null;
-  }, [krathongId]);
+    return isAdminTestMode ? null : records[0] || null;
+  }, [krathongId, isAdminTestMode]);
 
   const [selectedUserType, setSelectedUserType] = useState<string>(initialUserType || 'student');
-  const [studentId, setStudentId] = useState<string>(() => getBoundStudentId() || '');
+  const [studentId, setStudentId] = useState<string>(() =>
+    isAdminTestMode ? '' : getBoundStudentId() || ''
+  );
   const [scores, setScores] = useState<number[]>(() => Array(10).fill(5));
   const [feedback, setFeedback] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [showShareModal, setShowShareModal] = useState<boolean>(false);
-  const [showSkipEscape, setShowSkipEscape] = useState<boolean>(() => Boolean(getBoundStudentId()));
+  const [showSkipEscape, setShowSkipEscape] = useState<boolean>(() =>
+    isAdminTestMode ? false : Boolean(getBoundStudentId())
+  );
 
-  const boundStudentIdOnDevice = useMemo(() => getBoundStudentId(), []);
+  const boundStudentIdOnDevice = useMemo(
+    () => (isAdminTestMode ? null : getBoundStudentId()),
+    [isAdminTestMode]
+  );
 
   const handleStudentIdChange = (rawValue: string) => {
     const digitsOnly = rawValue.replace(/\D/g, '').slice(0, 13);
@@ -109,9 +121,9 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
         return;
       }
 
-      // เช็กการกรอกแทนเพื่อน (1 อุปกรณ์ ต่อ 1 รหัสนักศึกษา)
+      // เช็กการกรอกแทนเพื่อน (1 อุปกรณ์ ต่อ 1 รหัสนักศึกษา — ข้ามเฉพาะโหมดทดสอบของ Admin)
       const boundId = getBoundStudentId();
-      if (boundId && boundId !== cleanStudentId) {
+      if (!isAdminTestMode && boundId && boundId !== cleanStudentId) {
         setShowSkipEscape(true);
         setErrorMsg(
           `อุปกรณ์นี้ได้ใช้ลงทะเบียนรหัสนักศึกษา ${boundId} ไปแล้ว (สงวนสิทธิ์ 1 อุปกรณ์ ต่อ 1 รหัสนักศึกษา เพื่อป้องกันการลงชื่อแทนกัน)`
@@ -120,8 +132,12 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
       }
 
       // เช็กรหัสนักศึกษาซ้ำในเครื่อง
+      const deletedSetLocal = new Set(getDeletedEvaluationIds());
       const localDuplicate = getLocalEvaluationRecords().some(
-        (rec) => rec.user_type === 'student' && (rec.student_id || '').trim() === cleanStudentId
+        (rec) =>
+          rec.user_type === 'student' &&
+          !deletedSetLocal.has(rec.id) &&
+          (rec.student_id || '').trim() === cleanStudentId
       );
       if (localDuplicate) {
         setShowSkipEscape(true);
@@ -245,7 +261,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
         created_at: new Date().toISOString()
       });
 
-      if (isStudent && cleanStudentId) {
+      if (isStudent && cleanStudentId && !isAdminTestMode) {
         bindStudentIdToDevice(cleanStudentId);
       }
 
@@ -271,12 +287,27 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
   return (
     <div className="fixed inset-0 bg-[#1c140d]/75 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto animate-ui-fade">
       <div className="bg-[#fdfaf4] border border-amber-900/15 text-[#231912] rounded-3xl p-4 sm:p-6 max-w-2xl w-full relative shadow-2xl my-auto max-h-[94vh] flex flex-col animate-ui-modal">
+        {isAdminTestMode && onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="ปิดหน้าต่างทดสอบแบบประเมิน"
+            className="absolute top-3.5 right-3.5 p-2 rounded-full bg-white hover:bg-amber-50 text-[#574536] hover:text-[#231912] border border-amber-900/15 shadow-2xs transition active:scale-95 cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+
         {/* Header */}
         <div className="text-center pb-3 border-b border-amber-900/12 shrink-0">
           <div className="flex flex-wrap items-center justify-center gap-2 mb-2">
             <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-amber-100 border border-amber-400/60 text-amber-900 text-xs font-semibold">
               <Sparkles className="w-3.5 h-3.5 text-amber-700" />
-              <span>ปล่อยกระทงลงสู่สายน้ำสำเร็จแล้ว</span>
+              <span>
+                {isAdminTestMode
+                  ? 'โหมดทดสอบแบบประเมิน (ผู้ดูแลระบบ)'
+                  : 'ปล่อยกระทงลงสู่สายน้ำสำเร็จแล้ว'}
+              </span>
             </div>
             {myKrathongRecord && (
               <button
@@ -486,7 +517,13 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
             className="w-full flex items-center justify-center space-x-2 py-3 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-[#231912] font-extrabold rounded-xl shadow-md border border-amber-600/25 transition-all duration-150 active:scale-[0.98] cursor-pointer text-xs sm:text-sm disabled:opacity-60"
           >
             <CheckCircle2 className="w-4 h-4 text-[#231912]" />
-            <span>{submitting ? 'กำลังบันทึกผลประเมิน & ปล่อยกระทง...' : 'ส่งแบบประเมิน 10 ข้อ & ลอยกระทงสู่สายน้ำ'}</span>
+            <span>
+              {submitting
+                ? 'กำลังบันทึกผลประเมิน...'
+                : isAdminTestMode
+                  ? 'ส่งแบบประเมินทดสอบ 10 ข้อ'
+                  : 'ส่งแบบประเมิน 10 ข้อ & ลอยกระทงสู่สายน้ำ'}
+            </span>
           </button>
           {showSkipEscape && (
             <button

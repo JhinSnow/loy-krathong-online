@@ -428,6 +428,32 @@ export function mergeDeletedEvaluationIds(ids: string[]): string[] {
 }
 
 /**
+ * ลบประวัติการประเมิน 1 รายการตาม ID ออกจาก LocalStorage (และปลดล็อกเครื่องหากตรงกับรหัสที่ผูกไว้)
+ */
+export function deleteLocalEvaluationById(evalId: string): void {
+  if (!evalId) return;
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const records = getLocalEvaluationRecords();
+      let deletedStudentId = '';
+      const kept = records.filter((rec) => {
+        if (rec.id === evalId) {
+          if (rec.user_type === 'student' && rec.student_id) {
+            deletedStudentId = rec.student_id.trim();
+          }
+          return false;
+        }
+        return true;
+      });
+      localStorage.setItem(LOCAL_EVAL_STORAGE_KEY, JSON.stringify(kept));
+      if (deletedStudentId && getBoundStudentId() === deletedStudentId) {
+        localStorage.removeItem(LOCAL_BOUND_STUDENT_ID_KEY);
+      }
+    }
+  } catch {}
+}
+
+/**
  * ลบประวัติการประเมินของรหัสนักศึกษาที่ระบุออกจาก LocalStorage และปลดล็อกเครื่องหากผูกกับรหัสนี้ไว้ (เพื่อใช้ทดสอบซ้ำ)
  */
 export function deleteLocalEvaluationsByStudentId(studentId: string): string[] {

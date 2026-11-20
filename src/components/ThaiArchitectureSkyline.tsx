@@ -3,7 +3,7 @@ import React from 'react';
 
 const ThaiArchitectureSkylineBase: React.FC = () => {
   return (
-    <div className="absolute inset-x-0 bottom-[62%] h-36 sm:h-40 md:h-44 lg:h-48 pointer-events-none select-none z-10 overflow-hidden">
+    <div className="absolute inset-x-0 bottom-[62%] h-44 md:h-44 lg:h-48 pointer-events-none select-none z-10 overflow-hidden">
       {/* Golden Backlight Ambient Spotlight behind Centerpiece Pumpkin Building (Zero-blur Radial Gradient) */}
       <div
         className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[520px] sm:w-[680px] md:w-[820px] h-48 pointer-events-none"
@@ -24,7 +24,7 @@ const ThaiArchitectureSkylineBase: React.FC = () => {
 
       {/* Responsive Thai Architecture Skyline SVG Layer (Static GPU Texture - Zero Per-Frame SVG Filter Repaint) */}
       <svg
-        viewBox="-400 0 2400 320"
+        viewBox="0 0 1600 320"
         preserveAspectRatio="xMidYMax meet"
         className="w-full h-full opacity-95 overflow-visible"
       >
@@ -106,7 +106,7 @@ const ThaiArchitectureSkylineBase: React.FC = () => {
         <g id="distantMountainLayer" opacity="0.48">
           {/* แสงเรืองสีทองสลัวเหนือสันเขา */}
           <path
-            d="M -500 320 L -500 226 Q -250 176 0 210 Q 120 158 260 185 Q 410 120 560 162 Q 700 88 830 112 Q 970 78 1130 148 Q 1270 110 1420 172 Q 1520 150 1600 188 Q 1850 156 2100 220 L 2100 320 Z"
+            d="M -1000 320 L -1000 232 Q -650 184 -320 202 Q -140 182 0 210 Q 120 158 260 185 Q 410 120 560 162 Q 700 88 830 112 Q 970 78 1130 148 Q 1270 110 1420 172 Q 1520 150 1600 188 Q 1860 158 2140 208 Q 2380 188 2600 230 L 2600 320 Z"
             fill="url(#mountainDistGrad)"
             stroke="#f59e0b"
             strokeWidth="1"
@@ -114,7 +114,7 @@ const ThaiArchitectureSkylineBase: React.FC = () => {
           />
           {/* ทิวเขาชั้นรองด้านหน้า (Foothills Silhouette) */}
           <path
-            d="M -500 320 L -500 250 Q -250 205 0 242 Q 180 192 350 222 Q 510 168 680 202 Q 840 152 1010 192 Q 1180 162 1350 212 Q 1480 188 1600 225 Q 1860 195 2100 248 L 2100 320 Z"
+            d="M -1000 320 L -1000 256 Q -650 214 -300 232 Q -120 215 0 242 Q 180 192 350 222 Q 510 168 680 202 Q 840 152 1010 192 Q 1180 162 1350 212 Q 1480 188 1600 225 Q 1880 196 2160 238 Q 2400 220 2600 254 L 2600 320 Z"
             fill="url(#mountainMidGrad)"
             stroke="#fbbf24"
             strokeWidth="0.8"

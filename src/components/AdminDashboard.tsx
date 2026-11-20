@@ -1,7 +1,7 @@
 // src/components/AdminDashboard.tsx
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useMemo } from 'react';
 import type { StatsResponse, KrathongItem } from '../types';
-import { GraduationCap } from 'lucide-react';
+import { GraduationCap, ClipboardCheck } from 'lucide-react';
 import {
   exportEvaluationAndProjectToExcel,
   exportEvaluationToCSV,
@@ -55,9 +55,15 @@ import {
   getDeletedEvaluationIds,
   mergeDeletedEvaluationIds,
   deleteLocalEvaluationsByStudentId,
+  deleteLocalEvaluationById,
+  type ParsedEvaluationRecord,
   type EvaluationAnalyticsSummary
 } from '../utils/evaluationHelpers';
 import { EvaluationRadarChart } from './EvaluationRadarChart';
+
+const EvaluationModal = lazy(() =>
+  import('./EvaluationModal').then((m) => ({ default: m.EvaluationModal }))
+);
 
 interface AdminDashboardProps {
   onBackToRiver: () => void;
@@ -86,6 +92,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
   const [transcriptPage, setTranscriptPage] = useState<number>(1);
   const [krathongPage, setKrathongPage] = useState<number>(1);
   const [resetLockNotice, setResetLockNotice] = useState<string>('');
+  const [showTestEvalModal, setShowTestEvalModal] = useState<boolean>(false);
   const ADMIN_PAGE_SIZE = 50;
 
   // ดึงข้อมูลสถิติ รายการกระทง และข้อมูลประเมิน 10 ข้อ (รวมข้อมูลจากทั้ง LocalStorage + Supabase + API)
@@ -405,6 +412,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
     await loadData();
   };
 
+  // ลบข้อเสนอแนะและผลประเมิน 1 รายการ (Section 4) ออกจากระบบ
+  const handleDeleteFeedback = async (record: ParsedEvaluationRecord) => {
+    if (!getAdminSession() || !record?.id) return;
+    const confirmed = window.confirm(
+      `ต้องการลบข้อเสนอแนะ "${record.comment}" นี้ออกจากระบบใช่หรือไม่?`
+    );
+    if (!confirmed) return;
+
+    deleteLocalEvaluationById(record.id);
+    mergeDeletedEvaluationIds([record.id]);
+
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(record.id)) {
+      try {
+        await supabase.from('evaluations').delete().eq('id', record.id);
+      } catch {}
+    }
+
+    try {
+      await fetch('/api/admin/moderate', {
+        method: 'POST',
+        headers: getAdminAuthHeaders(),
+        credentials: 'include',
+        body: JSON.stringify({
+          action: 'delete_student_eval',
+          studentId: '',
+          evalIds: [record.id]
+        })
+      });
+    } catch {}
+
+    setResetLockNotice('ลบข้อเสนอแนะและผลประเมินดังกล่าวเรียบร้อยแล้ว');
+    await loadData();
+  };
+
   // สลับโหมด Approval
   const handleToggleApproval = async () => {
     if (!getAdminSession()) return;
@@ -688,8 +729,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
           </div>
         </div>
 
-        {/* System Control Grid (4 Equal Buttons) */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full lg:w-auto shrink-0">
+        {/* System Control Grid (5 Equal Buttons) */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 w-full lg:w-auto shrink-0">
+          {/* Open Evaluation Modal for Admin Testing */}
+          <button
+            type="button"
+            onClick={() => setShowTestEvalModal(true)}
+            title="เปิดหน้าต่างแบบประเมินเพื่อทดสอบระบบจากหลังบ้านโดยตรง"
+            className="flex items-center justify-center space-x-1.5 px-3 py-2.5 bg-amber-100 hover:bg-amber-200/80 text-amber-950 border border-amber-400/70 rounded-xl text-xs font-bold shadow-2xs transition active:scale-95 cursor-pointer"
+          >
+            <ClipboardCheck className="w-4 h-4 text-amber-800 shrink-0" />
+            <span className="truncate">ทดสอบแบบประเมิน</span>
+          </button>
+
           {/* Approval Mode Toggle */}
           <button
             type="button"
@@ -1382,26 +1434,56 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                 .filter(r => r.comment)
                 .slice(0, 12)
                 .map((f, i) => (
-                  <div key={i} className="bg-[#fdfaf4] p-3.5 rounded-xl border border-amber-900/12">
-                    <div className="flex items-center justify-between text-xs text-[#7c5d3a] mb-1">
-                      <span className="font-semibold text-[#574536]">
+                  <div key={f.id || i} className="bg-[#fdfaf4] p-3.5 rounded-xl border border-amber-900/12">
+                    <div className="flex items-center justify-between gap-2 text-xs text-[#7c5d3a] mb-1">
+                      <span className="font-semibold text-[#574536] truncate">
                         {f.user_type === 'student'
                           ? `นักศึกษา ${f.student_id ? `(${f.student_id})` : ''}`
                           : f.user_type === 'staff'
                             ? 'บุคลากร'
                             : 'บุคคลภายนอก'}
                       </span>
-                      <span className="text-amber-800 font-bold">
-                        x̄ = {f.average_score.toFixed(2)} / 5.00
-                      </span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-amber-800 font-bold">
+                          x̄ = {f.average_score.toFixed(2)} / 5.00
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteFeedback(f)}
+                          title="ลบข้อเสนอแนะนี้ออกจากระบบ"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg transition active:scale-95 cursor-pointer text-[11px] font-semibold"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span>ลบ</span>
+                        </button>
+                      </div>
                     </div>
-                    <p className="text-xs text-[#231912] italic">&ldquo;{f.comment}&rdquo;</p>
+                    <p className="text-xs text-[#231912] italic break-words">&ldquo;{f.comment}&rdquo;</p>
                   </div>
                 ))}
             </div>
           </div>
         )}
       </div>
+
+      {/* Admin Test Evaluation Modal */}
+      {showTestEvalModal && (
+        <Suspense fallback={null}>
+          <EvaluationModal
+            krathongId={null}
+            userType="student"
+            isAdminTestMode
+            onClose={() => setShowTestEvalModal(false)}
+            onFinish={() => {
+              setShowTestEvalModal(false);
+              setResetLockNotice(
+                'ส่งแบบประเมินทดสอบเรียบร้อยแล้ว! ข้อมูลกราฟและตารางด้านล่างถูกอัปเดตล่าสุดแล้ว'
+              );
+              loadData();
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 };

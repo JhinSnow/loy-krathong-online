@@ -714,8 +714,11 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
     const syncSkyCanvasSize = () => {
       if (!skyCanvas || !skyCtx) return;
       const skyH = Math.max(120, Math.ceil(h * 0.385));
-      skyCanvas.width = w;
-      skyCanvas.height = skyH;
+      const sizeChanged = skyCanvas.width !== w || skyCanvas.height !== skyH;
+      if (sizeChanged) {
+        skyCanvas.width = w;
+        skyCanvas.height = skyH;
+      }
 
       cachedSkyGrad = skyCtx.createLinearGradient(0, 0, 0, skyH);
       cachedSkyGrad.addColorStop(0.0, '#120b06');
@@ -739,8 +742,10 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       cachedHaloGrad.addColorStop(1, 'rgba(245, 158, 11, 0)');
 
       if (skyBackdropCanvas && skyBackdropCtx) {
-        skyBackdropCanvas.width = w;
-        skyBackdropCanvas.height = skyH;
+        if (skyBackdropCanvas.width !== w || skyBackdropCanvas.height !== skyH) {
+          skyBackdropCanvas.width = w;
+          skyBackdropCanvas.height = skyH;
+        }
         skyBackdropCtx.fillStyle = cachedSkyGrad;
         skyBackdropCtx.fillRect(0, 0, w, skyH);
 
@@ -753,6 +758,9 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
         skyBackdropCtx.beginPath();
         skyBackdropCtx.arc(cachedMoonX, cachedMoonY, cachedMoonR, 0, Math.PI * 2);
         skyBackdropCtx.fill();
+
+        // วาดทับลงแคนวาสทันทีแบบ Synchronous เพื่อไม่ให้ iOS Safari กระพริบเวลา Address Bar ขยับ
+        skyCtx.drawImage(skyBackdropCanvas, 0, 0);
       }
     };
 
@@ -840,7 +848,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       syncSkyCanvasSize();
       reflectionDirty = true;
 
-      if (!renderer || !camera || !water) return;
+      if (!renderer || !scene || !camera || !water) return;
 
       const aspect = w / h;
       const fov = aspect < 1 ? Math.min(62, 42 / Math.max(0.68, aspect)) : 42;
@@ -874,6 +882,7 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       currentDpr = Math.min(window.devicePixelRatio || 1, 1.0);
       renderer.setPixelRatio(currentDpr);
       renderer.setSize(w, h);
+      renderer.render(scene, camera);
     };
 
     updateLayoutAndCamera();
@@ -1368,7 +1377,13 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 w-full h-dvh overflow-hidden overscroll-none bg-[#0c7c94] select-none">
+    <div
+      className="fixed inset-0 w-full h-dvh overflow-hidden overscroll-none touch-none select-none"
+      style={{
+        background:
+          'linear-gradient(to bottom, #120b06 0%, #24160b 20%, #1b120a 38.5%, #0c7c94 38.5%, #0c7c94 100%)'
+      }}
+    >
       {/* Layer 1: ท้องฟ้ายามค่ำคืนโทนอุ่นสีเหลืองทอง + ดวงจันทร์ + ดาว + โคมลอย + พลุ */}
       <canvas
         ref={skyCanvasRef}
@@ -1552,94 +1567,102 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
       )}
 
       {/* Bottom Floating Control Bar */}
-      <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 flex items-center space-x-1.5 sm:space-x-2 bg-[#fdfaf4]/95 px-3 sm:px-4 py-2 sm:py-2.5 rounded-full border border-amber-900/15 shadow-2xl z-30 max-w-[95vw]">
-        <button
-          onClick={onNavigateCustomize}
-          className="flex items-center space-x-1.5 sm:space-x-2 px-3.5 sm:px-5 py-2 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-amber-400 text-[#231912] font-extrabold rounded-full shadow-sm border border-amber-600/25 transition-all duration-150 active:scale-95 whitespace-nowrap cursor-pointer text-xs sm:text-sm"
-        >
-          <Sparkles className="w-4 h-4 text-[#231912] shrink-0" />
-          <span>สร้างกระทงของคุณ</span>
-        </button>
-
-        <button
-          onClick={onNavigateWishes}
-          title="อ่านคำอวยพรของทุกคน"
-          className="flex items-center space-x-1.5 px-3 sm:px-3.5 py-2 bg-white hover:bg-amber-50 text-[#231912] border border-amber-900/15 rounded-full text-xs sm:text-sm font-semibold shadow-2xs transition-all duration-150 active:scale-95 whitespace-nowrap cursor-pointer"
-        >
-          <MessageSquareHeart className="w-4 h-4 text-amber-700 shrink-0" />
-          <span className="hidden sm:inline">รวมคำอวยพร</span>
-          <span className="sm:hidden">คำอวยพร</span>
-        </button>
-
-        {myKrathongId && (
+      <div className="absolute bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 flex flex-col sm:flex-row items-center gap-1.5 sm:gap-2 bg-[#fdfaf4]/95 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl sm:rounded-full border border-amber-900/15 shadow-2xl z-30 max-w-[96vw]">
+        <div className="flex items-center justify-center gap-1.5">
           <button
-            onClick={handleFindMyKrathong}
-            title="ดูกระทงของฉัน"
-            className="flex items-center space-x-1.5 px-2.5 sm:px-3.5 py-2 bg-amber-100 hover:bg-amber-200/75 text-amber-950 border border-amber-400/60 rounded-full text-xs sm:text-sm font-semibold shadow-2xs transition-all duration-150 active:scale-95 whitespace-nowrap cursor-pointer"
+            onClick={onNavigateCustomize}
+            className="flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-5 py-1.5 sm:py-2 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-amber-400 text-[#231912] font-extrabold rounded-full shadow-sm border border-amber-600/25 transition-all duration-150 active:scale-95 whitespace-nowrap cursor-pointer text-xs sm:text-sm"
           >
-            <Eye className="w-4 h-4 text-amber-800 shrink-0" />
-            <span className="hidden sm:inline">ดูกระทงของฉัน</span>
+            <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#231912] shrink-0" />
+            <span>สร้างกระทงของคุณ</span>
           </button>
-        )}
 
-        <button
-          onClick={handleToggleAudio}
-          title={isAudioPlaying ? 'ปิดเสียงเพลงเปียโนและสายน้ำ' : 'เปิดเสียงเพลงลอยกระทง (เปียโน) และสายน้ำ'}
-          className={`flex items-center space-x-1.5 px-2.5 sm:px-3 py-2 rounded-full border text-xs font-semibold transition-all duration-150 active:scale-95 cursor-pointer whitespace-nowrap ${
-            isAudioPlaying
-              ? 'bg-amber-100 border-amber-500 text-[#231912] shadow-2xs'
-              : 'bg-white hover:bg-amber-50 text-[#574536] border-amber-900/15'
-          }`}
-        >
-          {isAudioPlaying ? (
-            <Volume2 className="w-4 h-4 text-amber-700 shrink-0" />
-          ) : (
-            <VolumeX className="w-4 h-4 text-[#7c5d3a] shrink-0" />
+          <button
+            onClick={onNavigateWishes}
+            title="อ่านคำอวยพรของทุกคน"
+            className="flex items-center space-x-1 px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-white hover:bg-amber-50 text-[#231912] border border-amber-900/15 rounded-full text-xs sm:text-sm font-semibold shadow-2xs transition-all duration-150 active:scale-95 whitespace-nowrap cursor-pointer"
+          >
+            <MessageSquareHeart className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-700 shrink-0" />
+            <span className="hidden sm:inline">รวมคำอวยพร</span>
+            <span className="sm:hidden">คำอวยพร</span>
+          </button>
+
+          {myKrathongId && (
+            <button
+              onClick={handleFindMyKrathong}
+              title="ดูกระทงของฉัน"
+              className="flex items-center space-x-1 px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-amber-100 hover:bg-amber-200/75 text-amber-950 border border-amber-400/60 rounded-full text-xs sm:text-sm font-semibold shadow-2xs transition-all duration-150 active:scale-95 whitespace-nowrap cursor-pointer"
+            >
+              <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-800 shrink-0" />
+              <span className="hidden sm:inline">ดูกระทงของฉัน</span>
+              <span className="sm:hidden">ของฉัน</span>
+            </button>
           )}
-          <span className="hidden md:inline">{isAudioPlaying ? 'เพลงเปียโน: เปิด' : 'เปิดเพลงเปียโน'}</span>
-        </button>
+        </div>
 
-        <button
-          onClick={() => setShowWishLabels((prev) => !prev)}
-          title={showWishLabels ? 'ซ่อนป้ายคำอวยพรเหนือกระทง' : 'แสดงป้ายคำอวยพรเหนือกระทง'}
-          className={`hidden sm:inline-flex items-center space-x-1 px-3 py-2 rounded-full border text-xs font-semibold whitespace-nowrap cursor-pointer transition-all duration-150 active:scale-95 ${
-            showWishLabels
-              ? 'bg-white border-amber-900/15 text-[#231912] hover:bg-amber-50'
-              : 'bg-[#f4ecdd] border-amber-900/15 text-[#7c5d3a] hover:text-[#231912]'
-          }`}
-        >
-          {showWishLabels ? <Eye className="w-3.5 h-3.5 text-amber-700" /> : <EyeOff className="w-3.5 h-3.5" />}
-          <span>ป้ายคำอวยพร</span>
-        </button>
+        <div className="flex items-center justify-center flex-wrap gap-1.5">
+          <button
+            onClick={handleToggleAudio}
+            title={isAudioPlaying ? 'ปิดเสียงเพลงเปียโนและสายน้ำ' : 'เปิดเสียงเพลงลอยกระทง (เปียโน) และสายน้ำ'}
+            className={`flex items-center space-x-1 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-full border text-[11px] sm:text-xs font-semibold transition-all duration-150 active:scale-95 cursor-pointer whitespace-nowrap ${
+              isAudioPlaying
+                ? 'bg-amber-100 border-amber-500 text-[#231912] shadow-2xs'
+                : 'bg-white hover:bg-amber-50 text-[#574536] border-amber-900/15'
+            }`}
+          >
+            {isAudioPlaying ? (
+              <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-700 shrink-0" />
+            ) : (
+              <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#7c5d3a] shrink-0" />
+            )}
+            <span className="sm:hidden">เสียง</span>
+            <span className="hidden md:inline">{isAudioPlaying ? 'เพลงเปียโน: เปิด' : 'เปิดเพลงเปียโน'}</span>
+          </button>
 
-        <button
-          onClick={toggleFullscreen}
-          title="เปิด/ปิด โหมดเต็มจอสำหรับขึ้นจอใหญ่"
-          className="hidden sm:inline-flex p-2 bg-white hover:bg-amber-50 text-[#231912] rounded-full border border-amber-900/15 transition-all duration-150 active:scale-95 cursor-pointer shrink-0"
-        >
-          {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-        </button>
+          <button
+            onClick={() => setShowWishLabels((prev) => !prev)}
+            title={showWishLabels ? 'ซ่อนป้ายคำอวยพรเหนือกระทง' : 'แสดงป้ายคำอวยพรเหนือกระทง'}
+            className={`inline-flex items-center space-x-1 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-full border text-[11px] sm:text-xs font-semibold whitespace-nowrap cursor-pointer transition-all duration-150 active:scale-95 ${
+              showWishLabels
+                ? 'bg-white border-amber-900/15 text-[#231912] hover:bg-amber-50'
+                : 'bg-[#f4ecdd] border-amber-900/15 text-[#7c5d3a] hover:text-[#231912]'
+            }`}
+          >
+            {showWishLabels ? <Eye className="w-3.5 h-3.5 text-amber-700" /> : <EyeOff className="w-3.5 h-3.5" />}
+            <span className="sm:hidden">ป้ายชื่อ</span>
+            <span className="hidden sm:inline">ป้ายคำอวยพร</span>
+          </button>
 
-        <button
-          onClick={() => setShowControls(!showControls)}
-          title="ซ่อนแถบควบคุมสำหรับฉายโปรเจกเตอร์"
-          className="hidden sm:inline-flex px-3 py-2 bg-white hover:bg-amber-50 text-[#574536] font-semibold text-xs rounded-full border border-amber-900/15 whitespace-nowrap transition-all duration-150 active:scale-95 cursor-pointer"
-        >
-          {showControls ? 'ซ่อน UI' : 'แสดง UI'}
-        </button>
+          <button
+            onClick={() => setShowControls(!showControls)}
+            title="ซ่อนแถบควบคุมสำหรับฉายโปรเจกเตอร์"
+            className="inline-flex px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white hover:bg-amber-50 text-[#574536] font-semibold text-[11px] sm:text-xs rounded-full border border-amber-900/15 whitespace-nowrap transition-all duration-150 active:scale-95 cursor-pointer"
+          >
+            {showControls ? 'ซ่อน UI' : 'แสดง UI'}
+          </button>
 
-        <button
-          onClick={onNavigateAdmin}
-          title="เข้าสู่แผงควบคุมผู้ดูแล"
-          className="p-2 bg-white hover:bg-amber-50 text-[#574536] hover:text-[#231912] rounded-full border border-amber-900/15 transition-all duration-150 active:scale-95 cursor-pointer shrink-0"
-        >
-          <ShieldAlert className="w-4 h-4" />
-        </button>
+          <button
+            onClick={toggleFullscreen}
+            title="เปิด/ปิด โหมดเต็มจอสำหรับขึ้นจอใหญ่"
+            className="inline-flex p-1.5 sm:p-2 bg-white hover:bg-amber-50 text-[#231912] rounded-full border border-amber-900/15 transition-all duration-150 active:scale-95 cursor-pointer shrink-0"
+          >
+            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Maximize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+          </button>
+
+          <button
+            onClick={onNavigateAdmin}
+            title="เข้าสู่แผงควบคุมผู้ดูแล"
+            className="inline-flex items-center space-x-1 px-2.5 sm:p-2 py-1.5 bg-white hover:bg-amber-50 text-[#574536] hover:text-[#231912] rounded-full border border-amber-900/15 text-[11px] font-semibold transition-all duration-150 active:scale-95 cursor-pointer shrink-0 whitespace-nowrap"
+          >
+            <ShieldAlert className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span className="sm:hidden">แอดมิน</span>
+          </button>
+        </div>
       </div>
 
       {/* Selected Krathong Details Modal */}
       {selectedKrathong && (
-        <div className="fixed inset-0 bg-[#1c140d]/70 flex items-center justify-center p-4 z-50 animate-ui-fade">
+        <div className="fixed inset-0 bg-[#1c140d]/70 flex items-center justify-center p-4 z-50 touch-auto animate-ui-fade">
           <div className="bg-[#fdfaf4] border border-amber-900/15 text-[#231912] rounded-3xl p-6 max-w-sm w-full text-center relative shadow-2xl animate-ui-modal">
             <div className="flex items-center justify-center mb-3">
               <div className="w-28 h-28 rounded-2xl bg-[radial-gradient(circle_at_50%_60%,#22c7e0_0%,#0c7c94_88%)] border border-cyan-900/25 flex items-center justify-center overflow-hidden shadow-inner">
