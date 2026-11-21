@@ -25,7 +25,7 @@ type ForcedMode = 'stage' | 'attendee' | 'auto';
 
 function resolveInitialRouting(): { initialView: AppView; forcedMode: ForcedMode } {
   if (typeof window === 'undefined') {
-    return { initialView: 'customize', forcedMode: 'auto' };
+    return { initialView: 'river', forcedMode: 'auto' };
   }
   const params = new URLSearchParams(window.location.search);
   const mode = (params.get('mode') || '').trim().toLowerCase();
@@ -45,8 +45,8 @@ function resolveInitialRouting(): { initialView: AppView; forcedMode: ForcedMode
   if (mode === 'admin') {
     return { initialView: 'admin', forcedMode: 'attendee' };
   }
-  // ค่าเริ่มต้นของเว็บให้เข้าสู่หน้าสร้าง/ตกแต่งกระทงก่อน (ยกเว้นจอเวทีที่ใช้ ?mode=stage)
-  return { initialView: 'customize', forcedMode: 'auto' };
+  // ค่าเริ่มต้นของเว็บให้เข้าสู่หน้าแม่น้ำก่อน (หากต้องการเข้าหน้าสร้างกระทงโดยตรงให้ใช้ ?mode=create)
+  return { initialView: 'river', forcedMode: 'auto' };
 }
 
 export const App: React.FC = () => {
