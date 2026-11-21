@@ -278,52 +278,10 @@ class SoundManager {
     }, current.delay);
   }
 
-  // เสียงระฆังมงคลและละอองน้ำเมื่อกดปล่อยกระทงสำเร็จ (ทำงานเสมอเมื่อผู้ใช้กดปุ่มปล่อยกระทง)
-  public playFloatSuccessChime(): void {
-    const ctx = this.ensureContext();
-    if (!ctx) return;
+  // ปิดเสียงเอฟเฟ็กตอนปล่อยกระทงและตอนคลิกหน้าจอ/จุดพลุตามที่ผู้ใช้ต้องการ เหลือเฉพาะเอฟเฟ็กภาพและเพลงเปียโนบรรยากาศ
+  public playFloatSuccessChime(): void {}
 
-    try {
-      const chord = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
-      chord.forEach((freq, idx) => {
-        const now = ctx.currentTime + idx * 0.11;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, now);
-
-        gain.gain.setValueAtTime(0.001, now);
-        gain.gain.linearRampToValueAtTime(0.09, now + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0008, now + 1.1);
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(now);
-        osc.stop(now + 1.15);
-      });
-    } catch {}
-  }
-
-  // เสียงพลุดอกไม้ไฟแตกตัวเบาๆ บนท้องฟ้า (เล่นเฉพาะเมื่อเปิดเสียงบรรยากาศไว้)
-  public playFireworkSparkle(): void {
-    if (this.isMuted || !this.ctx) return;
-    try {
-      const now = this.ctx.currentTime;
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(180, now);
-      osc.frequency.exponentialRampToValueAtTime(45, now + 0.22);
-
-      gain.gain.setValueAtTime(0.035, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
-
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.25);
-    } catch {}
-  }
+  public playFireworkSparkle(): void {}
 }
 
 export const soundManager = new SoundManager();

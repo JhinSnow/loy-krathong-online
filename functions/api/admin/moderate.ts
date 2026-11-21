@@ -165,6 +165,56 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       });
     }
 
+    // 4. ล้างข้อมูลทดสอบทั้งหมดทั้งระบบเพื่อเตรียมเปิดใช้งานในวันงานจริง
+    if (action === 'reset_all_data') {
+      await env.DB.prepare(`DELETE FROM evaluations`).run();
+      await env.DB.prepare(`DELETE FROM krathongs`).run();
+
+      const fallbackHiddenKrathongIds: string[] = Array.isArray(body.fallbackHiddenKrathongIds)
+        ? Array.from(
+            new Set(
+              body.fallbackHiddenKrathongIds
+                .map((id: unknown) => sanitizeText(String(id || ''), 80))
+                .filter(Boolean)
+            )
+          )
+        : [];
+      const fallbackDeletedEvalIds: string[] = Array.isArray(body.fallbackDeletedEvalIds)
+        ? Array.from(
+            new Set(
+              body.fallbackDeletedEvalIds
+                .map((id: unknown) => sanitizeText(String(id || ''), 80))
+                .filter(Boolean)
+            )
+          )
+        : [];
+
+      const overridesMap: Record<string, 'deleted'> = {};
+      for (const id of fallbackHiddenKrathongIds) {
+        overridesMap[id] = 'deleted';
+      }
+
+      const overridesJson = JSON.stringify(overridesMap);
+      const deletedJson = JSON.stringify(fallbackDeletedEvalIds);
+
+      await env.DB.prepare(`
+        INSERT INTO system_settings (key, value, updated_at)
+        VALUES ('moderation_overrides', ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(key) DO UPDATE SET value = ?, updated_at = CURRENT_TIMESTAMP
+      `).bind(overridesJson, overridesJson).run();
+
+      await env.DB.prepare(`
+        INSERT INTO system_settings (key, value, updated_at)
+        VALUES ('deleted_eval_ids', ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(key) DO UPDATE SET value = ?, updated_at = CURRENT_TIMESTAMP
+      `).bind(deletedJson, deletedJson).run();
+
+      return new Response(JSON.stringify({ success: true, cleared: true }), {
+        status: 200,
+        headers
+      });
+    }
+
     return new Response(JSON.stringify({ error: 'คำสั่งไม่ถูกต้อง' }), { status: 400, headers });
   } catch (err) {
     console.error('Admin Moderate Error:', err);

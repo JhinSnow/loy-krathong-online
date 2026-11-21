@@ -27,7 +27,9 @@ import {
   Eye,
   EyeOff,
   RotateCcw,
-  Leaf
+  Leaf,
+  AlertTriangle,
+  X
 } from 'lucide-react';
 import { supabase } from '../utils/supabase';
 import {
@@ -47,6 +49,7 @@ import {
   getModerationOverrides,
   mergeModerationOverrides,
   resetDeviceEvaluationLock,
+  resetAllLocalProjectData,
   getDeletedEvaluationIds,
   mergeDeletedEvaluationIds,
   deleteLocalEvaluationsByStudentId,
@@ -63,6 +66,12 @@ const EvaluationModal = lazy(() =>
 interface AdminDashboardProps {
   onBackToRiver: () => void;
 }
+
+const XBar: React.FC = () => (
+  <span className="inline-block border-t-[1.5px] border-current leading-[0.88] pt-[1px] mx-[1px]">
+    x
+  </span>
+);
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => Boolean(getAdminSession()));
@@ -90,6 +99,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
   const [krathongPage, setKrathongPage] = useState<number>(1);
   const [resetLockNotice, setResetLockNotice] = useState<string>('');
   const [showTestEvalModal, setShowTestEvalModal] = useState<boolean>(false);
+  const [showFullResetModal, setShowFullResetModal] = useState<boolean>(false);
+  const [fullResetConfirmText, setFullResetConfirmText] = useState<string>('');
+  const [fullResetRunning, setFullResetRunning] = useState<boolean>(false);
+  const [fullResetError, setFullResetError] = useState<string>('');
   const ADMIN_PAGE_SIZE = 50;
 
   // ดึงข้อมูลสถิติ รายการกระทง และข้อมูลประเมิน 10 ข้อ (รวมข้อมูลจากทั้ง LocalStorage + Supabase + API)
@@ -347,13 +360,105 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
   const handleResetDeviceTestLock = () => {
     if (!getAdminSession()) return;
     const confirmed = window.confirm(
-      'ต้องการรีเซ็ตสถานะล็อกแบบประเมินบนเบราว์เซอร์เครื่องนี้เพื่อใช้ทดสอบระบบใช่หรือไม่?\n(การรีเซ็ตนี้ล้างเฉพาะข้อมูลในเบราว์เซอร์นี้ ไม่ลบข้อมูลจริงในฐานข้อมูล Supabase/D1)'
+      'ต้องการรีเซ็ตล็อกแบบประเมินบนเบราว์เซอร์เครื่องนี้เท่านั้นใช่หรือไม่?\n(การรีเซ็ตนี้ล้างเฉพาะสิทธิ์ที่ผูกไว้ในเครื่องนี้ เพื่อเทสซ้ำ — ไม่ลบกระทงหรือผลประเมินจริงในฐานข้อมูล)'
     );
     if (!confirmed) return;
     resetDeviceEvaluationLock();
     setResetLockNotice(
-      'รีเซ็ตสถานะทดสอบบนเครื่องนี้เรียบร้อยแล้ว! สามารถกลับไปทดลองลอยกระทงและส่งแบบประเมินใหม่ได้ทันที (หากทดสอบด้วยรหัสนักศึกษา ให้ใช้รหัสทดสอบใหม่ที่ยังไม่ซ้ำในฐานข้อมูล)'
+      'รีเซ็ตล็อกบนเครื่องนี้เรียบร้อยแล้ว! สามารถกลับไปทดลองลอยกระทงและส่งแบบประเมินใหม่จากเบราว์เซอร์นี้ได้ทันที'
     );
+  };
+
+  // ล้างข้อมูลทดสอบทั้งหมดทั้งระบบ (Supabase + Cloudflare D1 + เบราว์เซอร์) เพื่อเตรียมพร้อมวันงานจริง
+  const handleConfirmFullSystemReset = async () => {
+    if (!getAdminSession() || fullResetRunning) return;
+    if (fullResetConfirmText.trim().toUpperCase() !== 'RESET') {
+      setFullResetError('กรุณาพิมพ์คำว่า RESET เพื่อยืนยันการล้างข้อมูลทั้งหมด');
+      return;
+    }
+
+    setFullResetRunning(true);
+    setFullResetError('');
+
+    try {
+      const fetchAllSupabaseIds = async (table: 'krathongs' | 'evaluations'): Promise<string[]> => {
+        const ids: string[] = [];
+        const pageSize = 1000;
+        for (let page = 0; page < 50; page++) {
+          const from = page * pageSize;
+          const { data } = await supabase
+            .from(table)
+            .select('id')
+            .range(from, from + pageSize - 1);
+          if (!data || data.length === 0) break;
+          for (const row of data) {
+            if (row?.id) ids.push(String(row.id));
+          }
+          if (data.length < pageSize) break;
+        }
+        return ids;
+      };
+
+      const deleteSupabaseInChunks = async (table: 'krathongs' | 'evaluations', ids: string[]) => {
+        const chunkSize = 100;
+        for (let i = 0; i < ids.length; i += chunkSize) {
+          const chunk = ids.slice(i, i + chunkSize);
+          try {
+            await supabase.from(table).delete().in('id', chunk);
+          } catch {}
+        }
+      };
+
+      // 1. ดึงรายการ ID ทั้งหมดจาก Supabase แล้วพยายามลบออกจากฐานข้อมูลโดยตรง
+      const [supaEvalIds, supaKrathongIds] = await Promise.all([
+        fetchAllSupabaseIds('evaluations').catch(() => []),
+        fetchAllSupabaseIds('krathongs').catch(() => [])
+      ]);
+
+      await deleteSupabaseInChunks('evaluations', supaEvalIds);
+      await deleteSupabaseInChunks('krathongs', supaKrathongIds);
+
+      // 2. ตรวจสอบว่ายังมีแถวที่ค้างอยู่จาก RLS บน Supabase หรือไม่ เพื่อนำไปซ่อน Fallback บน D1 + LocalStorage
+      const [remainingEvalIds, remainingKrathongIds] = await Promise.all([
+        fetchAllSupabaseIds('evaluations').catch(() => supaEvalIds),
+        fetchAllSupabaseIds('krathongs').catch(() => supaKrathongIds)
+      ]);
+
+      const fallbackDeletedEvalIds = remainingEvalIds.filter(
+        (id) => id !== 'f85dd716-4bc9-4e11-b84f-66d5cf9e9007'
+      );
+      const fallbackHiddenKrathongIds = remainingKrathongIds;
+
+      // 3. ล้างฐานข้อมูล Cloudflare D1 และอัปเดตสถานะซ่อน Fallback ผ่าน Admin API
+      try {
+        await fetch('/api/admin/moderate', {
+          method: 'POST',
+          headers: getAdminAuthHeaders(),
+          credentials: 'include',
+          body: JSON.stringify({
+            action: 'reset_all_data',
+            fallbackHiddenKrathongIds,
+            fallbackDeletedEvalIds
+          })
+        });
+      } catch {}
+
+      // 4. ล้างข้อมูลบนเบราว์เซอร์เครื่องนี้ทั้งหมด
+      resetAllLocalProjectData(fallbackHiddenKrathongIds, fallbackDeletedEvalIds);
+
+      setShowFullResetModal(false);
+      setFullResetConfirmText('');
+      setFullResetError('');
+      setResetLockNotice(
+        'ล้างข้อมูลทดสอบทั้งระบบเรียบร้อยแล้ว! เว็บพร้อมใช้งานในวันงานจริง (กระทง 0 ใบ / แบบประเมิน 0 รายการ)'
+      );
+      await loadData();
+    } catch (err) {
+      console.warn('Full reset error:', err);
+      setFullResetError('เกิดข้อผิดพลาดระหว่างล้างข้อมูล กรุณาลองใหม่อีกครั้ง');
+    } finally {
+      setFullResetRunning(false);
+    }
   };
 
   // ลบรายชื่อนักศึกษาที่ยืนยันแล้วออกจาก Activity Transcript เพื่อให้สามารถกรอกรหัสเดิมทดสอบซ้ำได้ทันที
@@ -699,8 +804,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
           </div>
         </div>
 
-        {/* System Control Grid (4 Equal Buttons) */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 w-full lg:w-auto shrink-0">
+        {/* System Control Grid (5 Buttons) */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 w-full lg:w-auto shrink-0">
           {/* Open Evaluation Modal for Admin Testing */}
           <button
             type="button"
@@ -715,11 +820,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
           <button
             onClick={handleResetDeviceTestLock}
             type="button"
-            title="ล้างสถานะล็อกเครื่องและประวัติการประเมินในเบราว์เซอร์นี้สำหรับการทดสอบ"
+            title="ล้างเฉพาะล็อกเครื่องนี้และประวัติในเบราว์เซอร์นี้เพื่อเทสซ้ำ (ไม่กระทบฐานข้อมูล)"
             className="flex items-center justify-center space-x-1.5 px-3 py-2.5 bg-white hover:bg-amber-50 text-[#231912] border border-amber-900/15 rounded-xl text-xs font-semibold shadow-2xs transition active:scale-95 cursor-pointer"
           >
             <RotateCcw className="w-4 h-4 text-amber-700 shrink-0" />
-            <span className="truncate">รีเซ็ตสถานะทดสอบ</span>
+            <span className="truncate">รีเซ็ตล็อกเครื่องนี้</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setFullResetConfirmText('');
+              setFullResetError('');
+              setShowFullResetModal(true);
+            }}
+            title="ลบข้อมูลทดสอบทั้งหมด (กระทง, แบบประเมิน, Transcript) ทั้งใน Supabase, D1 และเครื่องนี้ เพื่อเตรียมเปิดงานจริง"
+            className="flex items-center justify-center space-x-1.5 px-3 py-2.5 bg-rose-600 hover:bg-rose-700 text-white border border-rose-700 rounded-xl text-xs font-bold shadow-2xs transition active:scale-95 cursor-pointer"
+          >
+            <Trash2 className="w-4 h-4 shrink-0" />
+            <span className="truncate">ล้างข้อมูลทั้งระบบ</span>
           </button>
 
           <button
@@ -736,7 +855,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
             type="button"
             onClick={handleLogout}
             title="ออกจากระบบผู้ดูแล"
-            className="flex items-center justify-center space-x-1.5 px-3 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded-xl text-xs font-semibold transition active:scale-95 cursor-pointer"
+            className="col-span-2 sm:col-span-1 flex items-center justify-center space-x-1.5 px-3 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded-xl text-xs font-semibold transition active:scale-95 cursor-pointer"
           >
             <LogOut className="w-4 h-4 shrink-0" />
             <span className="truncate">ออกจากระบบ</span>
@@ -778,10 +897,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
               <span className="text-xs font-semibold text-[#7c5d3a]">ค่าเฉลี่ยรวมทุกด้าน (Overall Mean)</span>
               <Star className="w-5 h-5 text-amber-500 fill-amber-400" />
             </div>
-            <p className="text-2xl font-black text-amber-800 mt-2">
-              x̄ = {evalAnalytics.overallMean.toFixed(2)} / 5.00
+            <p className="text-xl xl:text-2xl font-black text-amber-800 mt-2 flex flex-wrap items-baseline gap-1 leading-tight">
+              <span>
+                <XBar /> = {evalAnalytics.overallMean.toFixed(2)}
+              </span>
+              <span className="text-sm font-bold text-[#7c5d3a]">/ 5.00</span>
             </p>
-            <p className="text-[11px] text-[#7c5d3a] mt-2">
+            <p className="text-[11px] text-[#7c5d3a] mt-2 leading-snug">
               ระดับความพึงพอใจ: <strong className="text-[#231912]">{evalAnalytics.overallLevelText}</strong> (N = {evalAnalytics.totalN} คน)
             </p>
           </div>
@@ -794,8 +916,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
             <p className="text-base font-extrabold text-emerald-700 mt-2 line-clamp-1">
               {evalAnalytics.highestDimension?.shortLabel || '-'}
             </p>
-            <p className="text-[11px] text-[#7c5d3a] mt-2">
-              x̄ = {evalAnalytics.highestDimension?.mean.toFixed(2) || '-'} (S.D. = {evalAnalytics.highestDimension?.sd.toFixed(2) || '-'})
+            <p className="text-[11px] text-[#7c5d3a] mt-2 leading-snug">
+              <XBar /> = {evalAnalytics.highestDimension?.mean.toFixed(2) || '-'} (S.D. = {evalAnalytics.highestDimension?.sd.toFixed(2) || '-'})
             </p>
           </div>
 
@@ -818,7 +940,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-sm font-extrabold text-[#231912]">
-                ตัวชี้วัดความสำเร็จของโครงการ (KPIs เชิงคุณภาพ • เกณฑ์ผ่าน x̄ ≥ 4.00)
+                ตัวชี้วัดความสำเร็จของโครงการ (KPIs เชิงคุณภาพ • เกณฑ์ผ่าน <XBar /> ≥ 4.00)
               </h2>
               <p className="text-[11px] text-[#7c5d3a]">
                 อ้างอิงหัวข้อ 7 ตัวชี้วัดความสำเร็จของโครงการลอยกระทงบุฟเฟต์
@@ -861,7 +983,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                 </div>
                 <div className="mt-2 flex items-baseline gap-3 text-xs">
                   <span className="text-lg font-black text-amber-800">
-                    x̄ = {kpi.mean.toFixed(2)}
+                    <XBar /> = {kpi.mean.toFixed(2)}
                   </span>
                   <span className="text-[#7c5d3a]">S.D. = {kpi.sd.toFixed(2)}</span>
                 </div>
@@ -892,8 +1014,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                   </span>
                 )}
               </div>
-              <p className="text-xs text-[#7c5d3a] mt-0.5">
-                แสดงจำนวนผู้ตอบทั้งหมด (N = {evalAnalytics.totalN} คน • ชุมชน/บุคคลทั่วไป N = {evalAnalytics.communityN} คน), ร้อยละ (%) ในแต่ละระดับคะแนน (1–5), ค่าเฉลี่ย (x̄) และ S.D.
+              <p className="text-xs text-[#7c5d3a] mt-0.5 leading-snug">
+                แสดงจำนวนผู้ตอบทั้งหมด (N = {evalAnalytics.totalN} คน • ชุมชน/บุคคลทั่วไป N = {evalAnalytics.communityN} คน), ร้อยละ (%) ในแต่ละระดับคะแนน (1–5), ค่าเฉลี่ย (<XBar />) และ S.D.
               </p>
             </div>
 
@@ -956,8 +1078,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                     1 น้อยที่สุด<br />
                     <span className="text-[10px] text-[#7c5d3a]">จำนวน (%)</span>
                   </th>
-                  <th className="py-3 px-3 text-center border-r border-amber-900/10 text-amber-900">
-                    ค่าเฉลี่ย (x̄)
+                  <th className="py-3 px-3 text-center border-r border-amber-900/10 text-amber-900 whitespace-nowrap">
+                    ค่าเฉลี่ย (<XBar />)
                   </th>
                   <th className="py-3 px-3 text-center border-r border-amber-900/10">S.D.</th>
                   <th className="py-3 px-3 text-center">แปลผล</th>
@@ -1095,17 +1217,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
 
                 {/* แถวสรุปค่าเฉลี่ยรวมทุกด้าน (Overall Mean) */}
                 <tr className="bg-[#fffbeb] font-bold text-[#231912] border-t-2 border-amber-400/70">
-                  <td colSpan={7} className="py-3.5 px-4 text-right border-r border-amber-900/15 text-sm">
+                  <td
+                    colSpan={7}
+                    className="py-3.5 px-4 text-right border-r border-amber-900/15 text-xs sm:text-sm leading-snug"
+                  >
                     ค่าเฉลี่ยรวม 36 ข้อหลัก (Overall Mean) จากผู้ประเมินทั้งหมด N = {evalAnalytics.totalN} คน
                   </td>
-                  <td className="py-3.5 px-3 text-center text-base font-black text-amber-800 border-r border-amber-900/15">
+                  <td className="py-3.5 px-3 text-center text-base font-black text-amber-800 border-r border-amber-900/15 whitespace-nowrap">
                     {evalAnalytics.overallMean.toFixed(2)}
                   </td>
-                  <td className="py-3.5 px-3 text-center border-r border-amber-900/15">
+                  <td className="py-3.5 px-3 text-center border-r border-amber-900/15 whitespace-nowrap">
                     {evalAnalytics.overallSD.toFixed(2)}
                   </td>
-                  <td className="py-3.5 px-3 text-center">
-                    <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-amber-400 text-[#231912]">
+                  <td className="py-3.5 px-3 text-center whitespace-nowrap">
+                    <span className="inline-block px-3 py-1 rounded-full text-xs font-extrabold bg-amber-400 text-[#231912]">
                       {evalAnalytics.overallLevelText}
                     </span>
                   </td>
@@ -1601,7 +1726,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                         </span>
                         <div className="flex items-center gap-2 shrink-0">
                           <span className="text-amber-800 font-bold">
-                            x̄ = {f.average_score.toFixed(2)} / 5.00
+                            <XBar /> = {f.average_score.toFixed(2)} / 5.00
                           </span>
                           <button
                             type="button"
@@ -1666,6 +1791,79 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
             }}
           />
         </Suspense>
+      )}
+
+      {/* Full System Reset Confirmation Modal */}
+      {showFullResetModal && (
+        <div className="fixed inset-0 bg-[#1c140d]/75 flex items-center justify-center p-4 z-50 animate-ui-fade">
+          <div className="bg-[#fdfaf4] border border-rose-300 text-[#231912] rounded-3xl p-5 sm:p-6 max-w-md w-full relative shadow-2xl space-y-4 animate-ui-modal">
+            <button
+              type="button"
+              disabled={fullResetRunning}
+              onClick={() => setShowFullResetModal(false)}
+              aria-label="ปิดหน้าต่างล้างข้อมูลทั้งระบบ"
+              className="absolute top-3.5 right-3.5 p-2 rounded-full bg-white hover:bg-rose-50 text-[#574536] hover:text-rose-700 border border-amber-900/15 transition cursor-pointer disabled:opacity-40"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-start gap-3 pr-6">
+              <div className="w-11 h-11 rounded-2xl bg-rose-100 border border-rose-300 flex items-center justify-center text-rose-700 shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base sm:text-lg font-extrabold text-rose-800">
+                  ล้างข้อมูลทดสอบทั้งระบบ (เตรียมวันงานจริง)
+                </h3>
+                <p className="text-xs text-[#574536] mt-0.5 leading-relaxed">
+                  การดำเนินการนี้จะลบรายการกระทง คำอธิษฐาน แบบประเมิน และรายชื่อ Activity Transcript ทดสอบทั้งหมดในฐานข้อมูลกลาง (Supabase + Cloudflare D1) และเบราว์เซอร์นี้ให้เหลือ 0 พร้อมสำหรับเปิดงานวันที่ 24 พฤศจิกายน 2569
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-rose-50/80 border border-rose-200 rounded-2xl p-3 text-xs text-rose-900 space-y-1">
+              <p className="font-bold">คำเตือน: ไม่สามารถกู้คืนข้อมูลที่ถูกลบได้</p>
+              <p>หากต้องการดำเนินการต่อ กรุณาพิมพ์คำว่า <strong>RESET</strong> ลงในช่องด้านล่าง</p>
+            </div>
+
+            <div>
+              <input
+                type="text"
+                value={fullResetConfirmText}
+                onChange={(e) => {
+                  setFullResetConfirmText(e.target.value);
+                  setFullResetError('');
+                }}
+                placeholder="พิมพ์คำว่า RESET"
+                disabled={fullResetRunning}
+                className="w-full bg-white border border-rose-300 focus:border-rose-600 focus:ring-1 focus:ring-rose-500 rounded-xl px-3.5 py-2.5 text-sm font-mono font-bold text-[#231912] placeholder-[#9c8671] focus:outline-none uppercase"
+              />
+              {fullResetError && (
+                <p className="text-xs font-semibold text-rose-700 mt-1.5">{fullResetError}</p>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                type="button"
+                disabled={fullResetRunning}
+                onClick={() => setShowFullResetModal(false)}
+                className="px-4 py-2.5 rounded-xl bg-white hover:bg-amber-50 text-[#231912] border border-amber-900/15 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                disabled={fullResetRunning || fullResetConfirmText.trim().toUpperCase() !== 'RESET'}
+                onClick={handleConfirmFullSystemReset}
+                className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold shadow-sm transition cursor-pointer disabled:opacity-45 flex items-center gap-1.5"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>{fullResetRunning ? 'กำลังล้างข้อมูล...' : 'ยืนยันล้างข้อมูลทั้งหมด'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

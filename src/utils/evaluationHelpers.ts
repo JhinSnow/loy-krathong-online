@@ -519,6 +519,113 @@ const PSU_FACULTY_CODE_MAP: Record<string, string> = {
 };
 
 /**
+ * รายชื่อสาขาวิชาแยกตามคณะของ ม.อ. หาดใหญ่ สำหรับแสดงตัวเลือก (Dropdown) ในแบบประเมิน
+ */
+export const PSU_MAJORS_BY_FACULTY: Record<string, readonly string[]> = {
+  'คณะวิทยาศาสตร์': [
+    'คณิตศาสตร์',
+    'คณิตศาสตร์ประยุกต์',
+    'สถิติ',
+    'วิทยาการคอมพิวเตอร์',
+    'เทคโนโลยีสารสนเทศ',
+    'เคมี',
+    'เคมี-ชีววิทยาประยุกต์',
+    'ฟิสิกส์',
+    'วัสดุศาสตร์',
+    'วิทยาศาสตร์และเทคโนโลยีพอลิเมอร์',
+    'ชีววิทยา',
+    'ชีวเคมี',
+    'จุลชีววิทยา',
+    'เทคโนโลยีชีวภาพ',
+    'วิทยาศาสตร์ชีวการแพทย์',
+    'วาริชศาสตร์ / วิทยาศาสตร์ทางทะเล',
+    'วิทยาศาสตร์ทั่วไป'
+  ],
+  'คณะวิศวกรรมศาสตร์': [
+    'วิศวกรรมโยธา',
+    'วิศวกรรมเครื่องกล',
+    'วิศวกรรมไฟฟ้า',
+    'วิศวกรรมอุตสาหการและระบบ',
+    'วิศวกรรมคอมพิวเตอร์',
+    'วิศวกรรมเคมี',
+    'วิศวกรรมเหมืองแร่และวัสดุ',
+    'วิศวกรรมสิ่งแวดล้อม',
+    'วิศวกรรมแมคคาทรอนิกส์',
+    'วิศวกรรมชีวการแพทย์',
+    'วิศวกรรมปัญญาประดิษฐ์'
+  ],
+  'คณะแพทยศาสตร์': [
+    'แพทยศาสตรบัณฑิต',
+    'วิทยาศาสตร์การแพทย์ / กายภาพบำบัด'
+  ],
+  'คณะพยาบาลศาสตร์': [
+    'พยาบาลศาสตรบัณฑิต'
+  ],
+  'คณะวิทยาการจัดการ': [
+    'บริหารธุรกิจ (การเงิน / การตลาด / การจัดการ)',
+    'บัญชี',
+    'รัฐประศาสนศาสตร์',
+    'การจัดการโลจิสติกส์และซัพพลายเชน',
+    'การจัดการสารสนเทศทางธุรกิจ'
+  ],
+  'คณะทรัพยากรธรรมชาติ': [
+    'เกษตรศาสตร์ / พืชศาสตร์',
+    'สัตวศาสตร์',
+    'วาริชศาสตร์',
+    'วิทยาศาสตร์เกษตรและสิ่งแวดล้อม',
+    'การจัดการทรัพยากรเกษตรและพัฒนาชุมชน'
+  ],
+  'คณะเภสัชศาสตร์': [
+    'เภสัชศาสตรบัณฑิต (บริบาลเภสัชกรรม)',
+    'เภสัชศาสตรบัณฑิต (เภสัชกรรมอุตสาหการ)'
+  ],
+  'คณะทันตแพทยศาสตร์': [
+    'ทันตแพทยศาสตรบัณฑิต'
+  ],
+  'คณะสัตวแพทยศาสตร์': [
+    'สัตวแพทยศาสตรบัณฑิต'
+  ],
+  'คณะอุตสาหกรรมเกษตร': [
+    'วิทยาศาสตร์และเทคโนโลยีการอาหาร',
+    'เทคโนโลยีชีวภาพทางอุตสาหกรรมเกษตร',
+    'เทคโนโลยีบรรจุภัณฑ์',
+    'นวัตกรรมและอุตสาหกรรมเกษตร'
+  ],
+  'คณะศิลปศาสตร์': [
+    'ภาษาไทย',
+    'ภาษาอังกฤษ',
+    'ภาษาจีน / ภาษาญี่ปุ่น / ภาษาเกาหลี',
+    'สารสนเทศศึกษา',
+    'พัฒนาสังคมและความมั่นคงของมนุษย์',
+    'ชุมชนศึกษา'
+  ],
+  'คณะเศรษฐศาสตร์': [
+    'เศรษฐศาสตร์',
+    'เศรษฐศาสตร์ธุรกิจ',
+    'เศรษฐศาสตร์เกษตรและทรัพยากร'
+  ],
+  'คณะนิติศาสตร์': [
+    'นิติศาสตรบัณฑิต'
+  ],
+  'คณะการแพทย์แผนไทย': [
+    'การแพทย์แผนไทยบัณฑิต'
+  ],
+  'คณะเทคนิคการแพทย์': [
+    'เทคนิคการแพทย์'
+  ],
+  'วิทยาลัยนานาชาติ': [
+    'Digital Media',
+    'Creative Media and Digital Technologies',
+    'International Business / Entrepreneurship'
+  ],
+  'วิทยาลัยการคอมพิวเตอร์': [
+    'วิศวกรรมดิจิทัล / การคอมพิวเตอร์',
+    'วิทยาการข้อมูลและการวิเคราะห์',
+    'วิศวกรรมซอฟต์แวร์'
+  ]
+};
+
+/**
  * เดาคณะอัตโนมัติจากรหัสคณะ 3 หลักในรหัสนักศึกษา 10 หลัก (เช่น 6610110xxx -> 101 คณะวิศวกรรมศาสตร์)
  */
 export function guessFacultyFromStudentId(studentId: string): string {
@@ -1048,6 +1155,47 @@ export function resetDeviceEvaluationLock(): void {
       localStorage.removeItem(LOCAL_BOUND_STUDENT_ID_KEY);
       localStorage.removeItem(LOCAL_EVAL_STORAGE_KEY);
       localStorage.removeItem(LOCAL_DEVICE_TOKEN_KEY);
+    }
+  } catch {}
+
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem('rl_krathong_submit');
+      sessionStorage.removeItem('rl_evaluation_submit');
+    }
+  } catch {}
+}
+
+/**
+ * ล้างข้อมูลกระทง แบบประเมิน ล็อกเครื่อง และรายการซ่อนในเบราว์เซอร์ทั้งหมดเพื่อเตรียมระบบสำหรับวันงานจริง
+ * (หากฐานข้อมูลบน Cloud ปฏิเสธการลบแถวเดิมบางรายการ จะบันทึก Fallback Overrides ไว้ซ่อนให้อัตโนมัติ)
+ */
+export function resetAllLocalProjectData(
+  fallbackHiddenKrathongIds: string[] = [],
+  fallbackDeletedEvalIds: string[] = []
+): void {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(LOCAL_EVAL_STORAGE_KEY);
+      localStorage.removeItem(LOCAL_KRATHONG_STORAGE_KEY);
+      localStorage.removeItem(LOCAL_BOUND_STUDENT_ID_KEY);
+      localStorage.removeItem(LOCAL_DEVICE_TOKEN_KEY);
+      localStorage.removeItem(LOCAL_MODERATION_OVERRIDES_KEY);
+      localStorage.removeItem(LOCAL_DELETED_EVAL_IDS_KEY);
+
+      const cleanHiddenIds = Array.from(new Set(fallbackHiddenKrathongIds.filter(Boolean).map(String)));
+      if (cleanHiddenIds.length > 0) {
+        const hiddenMap: Record<string, 'deleted'> = {};
+        for (const id of cleanHiddenIds) {
+          hiddenMap[id] = 'deleted';
+        }
+        localStorage.setItem(LOCAL_MODERATION_OVERRIDES_KEY, JSON.stringify(hiddenMap));
+      }
+
+      const cleanDeletedEvalIds = Array.from(new Set(fallbackDeletedEvalIds.filter(Boolean).map(String)));
+      if (cleanDeletedEvalIds.length > 0) {
+        localStorage.setItem(LOCAL_DELETED_EVAL_IDS_KEY, JSON.stringify(cleanDeletedEvalIds));
+      }
     }
   } catch {}
 

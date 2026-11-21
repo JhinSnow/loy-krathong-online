@@ -30,7 +30,6 @@ import { ThaiArchitectureSkyline } from './ThaiArchitectureSkyline';
 import { DecorativeScreenBorders } from './DecorativeScreenBorders';
 import { KrathongThumb3D } from './KrathongThumb3D';
 import { ShareCardModal } from './ShareCardModal';
-import { soundManager } from '../utils/soundEffects';
 import {
   buildKrathong3D,
   animateKrathong3D,
@@ -346,7 +345,6 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
     if (fireworksRef.current.length > 260) {
       fireworksRef.current.splice(0, fireworksRef.current.length - 260);
     }
-    soundManager.playFireworkSparkle();
   }, []);
 
   const spawnBot = useCallback((slotIndex?: number): KrathongItem => {
@@ -2025,7 +2023,6 @@ export const RiverCanvas: React.FC<RiverCanvasProps> = ({
 
     if (hasNewLaunch && launchEvent) {
       lastHandledLaunchNonceRef.current = launchEvent.nonce;
-      soundManager.playFloatSuccessChime();
 
       const launchedItem = promoteCraftToRiverRef.current?.(launchEvent.item);
       if (launchedItem) {

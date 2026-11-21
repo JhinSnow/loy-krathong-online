@@ -359,14 +359,10 @@ export const openOfficialA4ReportPrintView = (
     analytics.dimensionStats,
     analytics.overallMean,
     analytics.totalN,
-    'light'
+    'bw'
   );
 
-  const printWin = window.open('', '_blank', 'width=1024,height=900');
-  if (!printWin) {
-    alert('กรุณาอนุญาตการเปิดหน้าต่างป๊อปอัป (Pop-up) เพื่อพิมพ์รายงาน PDF ขนาด A4');
-    return;
-  }
+  const XBAR_HTML = '<span class="xbar">x</span>';
 
   const highest = analytics.highestDimension;
   const lowest = analytics.lowestDimension;
@@ -389,7 +385,7 @@ export const openOfficialA4ReportPrintView = (
       const items = analytics.questionStats.filter((q) => q.dimensionId === dim.dimensionId);
       const groupRow = `
         <tr class="group-row">
-          <td colspan="7" class="left">${escapeHtml(dim.label)} <span style="font-weight:400;color:#64748b;">(${escapeHtml(dim.sectionGroup)})</span></td>
+          <td colspan="7" class="left">${escapeHtml(dim.label)} <span style="font-weight:400;color:#222222;">(${escapeHtml(dim.sectionGroup)})</span></td>
           <td>${dim.mean.toFixed(2)}</td>
           <td>${dim.sd.toFixed(2)}</td>
           <td>${escapeHtml(dim.levelText)}</td>
@@ -401,11 +397,11 @@ export const openOfficialA4ReportPrintView = (
           <tr>
             <td>${st.questionId}</td>
             <td class="left">${st.subGroupLabel ? `<span class="badge-sub">${escapeHtml(st.subGroupLabel)}</span> ` : ''}${escapeHtml(st.title)}</td>
-            <td>${st.percentages[5].toFixed(1)}%<br/><span style="color:#64748b;font-size:8.5px;">(${st.counts[5]})</span></td>
-            <td>${st.percentages[4].toFixed(1)}%<br/><span style="color:#64748b;font-size:8.5px;">(${st.counts[4]})</span></td>
-            <td>${st.percentages[3].toFixed(1)}%<br/><span style="color:#64748b;font-size:8.5px;">(${st.counts[3]})</span></td>
-            <td>${st.percentages[2].toFixed(1)}%<br/><span style="color:#64748b;font-size:8.5px;">(${st.counts[2]})</span></td>
-            <td>${st.percentages[1].toFixed(1)}%<br/><span style="color:#64748b;font-size:8.5px;">(${st.counts[1]})</span></td>
+            <td>${st.percentages[5].toFixed(1)}%<br/><span style="color:#333333;font-size:11px;">(${st.counts[5]})</span></td>
+            <td>${st.percentages[4].toFixed(1)}%<br/><span style="color:#333333;font-size:11px;">(${st.counts[4]})</span></td>
+            <td>${st.percentages[3].toFixed(1)}%<br/><span style="color:#333333;font-size:11px;">(${st.counts[3]})</span></td>
+            <td>${st.percentages[2].toFixed(1)}%<br/><span style="color:#333333;font-size:11px;">(${st.counts[2]})</span></td>
+            <td>${st.percentages[1].toFixed(1)}%<br/><span style="color:#333333;font-size:11px;">(${st.counts[1]})</span></td>
             <td><strong>${st.mean.toFixed(2)}</strong></td>
             <td>${st.sd.toFixed(2)}</td>
             <td>${escapeHtml(st.levelText)}</td>
@@ -429,11 +425,11 @@ export const openOfficialA4ReportPrintView = (
             <tr>
               <td>ช.${st.questionId}</td>
               <td class="left">${escapeHtml(st.title)}</td>
-              <td>${st.percentages[5].toFixed(1)}%<br/><span style="color:#64748b;font-size:8.5px;">(${st.counts[5]})</span></td>
-              <td>${st.percentages[4].toFixed(1)}%<br/><span style="color:#64748b;font-size:8.5px;">(${st.counts[4]})</span></td>
-              <td>${st.percentages[3].toFixed(1)}%<br/><span style="color:#64748b;font-size:8.5px;">(${st.counts[3]})</span></td>
-              <td>${st.percentages[2].toFixed(1)}%<br/><span style="color:#64748b;font-size:8.5px;">(${st.counts[2]})</span></td>
-              <td>${st.percentages[1].toFixed(1)}%<br/><span style="color:#64748b;font-size:8.5px;">(${st.counts[1]})</span></td>
+              <td>${st.percentages[5].toFixed(1)}%<br/><span style="color:#333333;font-size:11px;">(${st.counts[5]})</span></td>
+              <td>${st.percentages[4].toFixed(1)}%<br/><span style="color:#333333;font-size:11px;">(${st.counts[4]})</span></td>
+              <td>${st.percentages[3].toFixed(1)}%<br/><span style="color:#333333;font-size:11px;">(${st.counts[3]})</span></td>
+              <td>${st.percentages[2].toFixed(1)}%<br/><span style="color:#333333;font-size:11px;">(${st.counts[2]})</span></td>
+              <td>${st.percentages[1].toFixed(1)}%<br/><span style="color:#333333;font-size:11px;">(${st.counts[1]})</span></td>
               <td><strong>${st.mean.toFixed(2)}</strong></td>
               <td>${st.sd.toFixed(2)}</td>
               <td>${escapeHtml(st.levelText)}</td>
@@ -449,254 +445,303 @@ export const openOfficialA4ReportPrintView = (
 <head>
   <meta charset="UTF-8" />
   <title>รายงานสรุปผลการประเมินโครงการลอยกระทงบุฟเฟต์ (A4 Report)</title>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai+Looped:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
-    @page { size: A4 portrait; margin: 12mm 13mm; }
-    * { box-sizing: border-box; }
-    body {
-      font-family: 'IBM Plex Sans Thai Looped', sans-serif;
-      color: #231912;
-      background: #fdfaf4;
+    @page { size: A4 portrait; margin: 0; }
+    * {
+      box-sizing: border-box;
+      font-family: 'TH Sarabun PSK', 'TH Sarabun New', 'Sarabun', sans-serif !important;
+    }
+    html, body {
       margin: 0;
-      padding: 18px;
-      font-size: 11px;
-      line-height: 1.42;
+      padding: 0;
+      color: #000000;
+      background: #f3f3f3;
+      font-size: 15px;
+      line-height: 1.38;
+    }
+    .screen-wrap {
+      padding: 16px;
     }
     .toolbar {
       max-width: 210mm;
-      margin: 0 auto 14px auto;
+      margin: 0 auto 12px auto;
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 12px;
-      background: #fffbeb;
-      color: #231912;
-      border: 1px solid rgba(120, 53, 15, 0.16);
-      padding: 10px 18px;
-      border-radius: 12px;
-      box-shadow: 0 2px 10px rgba(35, 25, 18, 0.06);
+      background: #ffffff;
+      color: #000000;
+      border: 1px solid #000000;
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 16px;
     }
     .toolbar button {
-      background: #f59e0b;
-      color: #231912;
-      border: 1px solid rgba(217, 119, 6, 0.45);
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-family: 'IBM Plex Sans Thai Looped', sans-serif;
+      background: #111111;
+      color: #ffffff;
+      border: 1px solid #000000;
+      padding: 7px 16px;
+      border-radius: 6px;
       font-weight: 700;
-      font-size: 13px;
+      font-size: 16px;
       cursor: pointer;
     }
     .a4-page {
       max-width: 210mm;
       margin: 0 auto;
       background: #ffffff;
-      padding: 12mm 14mm;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
     }
-    h1 { font-size: 17px; font-weight: 800; text-align: center; margin: 0 0 3px 0; }
-    h2 { font-size: 13px; font-weight: 700; text-align: center; color: #334155; margin: 0 0 10px 0; }
-    h3 { font-size: 12.5px; font-weight: 800; color: #231912; margin: 12px 0 6px 0; border-left: 4px solid #d97706; padding-left: 8px; }
+    table.print-shell {
+      width: 100%;
+      border-collapse: collapse;
+      border: none;
+    }
+    td.print-margin-top,
+    td.print-margin-bottom {
+      border: none;
+      padding: 0;
+      height: 13mm;
+    }
+    td.print-body {
+      border: none;
+      padding: 0 15mm;
+      vertical-align: top;
+    }
+    h1 { font-size: 21px; font-weight: 700; text-align: center; margin: 0 0 2px 0; color: #000000; }
+    h2 { font-size: 17px; font-weight: 700; text-align: center; color: #000000; margin: 0 0 10px 0; }
+    h3 { font-size: 16.5px; font-weight: 700; color: #000000; margin: 11px 0 6px 0; border-left: 4px solid #000000; padding-left: 8px; }
+    .xbar {
+      display: inline-block;
+      border-top: 1px solid #000000;
+      line-height: 0.92;
+      padding-top: 1px;
+      margin: 0 1px;
+    }
     .meta-box {
       display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
       gap: 6px;
-      border: 1px solid #cbd5e1;
-      background: #f8fafc;
-      padding: 8px 12px;
-      border-radius: 8px;
+      border: 1px solid #000000;
+      background: #ffffff;
+      padding: 7px 11px;
       margin-bottom: 10px;
-      font-size: 11px;
+      font-size: 14.5px;
+      color: #000000;
     }
-    .chart-wrapper { text-align: center; margin: 8px 0 12px 0; }
-    .chart-wrapper img { max-width: 84%; height: auto; border: 1px solid #e2e8f0; border-radius: 8px; }
-    table { width: 100%; border-collapse: collapse; font-size: 9.8px; margin-bottom: 10px; }
-    th, td { border: 1px solid #94a3b8; padding: 3.5px 5px; text-align: center; }
-    th { background: #e2e8f0; font-weight: 700; }
-    td.left { text-align: left; }
-    tr { break-inside: avoid; }
-    tr.group-row td { background: #fef3c7; font-weight: 700; color: #231912; }
-    tr.summary-row td { background: #fde68a; font-weight: 800; }
-    .badge-sub { display: inline-block; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 4px; padding: 0 4px; font-size: 8.5px; font-weight: 700; }
-    .pass { color: #047857; font-weight: 700; }
-    .fail { color: #b45309; font-weight: 700; }
+    .chart-wrapper { text-align: center; margin: 8px 0 10px 0; }
+    .chart-wrapper img { max-width: 86%; height: auto; border: 1px solid #000000; }
+    table.data-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 10px; color: #000000; }
+    table.data-table th,
+    table.data-table td { border: 1px solid #000000; padding: 3.5px 5px; text-align: center; color: #000000; }
+    table.data-table th { background: #ececec; font-weight: 700; }
+    table.data-table td.left { text-align: left; }
+    table.data-table tr { break-inside: avoid; }
+    tr.group-row td { background: #f3f3f3; font-weight: 700; color: #000000; }
+    tr.summary-row td { background: #e4e4e4; font-weight: 700; color: #000000; }
+    .badge-sub { display: inline-block; background: #ffffff; border: 1px solid #555555; border-radius: 3px; padding: 0 4px; font-size: 11.5px; font-weight: 700; color: #000000; }
+    .status-cell { font-weight: 700; color: #000000; }
     .page-break { page-break-before: always; break-before: page; }
     .analysis-box {
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      padding: 10px 14px;
-      background: #f8fafc;
-      font-size: 11px;
+      border: 1px solid #000000;
+      padding: 9px 13px;
+      background: #ffffff;
+      font-size: 14.5px;
+      color: #000000;
       break-inside: avoid;
     }
     @media print {
-      body { background: #fff; padding: 0; }
+      html, body { background: #ffffff; }
+      .screen-wrap { padding: 0; }
       .toolbar { display: none !important; }
-      .a4-page { box-shadow: none; padding: 0; max-width: 100%; }
+      .a4-page { box-shadow: none; max-width: 100%; margin: 0; }
     }
   </style>
 </head>
 <body>
-  <div class="toolbar">
-    <span style="font-weight:700;">รายงานสรุปผลขนาดมาตรฐาน A4 (โครงการลอยกระทงบุฟเฟต์ • แบบประเมินมาตรฐานกลาง ม.อ.)</span>
-    <button onclick="window.print()">พิมพ์รายงาน / บันทึกเป็น PDF (A4)</button>
-  </div>
-
-  <div class="a4-page">
-    <h1>รายงานสรุปผลการประเมินโครงการลอยกระทงบุฟเฟต์ (Loy Krathong Buffet)</h1>
-    <h2>สโมสรนักศึกษาคณะวิทยาศาสตร์ มหาวิทยาลัยสงขลานครินทร์ • วันที่ 24 พฤศจิกายน 2569</h2>
-
-    <div class="meta-box">
-      <div><strong>จำนวนผู้ตอบแบบประเมิน (N):</strong> ${analytics.totalN.toLocaleString()} คน (กระทงทั้งหมด ${totalKrathongs.toLocaleString()} ใบ)</div>
-      <div><strong>สัดส่วนผู้ตอบ:</strong> นักศึกษา ${studentPct}% | อาจารย์/บุคลากร ${staffPct}% | บุคคลทั่วไป/ชุมชน ${generalPct}%</div>
-      <div><strong>วันที่ออกรายงาน:</strong> ${new Date().toLocaleDateString('th-TH')}</div>
+  <div class="screen-wrap">
+    <div class="toolbar">
+      <span style="font-weight:700;">รายงานสรุปผลขนาดมาตรฐาน A4 (ขาว-ดำ • TH Sarabun PSK • โครงการลอยกระทงบุฟเฟต์)</span>
+      <button onclick="window.print()">พิมพ์รายงาน / บันทึกเป็น PDF (A4)</button>
     </div>
 
-    <h3>1. สรุปตัวชี้วัดความสำเร็จของโครงการ (KPIs เชิงคุณภาพ • เกณฑ์ ≥ 4.00)</h3>
-    <table>
-      <thead>
-        <tr>
-          <th style="width: 36px;">ข้อ</th>
-          <th>ตัวชี้วัดความสำเร็จ (หน้า 5 เล่มโครงการ)</th>
-          <th style="width: 72px;">ค่าเป้าหมาย</th>
-          <th style="width: 68px;">ค่าเฉลี่ย (x̄)</th>
-          <th style="width: 58px;">S.D.</th>
-          <th style="width: 90px;">ผลการประเมิน</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${analytics.kpiStats
-          .map(
-            (kpi, i) => `
+    <div class="a4-page">
+      <table class="print-shell">
+        <thead>
+          <tr><td class="print-margin-top"></td></tr>
+        </thead>
+        <tbody>
           <tr>
-            <td>${i + 1}</td>
-            <td class="left">${escapeHtml(kpi.label)}</td>
-            <td>≥ ${kpi.target.toFixed(2)}</td>
-            <td><strong>${kpi.mean.toFixed(2)}</strong></td>
-            <td>${kpi.sd.toFixed(2)}</td>
-            <td class="${kpi.passed ? 'pass' : 'fail'}">${analytics.totalN === 0 ? 'รอข้อมูล' : kpi.passed ? 'ผ่านเกณฑ์' : 'ต่ำกว่าเกณฑ์'}</td>
+            <td class="print-body">
+              <h1>รายงานสรุปผลการประเมินโครงการลอยกระทงบุฟเฟต์ (Loy Krathong Buffet)</h1>
+              <h2>สโมสรนักศึกษาคณะวิทยาศาสตร์ มหาวิทยาลัยสงขลานครินทร์ • วันที่ 24 พฤศจิกายน 2569</h2>
+
+              <div class="meta-box">
+                <div><strong>จำนวนผู้ตอบแบบประเมิน (N):</strong> ${analytics.totalN.toLocaleString()} คน (กระทงทั้งหมด ${totalKrathongs.toLocaleString()} ใบ)</div>
+                <div><strong>สัดส่วนผู้ตอบ:</strong> นักศึกษา ${studentPct}% | อาจารย์/บุคลากร ${staffPct}% | บุคคลทั่วไป/ชุมชน ${generalPct}%</div>
+                <div><strong>วันที่ออกรายงาน:</strong> ${new Date().toLocaleDateString('th-TH')}</div>
+              </div>
+
+              <h3>1. สรุปตัวชี้วัดความสำเร็จของโครงการ (KPIs เชิงคุณภาพ • เกณฑ์ ≥ 4.00)</h3>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th style="width: 36px;">ข้อ</th>
+                    <th>ตัวชี้วัดความสำเร็จ (หน้า 5 เล่มโครงการ)</th>
+                    <th style="width: 72px;">ค่าเป้าหมาย</th>
+                    <th style="width: 72px;">ค่าเฉลี่ย (${XBAR_HTML})</th>
+                    <th style="width: 58px;">S.D.</th>
+                    <th style="width: 92px;">ผลการประเมิน</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${analytics.kpiStats
+                    .map(
+                      (kpi, i) => `
+                    <tr>
+                      <td>${i + 1}</td>
+                      <td class="left">${escapeHtml(kpi.label)}</td>
+                      <td>≥ ${kpi.target.toFixed(2)}</td>
+                      <td><strong>${kpi.mean.toFixed(2)}</strong></td>
+                      <td>${kpi.sd.toFixed(2)}</td>
+                      <td class="status-cell">${analytics.totalN === 0 ? 'รอข้อมูล' : kpi.passed ? 'ผ่านเกณฑ์' : 'ต่ำกว่าเกณฑ์'}</td>
+                    </tr>
+                  `
+                    )
+                    .join('')}
+                </tbody>
+              </table>
+
+              <h3>2. กราฟเรดาร์สรุปผลความพึงพอใจ 9 หมวดหลัก</h3>
+              <div class="chart-wrapper">
+                <img src="${radarDataUrl}" alt="Radar Chart 9 Dimensions" />
+              </div>
+
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>หมวดประเมิน (9 ด้านหลัก)</th>
+                    <th style="width: 195px;">กลุ่มประเมินในแบบฟอร์มมาตรฐาน</th>
+                    <th style="width: 58px;">จำนวนข้อ</th>
+                    <th style="width: 70px;">ค่าเฉลี่ย (${XBAR_HTML})</th>
+                    <th style="width: 56px;">S.D.</th>
+                    <th style="width: 84px;">ระดับความพึงพอใจ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${analytics.dimensionStats
+                    .map(
+                      (dim) => `
+                    <tr>
+                      <td class="left"><strong>${escapeHtml(dim.label)}</strong></td>
+                      <td class="left">${escapeHtml(dim.sectionGroup)}</td>
+                      <td>${dim.questionCount}</td>
+                      <td><strong>${dim.mean.toFixed(2)}</strong></td>
+                      <td>${dim.sd.toFixed(2)}</td>
+                      <td>${escapeHtml(dim.levelText)}</td>
+                    </tr>
+                  `
+                    )
+                    .join('')}
+                  <tr class="summary-row">
+                    <td colspan="3" class="left" style="text-align:right;padding-right:10px;">ค่าเฉลี่ยรวมทุกด้าน (Overall Mean, N = ${analytics.totalN})</td>
+                    <td>${analytics.overallMean.toFixed(2)}</td>
+                    <td>${analytics.overallSD.toFixed(2)}</td>
+                    <td>${escapeHtml(analytics.overallLevelText)}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div class="page-break"></div>
+              <h3>3. ตารางสรุปสถิติรายข้อครบทั้ง 36 ข้อหลัก (+ ส่วนที่ 15 สำหรับผู้ปกครอง/ชุมชน)</h3>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th rowspan="2" style="width: 34px;">ข้อ</th>
+                    <th rowspan="2">ประเด็นการประเมินความพึงพอใจ</th>
+                    <th colspan="5">ร้อยละ (%) ของผู้ตอบในแต่ละระดับคะแนน (N = ${analytics.totalN})</th>
+                    <th rowspan="2" style="width: 50px;">ค่าเฉลี่ย<br/>(${XBAR_HTML})</th>
+                    <th rowspan="2" style="width: 44px;">S.D.</th>
+                    <th rowspan="2" style="width: 66px;">ระดับ<br/>ความพึงพอใจ</th>
+                  </tr>
+                  <tr>
+                    <th style="width: 44px;">5<br/>มากที่สุด</th>
+                    <th style="width: 44px;">4<br/>มาก</th>
+                    <th style="width: 44px;">3<br/>ปานกลาง</th>
+                    <th style="width: 44px;">2<br/>น้อย</th>
+                    <th style="width: 44px;">1<br/>น้อยที่สุด</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${groupedQuestionRowsHtml}
+                  ${communityRowsHtml}
+                  <tr class="summary-row">
+                    <td colspan="7" class="left" style="text-align:right;padding-right:10px;">ค่าเฉลี่ยรวม 36 ข้อหลัก (Overall Mean)</td>
+                    <td>${analytics.overallMean.toFixed(2)}</td>
+                    <td>${analytics.overallSD.toFixed(2)}</td>
+                    <td>${escapeHtml(analytics.overallLevelText)}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <h3>4. สรุปผลการประเมินความสอดคล้องเป้าหมายการพัฒนาที่ยั่งยืน (SDGs 7 เป้าหมาย)</h3>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th style="width: 68px;">SDG</th>
+                    <th>เป้าหมายและคำอธิบายความสอดคล้อง</th>
+                    <th style="width: 62px;">ผู้ตอบ (N)</th>
+                    <th style="width: 112px;">สอดคล้อง / บรรลุ</th>
+                    <th style="width: 100px;">ไม่สอดคล้อง</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${analytics.sdgStats
+                    .map(
+                      (sdg) => `
+                    <tr>
+                      <td><strong>SDG ${sdg.code}</strong></td>
+                      <td class="left"><strong>${escapeHtml(sdg.nameTh)}</strong> (${escapeHtml(sdg.nameEn)})<br/><span style="color:#222222;font-size:12px;">${escapeHtml(sdg.description)}</span></td>
+                      <td>${sdg.totalN}</td>
+                      <td class="status-cell">${sdg.compliantCount} คน (${sdg.compliantPct.toFixed(1)}%)</td>
+                      <td>${sdg.nonCompliantCount} คน (${sdg.nonCompliantPct.toFixed(1)}%)</td>
+                    </tr>
+                  `
+                    )
+                    .join('')}
+                </tbody>
+              </table>
+
+              <div class="analysis-box">
+                <strong>สรุปและวิเคราะห์ผลการประเมินโครงการลอยกระทงบุฟเฟต์:</strong><br/>
+                1. <strong>ภาพรวมความพึงพอใจ:</strong> ผู้เข้าร่วมกิจกรรมจำนวนทั้งหมด ${analytics.totalN.toLocaleString()} คน มีความพึงพอใจในภาพรวมทุกด้านอยู่ในระดับ <strong>&ldquo;${escapeHtml(analytics.overallLevelText)}&rdquo;</strong> ค่าเฉลี่ยรวม (${XBAR_HTML}) เท่ากับ <strong>${analytics.overallMean.toFixed(2)}</strong> (S.D. = ${analytics.overallSD.toFixed(2)})<br/>
+                2. <strong>หมวดที่ได้คะแนนเฉลี่ยสูงสุด:</strong> ได้แก่ <em>&ldquo;${escapeHtml(highest ? highest.label : '-')}&rdquo;</em> (${XBAR_HTML} = <strong>${highest ? highest.mean.toFixed(2) : '-'}</strong>, ระดับ${escapeHtml(highest ? highest.levelText : '-')})<br/>
+                3. <strong>หมวดที่มีคะแนนเฉลี่ยรองลงมา/ควรพัฒนาต่อยอด:</strong> ได้แก่ <em>&ldquo;${escapeHtml(lowest ? lowest.label : '-')}&rdquo;</em> (${XBAR_HTML} = <strong>${lowest ? lowest.mean.toFixed(2) : '-'}</strong>, ระดับ${escapeHtml(lowest ? lowest.levelText : '-')})<br/>
+                4. <strong>ผลตัวชี้วัดความสำเร็จโครงการ (KPIs ≥ 4.00):</strong> ผ่านเกณฑ์ ${passedKpiCount} จาก ${analytics.kpiStats.length} ตัวชี้วัด และเป้าหมายความสอดคล้อง SDGs ที่โดดเด่นที่สุดคือ <strong>SDG ${topSdg ? topSdg.code : '-'} (${escapeHtml(topSdg ? topSdg.nameTh : '-')})</strong> ที่ระดับ ${topSdg ? topSdg.compliantPct.toFixed(1) : '0.0'}%
+              </div>
+            </td>
           </tr>
-        `
-          )
-          .join('')}
-      </tbody>
-    </table>
-
-    <h3>2. กราฟเรดาร์สรุปผลความพึงพอใจ 9 หมวดหลัก</h3>
-    <div class="chart-wrapper">
-      <img src="${radarDataUrl}" alt="Radar Chart 9 Dimensions" />
-    </div>
-
-    <table>
-      <thead>
-        <tr>
-          <th>หมวดประเมิน (9 ด้านหลัก)</th>
-          <th style="width: 190px;">กลุ่มประเมินในแบบฟอร์มมาตรฐาน</th>
-          <th style="width: 58px;">จำนวนข้อ</th>
-          <th style="width: 66px;">ค่าเฉลี่ย (x̄)</th>
-          <th style="width: 58px;">S.D.</th>
-          <th style="width: 82px;">ระดับความพึงพอใจ</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${analytics.dimensionStats
-          .map(
-            (dim) => `
-          <tr>
-            <td class="left"><strong>${escapeHtml(dim.label)}</strong></td>
-            <td class="left">${escapeHtml(dim.sectionGroup)}</td>
-            <td>${dim.questionCount}</td>
-            <td><strong>${dim.mean.toFixed(2)}</strong></td>
-            <td>${dim.sd.toFixed(2)}</td>
-            <td>${escapeHtml(dim.levelText)}</td>
-          </tr>
-        `
-          )
-          .join('')}
-        <tr class="summary-row">
-          <td colspan="3" class="left" style="text-align:right;padding-right:10px;">ค่าเฉลี่ยรวมทุกด้าน (Overall Mean, N = ${analytics.totalN})</td>
-          <td>${analytics.overallMean.toFixed(2)}</td>
-          <td>${analytics.overallSD.toFixed(2)}</td>
-          <td>${escapeHtml(analytics.overallLevelText)}</td>
-        </tr>
-      </tbody>
-    </table>
-
-    <div class="page-break"></div>
-    <h3>3. ตารางสรุปสถิติรายข้อครบทั้ง 36 ข้อหลัก (+ ส่วนที่ 15 สำหรับผู้ปกครอง/ชุมชน)</h3>
-    <table>
-      <thead>
-        <tr>
-          <th rowspan="2" style="width: 32px;">ข้อ</th>
-          <th rowspan="2">ประเด็นการประเมินความพึงพอใจ</th>
-          <th colspan="5">ร้อยละ (%) ของผู้ตอบในแต่ละระดับคะแนน (N = ${analytics.totalN})</th>
-          <th rowspan="2" style="width: 46px;">ค่าเฉลี่ย<br/>(x̄)</th>
-          <th rowspan="2" style="width: 42px;">S.D.</th>
-          <th rowspan="2" style="width: 62px;">ระดับ<br/>ความพึงพอใจ</th>
-        </tr>
-        <tr>
-          <th style="width: 42px;">5<br/>มากที่สุด</th>
-          <th style="width: 42px;">4<br/>มาก</th>
-          <th style="width: 42px;">3<br/>ปานกลาง</th>
-          <th style="width: 42px;">2<br/>น้อย</th>
-          <th style="width: 42px;">1<br/>น้อยที่สุด</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${groupedQuestionRowsHtml}
-        ${communityRowsHtml}
-        <tr class="summary-row">
-          <td colspan="7" class="left" style="text-align:right;padding-right:10px;">ค่าเฉลี่ยรวม 36 ข้อหลัก (Overall Mean)</td>
-          <td>${analytics.overallMean.toFixed(2)}</td>
-          <td>${analytics.overallSD.toFixed(2)}</td>
-          <td>${escapeHtml(analytics.overallLevelText)}</td>
-        </tr>
-      </tbody>
-    </table>
-
-    <h3>4. สรุปผลการประเมินความสอดคล้องเป้าหมายการพัฒนาที่ยั่งยืน (SDGs 7 เป้าหมาย)</h3>
-    <table>
-      <thead>
-        <tr>
-          <th style="width: 68px;">SDG</th>
-          <th>เป้าหมายและคำอธิบายความสอดคล้อง</th>
-          <th style="width: 62px;">ผู้ตอบ (N)</th>
-          <th style="width: 112px;">สอดคล้อง / บรรลุ</th>
-          <th style="width: 100px;">ไม่สอดคล้อง</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${analytics.sdgStats
-          .map(
-            (sdg) => `
-          <tr>
-            <td><strong>SDG ${sdg.code}</strong></td>
-            <td class="left"><strong>${escapeHtml(sdg.nameTh)}</strong> (${escapeHtml(sdg.nameEn)})<br/><span style="color:#475569;font-size:9px;">${escapeHtml(sdg.description)}</span></td>
-            <td>${sdg.totalN}</td>
-            <td class="pass">${sdg.compliantCount} คน (${sdg.compliantPct.toFixed(1)}%)</td>
-            <td>${sdg.nonCompliantCount} คน (${sdg.nonCompliantPct.toFixed(1)}%)</td>
-          </tr>
-        `
-          )
-          .join('')}
-      </tbody>
-    </table>
-
-    <div class="analysis-box">
-      <strong>สรุปและวิเคราะห์ผลการประเมินโครงการลอยกระทงบุฟเฟต์:</strong><br/>
-      1. <strong>ภาพรวมความพึงพอใจ:</strong> ผู้เข้าร่วมกิจกรรมจำนวนทั้งหมด ${analytics.totalN.toLocaleString()} คน มีความพึงพอใจในภาพรวมทุกด้านอยู่ในระดับ <strong>&ldquo;${escapeHtml(analytics.overallLevelText)}&rdquo;</strong> ค่าเฉลี่ยรวม (x̄) เท่ากับ <strong>${analytics.overallMean.toFixed(2)}</strong> (S.D. = ${analytics.overallSD.toFixed(2)})<br/>
-      2. <strong>หมวดที่ได้คะแนนเฉลี่ยสูงสุด:</strong> ได้แก่ <em>&ldquo;${escapeHtml(highest ? highest.label : '-')}&rdquo;</em> (x̄ = <strong>${highest ? highest.mean.toFixed(2) : '-'}</strong>, ระดับ${escapeHtml(highest ? highest.levelText : '-')})<br/>
-      3. <strong>หมวดที่มีคะแนนเฉลี่ยรองลงมา/ควรพัฒนาต่อยอด:</strong> ได้แก่ <em>&ldquo;${escapeHtml(lowest ? lowest.label : '-')}&rdquo;</em> (x̄ = <strong>${lowest ? lowest.mean.toFixed(2) : '-'}</strong>, ระดับ${escapeHtml(lowest ? lowest.levelText : '-')})<br/>
-      4. <strong>ผลตัวชี้วัดความสำเร็จโครงการ (KPIs ≥ 4.00):</strong> ผ่านเกณฑ์ ${passedKpiCount} จาก ${analytics.kpiStats.length} ตัวชี้วัด และเป้าหมายความสอดคล้อง SDGs ที่โดดเด่นที่สุดคือ <strong>SDG ${topSdg ? topSdg.code : '-'} (${escapeHtml(topSdg ? topSdg.nameTh : '-')})</strong> ที่ระดับ ${topSdg ? topSdg.compliantPct.toFixed(1) : '0.0'}%
+        </tbody>
+        <tfoot>
+          <tr><td class="print-margin-bottom"></td></tr>
+        </tfoot>
+      </table>
     </div>
   </div>
 </body>
 </html>`;
 
-  printWin.document.open();
-  printWin.document.write(html);
-  printWin.document.close();
+  const htmlBlob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const blobUrl = URL.createObjectURL(htmlBlob);
+  const printWin = window.open(blobUrl, '_blank');
+  if (!printWin) {
+    URL.revokeObjectURL(blobUrl);
+    alert('กรุณาอนุญาตการเปิดหน้าต่างป๊อปอัป (Pop-up) เพื่อพิมพ์รายงาน PDF ขนาด A4');
+    return;
+  }
+  window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
 };
 
 const FORBIDDEN_SHEET_CHARS = new Set(['[', ']', ':', '*', '?', '/', '\\']);

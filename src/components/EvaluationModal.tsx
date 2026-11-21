@@ -33,6 +33,7 @@ import {
   EVALUATION_QUESTIONS,
   COMMUNITY_EVALUATION_QUESTIONS,
   SDG_EVALUATION_ITEMS,
+  PSU_MAJORS_BY_FACULTY,
   RATING_LABELS,
   formatYearLevel,
   guessFacultyFromStudentId,
@@ -222,7 +223,8 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
   const [studentId, setStudentId] = useState<string>(() =>
     isAdminTestMode ? '' : getBoundStudentId() || ''
   );
-  const [major, setMajor] = useState<string>('');
+  const [majorSelect, setMajorSelect] = useState<string>('');
+  const [majorOther, setMajorOther] = useState<string>('');
   const [yearCode, setYearCode] = useState<string>('');
   const [staffDept, setStaffDept] = useState<string>('');
   const [staffRole, setStaffRole] = useState<string>('');
@@ -266,7 +268,8 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
   const studentIdSectionRef = useRef<HTMLDivElement | null>(null);
   const studentIdInputRef = useRef<HTMLInputElement | null>(null);
   const majorSectionRef = useRef<HTMLDivElement | null>(null);
-  const majorInputRef = useRef<HTMLInputElement | null>(null);
+  const majorSelectRef = useRef<HTMLSelectElement | null>(null);
+  const majorOtherInputRef = useRef<HTMLInputElement | null>(null);
   const yearSectionRef = useRef<HTMLDivElement | null>(null);
   const questionRefs = useRef<(HTMLDivElement | null)[]>([]);
   const communityRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -286,11 +289,29 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
     [isAdminTestMode]
   );
 
+  const detectedFaculty = useMemo(() => guessFacultyFromStudentId(studentId), [studentId]);
+
+  const orderedFacultyMajorEntries = useMemo(() => {
+    const entries = Object.entries(PSU_MAJORS_BY_FACULTY);
+    if (!detectedFaculty || !PSU_MAJORS_BY_FACULTY[detectedFaculty]) {
+      return entries;
+    }
+    return [
+      [detectedFaculty, PSU_MAJORS_BY_FACULTY[detectedFaculty]] as [string, readonly string[]],
+      ...entries.filter(([fac]) => fac !== detectedFaculty)
+    ];
+  }, [detectedFaculty]);
+
+  const resolvedStudentMajor =
+    majorSelect === '__OTHER__'
+      ? sanitizeInputText(majorOther, 60)
+      : sanitizeInputText(majorSelect, 60);
+
   const markMissingFocus = (
     step: WizardStep,
     focusKey: string,
     targetEl: HTMLElement | null,
-    inputToFocus?: HTMLInputElement | null
+    inputToFocus?: HTMLElement | null
   ) => {
     setStepValidatedFlags((prev) => ({ ...prev, [step]: true }));
     setFocusedMissingKey(focusKey);
@@ -431,12 +452,6 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
   const totalRateable = step2Total + step3Total + step4Total;
   const totalRatedNow = step2Answered + step3Answered + step4Answered;
 
-  const answeredCoreScores = scores.filter((s): s is number => s !== null);
-  const currentCoreAverage =
-    answeredCoreScores.length > 0
-      ? (answeredCoreScores.reduce((a, b) => a + b, 0) / answeredCoreScores.length).toFixed(2)
-      : null;
-
   // ตรวจสอบความถูกต้องทีละ Step พร้อมเด้งเลื่อนไปจุดที่ขาด
   const validateStep1 = (scrollIfError = true): boolean => {
     if (!pdpaAccepted) {
@@ -445,7 +460,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
       return false;
     }
 
-    const cleanMajor = sanitizeInputText(major, 60);
+    const cleanMajor = resolvedStudentMajor;
     const cleanStaffDept = sanitizeInputText(staffDept, 60);
     const cleanStaffRole = sanitizeInputText(staffRole, 50);
     const cleanCommOther = sanitizeInputText(communityRoleOther, 50);
@@ -496,10 +511,19 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
         }
       }
 
-      if (!cleanMajor) {
-        setErrorMsg('กรุณากรอกสาขาวิชาของท่าน');
+      if (!majorSelect || (majorSelect === '__OTHER__' && !cleanMajor)) {
+        setErrorMsg(
+          majorSelect === '__OTHER__'
+            ? 'กรุณาระบุชื่อสาขาวิชาเพิ่มเติม'
+            : 'กรุณาเลือกสาขาวิชาของท่าน'
+        );
         if (scrollIfError) {
-          markMissingFocus(1, 'major', majorSectionRef.current, majorInputRef.current);
+          markMissingFocus(
+            1,
+            'major',
+            majorSectionRef.current,
+            majorSelect === '__OTHER__' ? majorOtherInputRef.current : majorSelectRef.current
+          );
         }
         return false;
       }
@@ -669,7 +693,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
       : '';
     const cleanMajor =
       isStudent
-        ? sanitizeInputText(major, 60)
+        ? resolvedStudentMajor
         : safeUserType === 'staff'
           ? sanitizeInputText(staffDept, 60)
           : '';
@@ -1058,28 +1082,77 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
 
                     <div
                       ref={majorSectionRef}
-                      className={`rounded-xl p-2 transition-all ${
+                      className={`rounded-xl p-2 transition-all space-y-2 ${
                         focusedMissingKey === 'major'
                           ? 'bg-rose-50 ring-2 ring-rose-400'
                           : ''
                       }`}
                     >
-                      <label className="block text-[11px] font-semibold text-[#574536] mb-1">
-                        สาขาวิชา <span className="text-rose-600">*</span>
-                      </label>
-                      <input
-                        ref={majorInputRef}
-                        type="text"
-                        value={major}
+                      <div className="flex flex-wrap items-center justify-between gap-1">
+                        <label
+                          htmlFor="psu-major-select"
+                          className="block text-[11px] font-semibold text-[#574536]"
+                        >
+                          สาขาวิชา <span className="text-rose-600">*</span>
+                        </label>
+                        {detectedFaculty && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-800 font-semibold">
+                            คณะที่ตรวจพบ: {detectedFaculty}
+                          </span>
+                        )}
+                      </div>
+                      <select
+                        id="psu-major-select"
+                        ref={majorSelectRef}
+                        value={majorSelect}
                         onChange={(e) => {
-                          setMajor(e.target.value);
+                          setMajorSelect(e.target.value);
+                          if (e.target.value !== '__OTHER__') {
+                            setMajorOther('');
+                          }
                           if (focusedMissingKey === 'major') setFocusedMissingKey(null);
                           setErrorMsg('');
                         }}
-                        placeholder="เช่น วิทยาการคอมพิวเตอร์, เคมีประยุกต์, ฟิสิกส์..."
-                        maxLength={60}
-                        className="w-full bg-[#fffdf9] border border-amber-900/20 focus:border-amber-700 focus:ring-1 focus:ring-amber-600 rounded-xl px-3 py-2 text-base sm:text-sm text-[#231912] placeholder-[#9c8671] focus:outline-none"
-                      />
+                        className="w-full bg-[#fffdf9] border border-amber-900/20 focus:border-amber-700 focus:ring-1 focus:ring-amber-600 rounded-xl px-3 py-2 text-base sm:text-sm text-[#231912] focus:outline-none cursor-pointer"
+                      >
+                        <option value="">-- กรุณาเลือกสาขาวิชา --</option>
+                        {orderedFacultyMajorEntries.map(([facultyName, majors]) => {
+                          const isDetected = detectedFaculty === facultyName;
+                          return (
+                            <optgroup
+                              key={facultyName}
+                              label={
+                                isDetected
+                                  ? `★ ${facultyName} (ตรงกับรหัสนักศึกษา)`
+                                  : facultyName
+                              }
+                            >
+                              {majors.map((majName) => (
+                                <option key={`${facultyName}-${majName}`} value={majName}>
+                                  {majName}
+                                </option>
+                              ))}
+                            </optgroup>
+                          );
+                        })}
+                        <option value="__OTHER__">อื่นๆ (ระบุชื่อสาขาเพิ่มเติม)</option>
+                      </select>
+
+                      {majorSelect === '__OTHER__' && (
+                        <input
+                          ref={majorOtherInputRef}
+                          type="text"
+                          value={majorOther}
+                          onChange={(e) => {
+                            setMajorOther(e.target.value);
+                            if (focusedMissingKey === 'major') setFocusedMissingKey(null);
+                            setErrorMsg('');
+                          }}
+                          placeholder="กรุณาระบุชื่อสาขาวิชา หรือหลักสูตรของท่าน..."
+                          maxLength={60}
+                          className="w-full bg-[#fffdf9] border border-amber-900/20 focus:border-amber-700 focus:ring-1 focus:ring-amber-600 rounded-xl px-3 py-2 text-base sm:text-sm text-[#231912] placeholder-[#9c8671] focus:outline-none animate-ui-step"
+                        />
+                      )}
                     </div>
 
                     <div
@@ -1603,15 +1676,9 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
 
         {/* Footer Actions */}
         <div className="pt-3 border-t border-amber-900/12 shrink-0 flex flex-col gap-2">
-          <div className="flex items-center justify-between text-[11px] text-[#7c5d3a] px-0.5">
+          <div className="flex items-center justify-center text-[11px] text-[#7c5d3a] px-0.5">
             <span>
               ความคืบหน้าการประเมิน: <strong className="text-[#231912]">{totalRatedNow}/{totalRateable}</strong> ข้อ
-            </span>
-            <span>
-              คะแนนเฉลี่ยปัจจุบัน:{' '}
-              <strong className="text-amber-800">
-                {currentCoreAverage !== null ? `${currentCoreAverage} / 5.00` : '- / 5.00'}
-              </strong>
             </span>
           </div>
 

@@ -1,6 +1,6 @@
 // src/components/EvaluationRadarChart.tsx
-import React, { useEffect, useRef, useState } from 'react';
-import { Download, Image as ImageIcon, Sun, Moon, Radar } from 'lucide-react';
+import React, { useEffect, useRef } from 'react';
+import { Download, Image as ImageIcon, Radar } from 'lucide-react';
 import type { DimensionStatRow } from '../utils/evaluationHelpers';
 
 interface EvaluationRadarChartProps {
@@ -9,62 +9,62 @@ interface EvaluationRadarChartProps {
   totalN: number;
 }
 
+const CHART_FONT_FAMILY = "'TH Sarabun PSK', 'TH Sarabun New', 'Sarabun', sans-serif";
+
 /**
- * ฟังก์ชันวาด Radar Chart 9 แกนตามหมวดหลักลงบน HTML5 Canvas (แสดงผลหน้าจอ, ดาวน์โหลด PNG/JPG และฝังรายงาน PDF A4)
+ * ฟังก์ชันวาด Radar Chart 9 แกนแบบขาว-ดำมาตรฐานเอกสารราชการ (TH Sarabun PSK)
  */
 export function drawRadarChartOnCanvas(
   canvas: HTMLCanvasElement,
   dimensionStats: DimensionStatRow[],
   overallMean: number,
   totalN: number,
-  theme: 'light' | 'dark' = 'light'
+  _theme: 'light' | 'dark' | 'bw' = 'bw'
 ) {
+  void _theme;
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
-  const width = 1260;
-  const height = 880;
+  const width = 1280;
+  const height = 900;
   canvas.width = width;
   canvas.height = height;
 
-  const isLight = theme === 'light';
-
-  // 1. Background
-  ctx.fillStyle = isLight ? '#fffdf9' : '#1f150d';
+  // 1. Background & Frame (Pure Black & White)
+  ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, width, height);
 
-  // กรอบบางๆ รอบภาพสำหรับแปะรายงาน
-  ctx.strokeStyle = isLight ? '#e5d7be' : '#573d24';
-  ctx.lineWidth = 3;
-  ctx.strokeRect(12, 12, width - 24, height - 24);
+  ctx.strokeStyle = '#111111';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(14, 14, width - 28, height - 28);
 
   // 2. Header Title
   ctx.textAlign = 'center';
-  ctx.fillStyle = isLight ? '#231912' : '#fef3c7';
-  ctx.font = 'bold 26px "IBM Plex Sans Thai Looped", sans-serif';
+  ctx.fillStyle = '#000000';
+  ctx.font = `bold 34px ${CHART_FONT_FAMILY}`;
   ctx.fillText(
     'กราฟเรดาร์สรุปผลความพึงพอใจโครงการลอยกระทงบุฟเฟต์ 9 หมวดหลัก (มาตรฐานกลาง ม.อ.)',
     width / 2,
-    60
+    64
   );
 
-  ctx.fillStyle = isLight ? '#6b5540' : '#d6b88e';
-  ctx.font = '600 18px "IBM Plex Sans Thai Looped", sans-serif';
+  ctx.fillStyle = '#222222';
+  ctx.font = `600 24px ${CHART_FONT_FAMILY}`;
   ctx.fillText(
-    `จำนวนผู้ตอบแบบประเมินทั้งหมด (N) = ${totalN.toLocaleString()} คน   |   ค่าเฉลี่ยรวมทุกด้าน (x̄) = ${overallMean.toFixed(2)} / 5.00 คะแนน`,
+    `จำนวนผู้ตอบแบบประเมินทั้งหมด (N) = ${totalN.toLocaleString()} คน   |   ค่าเฉลี่ยรวมทุกด้าน = ${overallMean.toFixed(2)} / 5.00 คะแนน`,
     width / 2,
-    96
+    102
   );
 
   // 3. Radar Geometry Setup
   const centerX = width / 2;
-  const centerY = 475;
-  const maxRadius = 250;
+  const centerY = 485;
+  const maxRadius = 240;
   const numAxes = Math.max(dimensionStats.length, 3);
   const maxScore = 5;
 
   // วาดเส้นใยแมงมุม 5 ระดับ (1.0 - 5.0)
-  for (let level = 1; level <= maxScore; level++) {
+  for (let level = maxScore; level >= 1; level--) {
     const r = (level / maxScore) * maxRadius;
     ctx.beginPath();
     for (let i = 0; i < numAxes; i++) {
@@ -76,28 +76,18 @@ export function drawRadarChartOnCanvas(
     }
     ctx.closePath();
 
-    // สีพื้นสลับชั้นบางๆ
-    if (level % 2 === 1) {
-      ctx.fillStyle = isLight ? 'rgba(254, 243, 199, 0.35)' : 'rgba(69, 44, 22, 0.45)';
-      ctx.fill();
-    }
+    ctx.fillStyle = level % 2 === 1 ? '#f7f7f7' : '#ffffff';
+    ctx.fill();
 
-    ctx.strokeStyle =
-      level === maxScore
-        ? isLight
-          ? '#a17c50'
-          : '#926b3f'
-        : isLight
-          ? '#e7dcc8'
-          : '#49331e';
-    ctx.lineWidth = level === maxScore ? 2 : 1.2;
+    ctx.strokeStyle = level === maxScore ? '#111111' : '#888888';
+    ctx.lineWidth = level === maxScore ? 2 : 1;
     ctx.stroke();
 
     // ตัวเลขกำกับสเกล 1 - 5 บนแกนตั้ง
-    ctx.fillStyle = isLight ? '#7c5d3a' : '#d6b88e';
-    ctx.font = 'bold 14px "IBM Plex Sans Thai Looped", sans-serif';
+    ctx.fillStyle = '#222222';
+    ctx.font = `bold 18px ${CHART_FONT_FAMILY}`;
     ctx.textAlign = 'right';
-    ctx.fillText(`${level}.0`, centerX - 8, centerY - r + 5);
+    ctx.fillText(`${level}.0`, centerX - 10, centerY - r + 6);
   }
 
   // 4. วาดเส้นแกน (Spokes) และป้ายชื่อหมวด
@@ -109,17 +99,17 @@ export function drawRadarChartOnCanvas(
     ctx.beginPath();
     ctx.moveTo(centerX, centerY);
     ctx.lineTo(xEnd, yEnd);
-    ctx.strokeStyle = isLight ? '#e7dcc8' : '#49331e';
-    ctx.lineWidth = 1.4;
+    ctx.strokeStyle = '#999999';
+    ctx.lineWidth = 1;
     ctx.stroke();
 
-    const labelRadius = maxRadius + 46;
+    const labelRadius = maxRadius + 48;
     const lx = centerX + labelRadius * Math.cos(angle);
     const ly = centerY + labelRadius * Math.sin(angle);
 
     const stat = dimensionStats[i];
     const labelText = stat ? stat.shortLabel : `หมวดที่ ${i + 1}`;
-    const scoreText = stat ? `(x̄ = ${stat.mean.toFixed(2)})` : '';
+    const scoreText = stat ? `(เฉลี่ย ${stat.mean.toFixed(2)})` : '';
 
     ctx.save();
     if (Math.abs(Math.cos(angle)) < 0.15) {
@@ -130,17 +120,17 @@ export function drawRadarChartOnCanvas(
       ctx.textAlign = 'right';
     }
 
-    ctx.fillStyle = isLight ? '#231912' : '#fffbeb';
-    ctx.font = 'bold 17px "IBM Plex Sans Thai Looped", sans-serif';
-    ctx.fillText(labelText, lx, ly - 4);
+    ctx.fillStyle = '#000000';
+    ctx.font = `bold 23px ${CHART_FONT_FAMILY}`;
+    ctx.fillText(labelText, lx, ly - 6);
 
-    ctx.fillStyle = isLight ? '#b45309' : '#fbbf24';
-    ctx.font = 'bold 16px "IBM Plex Sans Thai Looped", sans-serif';
-    ctx.fillText(scoreText, lx, ly + 18);
+    ctx.fillStyle = '#111111';
+    ctx.font = `bold 22px ${CHART_FONT_FAMILY}`;
+    ctx.fillText(scoreText, lx, ly + 20);
     ctx.restore();
   }
 
-  // 5. วาดพื้นที่ข้อมูลคะแนนความพึงพอใจ (Data Polygon)
+  // 5. วาดพื้นที่ข้อมูลคะแนนความพึงพอใจ (Data Polygon แบบขาว-ดำคมชัด)
   if (dimensionStats.length > 0 && totalN > 0) {
     ctx.beginPath();
     dimensionStats.forEach((stat, i) => {
@@ -154,11 +144,11 @@ export function drawRadarChartOnCanvas(
     });
     ctx.closePath();
 
-    ctx.fillStyle = isLight ? 'rgba(245, 158, 11, 0.28)' : 'rgba(251, 191, 36, 0.32)';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.14)';
     ctx.fill();
 
-    ctx.strokeStyle = isLight ? '#d97706' : '#fbbf24';
-    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 3.2;
     ctx.stroke();
 
     dimensionStats.forEach((stat, i) => {
@@ -169,37 +159,38 @@ export function drawRadarChartOnCanvas(
       const y = centerY + r * Math.sin(angle);
 
       ctx.beginPath();
-      ctx.arc(x, y, 7, 0, Math.PI * 2);
-      ctx.fillStyle = isLight ? '#b45309' : '#fde047';
+      ctx.arc(x, y, 6, 0, Math.PI * 2);
+      ctx.fillStyle = '#000000';
       ctx.fill();
-      ctx.strokeStyle = isLight ? '#fffdf9' : '#1f150d';
-      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
       ctx.stroke();
     });
   }
 
   // 6. Footer Legend
   ctx.textAlign = 'center';
-  ctx.fillStyle = isLight ? '#6b5540' : '#d6b88e';
-  ctx.font = '14px "IBM Plex Sans Thai Looped", sans-serif';
+  ctx.fillStyle = '#222222';
+  ctx.font = `19px ${CHART_FONT_FAMILY}`;
   ctx.fillText(
     'เกณฑ์ระดับคะแนน: 4.51-5.00 = มากที่สุด | 3.51-4.50 = มาก | 2.51-3.50 = ปานกลาง | 1.51-2.50 = น้อย | 1.00-1.50 = น้อยที่สุด',
     width / 2,
-    height - 28
+    height - 30
   );
 }
 
 /**
- * สร้าง Data URL ของกราฟ Radar Chart พื้นขาวสำหรับแนบลงรายงานสรุปโครงการ PDF A4
+ * สร้าง Data URL ของกราฟ Radar Chart พื้นขาว-ดำสำหรับแนบลงรายงานสรุปโครงการ PDF A4
  */
 export function generateRadarChartDataUrl(
   dimensionStats: DimensionStatRow[],
   overallMean: number,
   totalN: number,
-  theme: 'light' | 'dark' = 'light'
+  _theme: 'light' | 'dark' | 'bw' = 'bw'
 ): string {
+  void _theme;
   const offscreen = document.createElement('canvas');
-  drawRadarChartOnCanvas(offscreen, dimensionStats, overallMean, totalN, theme);
+  drawRadarChartOnCanvas(offscreen, dimensionStats, overallMean, totalN, 'bw');
   return offscreen.toDataURL('image/png', 1.0);
 }
 
@@ -209,27 +200,33 @@ export const EvaluationRadarChart: React.FC<EvaluationRadarChartProps> = ({
   totalN
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [chartTheme, setChartTheme] = useState<'dark' | 'light'>('light');
 
   useEffect(() => {
+    let cancelled = false;
     if (!canvasRef.current) return;
-    drawRadarChartOnCanvas(canvasRef.current, dimensionStats, overallMean, totalN, chartTheme);
-  }, [dimensionStats, overallMean, totalN, chartTheme]);
+    drawRadarChartOnCanvas(canvasRef.current, dimensionStats, overallMean, totalN, 'bw');
 
-  const handleDownloadImage = (format: 'png' | 'jpg', forceLightForReport = false) => {
+    if (typeof document !== 'undefined' && document.fonts?.ready) {
+      document.fonts.ready.then(() => {
+        if (!cancelled && canvasRef.current) {
+          drawRadarChartOnCanvas(canvasRef.current, dimensionStats, overallMean, totalN, 'bw');
+        }
+      });
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dimensionStats, overallMean, totalN]);
+
+  const handleDownloadImage = (format: 'png' | 'jpg') => {
     const tempCanvas = document.createElement('canvas');
-    drawRadarChartOnCanvas(
-      tempCanvas,
-      dimensionStats,
-      overallMean,
-      totalN,
-      forceLightForReport ? 'light' : chartTheme
-    );
+    drawRadarChartOnCanvas(tempCanvas, dimensionStats, overallMean, totalN, 'bw');
 
     const mime = format === 'jpg' ? 'image/jpeg' : 'image/png';
     const dataUrl = tempCanvas.toDataURL(mime, 0.98);
     const link = document.createElement('a');
-    link.download = `loy-krathong-radar-chart-${forceLightForReport ? 'report' : chartTheme}.${format}`;
+    link.download = `loy-krathong-radar-chart-bw.${format}`;
     link.href = dataUrl;
     link.click();
   };
@@ -239,57 +236,39 @@ export const EvaluationRadarChart: React.FC<EvaluationRadarChartProps> = ({
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-4 border-b border-amber-900/10">
         <div>
           <h3 className="text-base sm:text-lg font-extrabold text-[#231912] flex items-center gap-2">
-            <Radar className="w-5 h-5 text-amber-700 shrink-0" />
-            <span>กราฟเรดาร์สรุปผลความพึงพอใจ 9 หมวดหลัก (ตามแบบประเมินมาตรฐานกลาง ม.อ.)</span>
+            <Radar className="w-5 h-5 text-[#231912] shrink-0" />
+            <span>กราฟเรดาร์สรุปผลความพึงพอใจ 9 หมวดหลัก (ขาว-ดำ มาตรฐานเล่มรายงาน)</span>
           </h3>
-          <p className="text-xs text-[#7c5d3a] mt-0.5">
-            แสดงค่าเฉลี่ยรายหมวดหลักทั้ง 9 ด้าน (สเกล 1.00 – 5.00) พร้อมดาวน์โหลดเป็นไฟล์รูปภาพความละเอียดสูงสำหรับแปะเล่มรายงาน
+          <p className="text-xs text-[#574536] mt-0.5">
+            แสดงค่าเฉลี่ยรายหมวดหลักทั้ง 9 ด้าน แบบขาว-ดำความละเอียดสูงสำหรับแนบเล่มสรุปโครงการ
           </p>
         </div>
 
-        {/* ปุ่มสลับพื้นหลัง & ดาวน์โหลดรูปภาพ */}
+        {/* ปุ่มดาวน์โหลดรูปภาพขาว-ดำ */}
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => setChartTheme(chartTheme === 'dark' ? 'light' : 'dark')}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#f6efdf] hover:bg-amber-100 text-[#231912] border border-amber-900/15 transition active:scale-95 cursor-pointer"
-          >
-            {chartTheme === 'dark' ? (
-              <>
-                <Sun className="w-3.5 h-3.5 text-amber-600" />
-                <span>สลับพื้นครีม-ขาว (สำหรับทำเล่ม)</span>
-              </>
-            ) : (
-              <>
-                <Moon className="w-3.5 h-3.5 text-amber-700" />
-                <span>สลับพื้นเข้ม (Dark Mode)</span>
-              </>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleDownloadImage('png', true)}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-amber-400 text-[#231912] border border-amber-600/25 transition active:scale-95 shadow-sm cursor-pointer"
+            onClick={() => handleDownloadImage('png')}
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-[#111111] hover:bg-[#333333] text-white border border-[#111111] transition active:scale-95 shadow-sm cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>ดาวน์โหลด PNG (พื้นขาวแปะเล่มรายงาน)</span>
+            <span>ดาวน์โหลด PNG (ขาว-ดำ แปะเล่มรายงาน)</span>
           </button>
 
           <button
             type="button"
-            onClick={() => handleDownloadImage('jpg', false)}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#241911] hover:bg-[#38271a] text-[#fffbeb] border border-[#241911] transition active:scale-95 cursor-pointer"
+            onClick={() => handleDownloadImage('jpg')}
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white hover:bg-neutral-100 text-[#111111] border border-neutral-400 transition active:scale-95 cursor-pointer"
           >
             <ImageIcon className="w-3.5 h-3.5" />
-            <span>ดาวน์โหลด JPG</span>
+            <span>ดาวน์โหลด JPG (ขาว-ดำ)</span>
           </button>
         </div>
       </div>
 
       {/* Canvas Container */}
       <div className="mt-4 flex justify-center">
-        <div className="w-full max-w-3xl rounded-2xl overflow-hidden border border-amber-900/12 shadow-inner bg-[#f7f1e3] flex items-center justify-center p-2">
+        <div className="w-full max-w-3xl rounded-2xl overflow-hidden border border-neutral-300 shadow-inner bg-white flex items-center justify-center p-2">
           <canvas
             ref={canvasRef}
             className="w-full h-auto max-h-[540px] object-contain rounded-xl"
