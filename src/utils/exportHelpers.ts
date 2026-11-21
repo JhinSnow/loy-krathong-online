@@ -4,9 +4,14 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { sanitizeSpreadsheetCell } from './security';
 import {
+  EVALUATION_DIMENSIONS,
   EVALUATION_QUESTIONS,
+  COMMUNITY_EVALUATION_QUESTIONS,
+  SDG_EVALUATION_ITEMS,
   buildStudentTranscriptRoster,
-  type EvaluationAnalyticsSummary
+  type EvaluationAnalyticsSummary,
+  type ParsedEvaluationRecord,
+  type QuestionStatRow
 } from './evaluationHelpers';
 import { generateRadarChartDataUrl } from '../components/EvaluationRadarChart';
 
@@ -22,51 +27,28 @@ export interface KrathongExportRecord {
 const USER_TYPE_THAI: Record<string, string> = {
   student: 'นักศึกษา',
   faculty: 'อาจารย์',
-  staff: 'บุคลากร',
-  general: 'บุคคลภายนอก'
+  staff: 'อาจารย์/บุคลากร',
+  general: 'บุคคลทั่วไป/ชุมชน'
 };
 
-/**
- * 1. Export ข้อมูลครบวงจรเป็นไฟล์ Excel (.xlsx) 3 Sheets:
- *    - Sheet 1: Raw Data (ข้อมูลดิบผู้ตอบแบบประเมินรายบุคคล 10 ข้อ)
- *    - Sheet 2: Summary Table (ตารางสรุปสถิติ N, ร้อยละ 1-5, ค่าเฉลี่ย x̄, S.D. สำหรับทำเล่มรายงาน)
- *    - Sheet 3: Krathongs Data (รายชื่อและคำอธิษฐานผู้ลอยกระทง)
- */
-export const exportEvaluationAndProjectToExcel = (
-  analytics: EvaluationAnalyticsSummary,
-  krathongs: KrathongExportRecord[] = [],
-  filename = 'loy-krathong-project-summary.xlsx'
-) => {
-  const workbook = XLSX.utils.book_new();
+function escapeHtml(text: unknown): string {
+  return String(text ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
-  // --- Sheet 1: Raw Data (ข้อมูลดิบของผู้ตอบแบบประเมินทุกคนแยกตามแถว) ---
-  const rawSheetRows = analytics.records.map((rec, index) => {
-    const row: Record<string, any> = {
-      'ลำดับ': index + 1,
-      'วัน-เวลา (Timestamp)': sanitizeSpreadsheetCell(
-        rec.created_at ? new Date(rec.created_at).toLocaleString('th-TH') : '-'
-      ),
-      'ประเภทผู้เข้าร่วม': sanitizeSpreadsheetCell(USER_TYPE_THAI[rec.user_type] || rec.user_type),
-      'รหัสนักศึกษา': sanitizeSpreadsheetCell(rec.student_id || '-'),
-      'คณะ / วิทยาลัย (จำแนกจากรหัส)': sanitizeSpreadsheetCell(rec.faculty || '-')
-    };
-
-    EVALUATION_QUESTIONS.forEach((q, qIdx) => {
-      row[`ข้อ ${q.id}: ${q.shortLabel.replace(/^\d+\.\s*/, '')}`] = rec.scores[qIdx] ?? 5;
-    });
-
-    row['ค่าเฉลี่ยรายบุคคล (x̄)'] = rec.average_score;
-    row['ข้อเสนอแนะเพิ่มเติม'] = sanitizeSpreadsheetCell(rec.comment || '-');
-    return row;
-  });
-
-  const rawWorksheet = XLSX.utils.json_to_sheet(rawSheetRows);
-  XLSX.utils.book_append_sheet(workbook, rawWorksheet, '1_Raw_Data');
-
-  // --- Sheet 2: Summary Table (ตารางสรุปสถิติตามรูปแบบเอกสารราชการ) ---
-  const summarySheetRows: Record<string, any>[] = analytics.questionStats.map((st) => ({
-    'ข้อที่': st.questionId,
-    'ประเด็นการประเมินความพึงพอใจ': st.title,
+function buildQuestionStatSummaryRow(
+  codeLabel: string | number,
+  dimensionLabel: string,
+  st: QuestionStatRow
+): Record<string, unknown> {
+  return {
+    'ข้อที่': codeLabel,
+    'หมวดประเมิน': sanitizeSpreadsheetCell(dimensionLabel),
+    'ประเด็นการประเมินความพึงพอใจ': sanitizeSpreadsheetCell(st.title),
     'จำนวนผู้ตอบ (N)': st.totalN,
     '5 มากที่สุด (คน)': st.counts[5],
     '5 มากที่สุด (%)': `${st.percentages[5].toFixed(1)}%`,
@@ -80,13 +62,152 @@ export const exportEvaluationAndProjectToExcel = (
     '1 น้อยที่สุด (%)': `${st.percentages[1].toFixed(1)}%`,
     'ค่าเฉลี่ย (x̄)': st.mean.toFixed(2),
     'ส่วนเบี่ยงเบนมาตรฐาน (S.D.)': st.sd.toFixed(2),
-    'ระดับความพึงพอใจ': st.levelText
-  }));
+    'ระดับความพึงพอใจ / เกณฑ์': st.levelText
+  };
+}
+
+/**
+ * 1. Export ข้อมูลครบวงจรเป็นไฟล์ Excel (.xlsx) 4 Sheets:
+ *    - Sheet 1: 1_Raw_Data (ข้อมูลดิบผู้ตอบแบบประเมิน 36 ข้อ + ชุมชน 4 ข้อ + 7 SDGs + ข้อเสนอแนะ 3 ช่อง)
+ *    - Sheet 2: 2_Summary_Table (ตารางสรุปสถิติ 9 หมวด, 36 ข้อหลัก, ชุมชน 4 ข้อ และตัวชี้วัด KPIs)
+ *    - Sheet 3: 3_SDGs_Summary (สรุปผลความสอดคล้องเป้าหมาย SDGs 7 เป้าหมาย)
+ *    - Sheet 4: 4_Krathongs_Data (รายชื่อและคำอธิษฐานผู้ลอยกระทง)
+ */
+export const exportEvaluationAndProjectToExcel = (
+  analytics: EvaluationAnalyticsSummary,
+  krathongs: KrathongExportRecord[] = [],
+  filename = 'loy-krathong-project-summary.xlsx'
+) => {
+  const workbook = XLSX.utils.book_new();
+
+  // --- Sheet 1: 1_Raw_Data ---
+  const rawSheetRows =
+    analytics.records.length > 0
+      ? analytics.records.map((rec, index) => {
+          const row: Record<string, any> = {
+            'ลำดับ': index + 1,
+            'วัน-เวลา (Timestamp)': sanitizeSpreadsheetCell(
+              rec.created_at ? new Date(rec.created_at).toLocaleString('th-TH') : '-'
+            ),
+            'ประเภทผู้เข้าร่วม': sanitizeSpreadsheetCell(USER_TYPE_THAI[rec.user_type] || rec.user_type),
+            'รหัสนักศึกษา': sanitizeSpreadsheetCell(rec.student_id || '-'),
+            'คณะ / วิทยาลัย': sanitizeSpreadsheetCell(rec.faculty || '-'),
+            'สาขา / สังกัด': sanitizeSpreadsheetCell(rec.major || '-'),
+            'ชั้นปี': sanitizeSpreadsheetCell(rec.year_level || '-'),
+            'บทบาท': sanitizeSpreadsheetCell(rec.role || '-'),
+            'ยินยอม PDPA': rec.pdpaAccepted ? 'ยินยอม' : '-'
+          };
+
+          EVALUATION_QUESTIONS.forEach((q, qIdx) => {
+            row[`ข้อ ${q.id}: ${q.shortLabel.replace(/^\d+\.\d+\s*/, '')}`] =
+              rec.scores[qIdx] ?? '-';
+          });
+
+          COMMUNITY_EVALUATION_QUESTIONS.forEach((cq, cIdx) => {
+            const val =
+              rec.community_scores && rec.community_scores.length === COMMUNITY_EVALUATION_QUESTIONS.length
+                ? rec.community_scores[cIdx]
+                : '-';
+            row[`ชุมชน ${cq.id}: ${cq.shortLabel.replace(/^ช\.\d+\s*/, '')}`] = val;
+          });
+
+          SDG_EVALUATION_ITEMS.forEach((sdg, sIdx) => {
+            const val =
+              rec.sdg_results && rec.sdg_results.length === SDG_EVALUATION_ITEMS.length
+                ? rec.sdg_results[sIdx]
+                  ? 'สอดคล้อง / บรรลุ'
+                  : 'ไม่สอดคล้อง'
+                : '-';
+            row[`SDG ${sdg.code}: ${sdg.nameTh}`] = val;
+          });
+
+          row['ค่าเฉลี่ยรายบุคคล (x̄)'] = rec.average_score;
+          row['สิ่งที่ประทับใจ'] = sanitizeSpreadsheetCell(rec.feedback_impressed || '-');
+          row['สิ่งที่ควรปรับปรุง'] = sanitizeSpreadsheetCell(rec.feedback_improve || '-');
+          row['ข้อเสนอแนะอื่นๆ'] = sanitizeSpreadsheetCell(rec.feedback_other || '-');
+          return row;
+        })
+      : [
+          {
+            'ลำดับ': '-',
+            'หมายเหตุ': 'ยังไม่มีข้อมูลผู้ตอบแบบประเมินมาตรฐานใหม่ (V3)'
+          }
+        ];
+
+  const rawWorksheet = XLSX.utils.json_to_sheet(rawSheetRows);
+  XLSX.utils.book_append_sheet(workbook, rawWorksheet, '1_Raw_Data');
+
+  // --- Sheet 2: 2_Summary_Table ---
+  const summarySheetRows: Record<string, unknown>[] = [];
+  const dimMap = new Map(EVALUATION_DIMENSIONS.map((d) => [d.id, d]));
+
+  analytics.dimensionStats.forEach((dim) => {
+    summarySheetRows.push({
+      'ข้อที่': 'หมวด',
+      'หมวดประเมิน': sanitizeSpreadsheetCell(dim.sectionGroup),
+      'ประเด็นการประเมินความพึงพอใจ': sanitizeSpreadsheetCell(dim.label),
+      'จำนวนผู้ตอบ (N)': dim.totalN,
+      '5 มากที่สุด (คน)': '-',
+      '5 มากที่สุด (%)': '-',
+      '4 มาก (คน)': '-',
+      '4 มาก (%)': '-',
+      '3 ปานกลาง (คน)': '-',
+      '3 ปานกลาง (%)': '-',
+      '2 น้อย (คน)': '-',
+      '2 น้อย (%)': '-',
+      '1 น้อยที่สุด (คน)': '-',
+      '1 น้อยที่สุด (%)': '-',
+      'ค่าเฉลี่ย (x̄)': dim.mean.toFixed(2),
+      'ส่วนเบี่ยงเบนมาตรฐาน (S.D.)': dim.sd.toFixed(2),
+      'ระดับความพึงพอใจ / เกณฑ์': dim.levelText
+    });
+
+    const items = analytics.questionStats.filter((q) => q.dimensionId === dim.dimensionId);
+    items.forEach((st) => {
+      summarySheetRows.push(buildQuestionStatSummaryRow(st.questionId, dim.label, st));
+    });
+  });
+
+  // ส่วนที่ 15: สำหรับผู้ปกครอง / ชุมชน
+  analytics.communityStats.forEach((st) => {
+    summarySheetRows.push(
+      buildQuestionStatSummaryRow(`ช.${st.questionId}`, 'ส่วนที่ 15: สำหรับผู้ปกครอง / ชุมชน', st)
+    );
+  });
+
+  // ตัวชี้วัด KPIs 3 ข้อ (หน้า 5 เล่มโครงการ)
+  analytics.kpiStats.forEach((kpi, idx) => {
+    summarySheetRows.push({
+      'ข้อที่': `KPI ${idx + 1}`,
+      'หมวดประเมิน': 'ตัวชี้วัดความสำเร็จโครงการ (เกณฑ์ ≥ 4.00)',
+      'ประเด็นการประเมินความพึงพอใจ': sanitizeSpreadsheetCell(kpi.label),
+      'จำนวนผู้ตอบ (N)': analytics.totalN,
+      '5 มากที่สุด (คน)': '-',
+      '5 มากที่สุด (%)': '-',
+      '4 มาก (คน)': '-',
+      '4 มาก (%)': '-',
+      '3 ปานกลาง (คน)': '-',
+      '3 ปานกลาง (%)': '-',
+      '2 น้อย (คน)': '-',
+      '2 น้อย (%)': '-',
+      '1 น้อยที่สุด (คน)': '-',
+      '1 น้อยที่สุด (%)': '-',
+      'ค่าเฉลี่ย (x̄)': kpi.mean.toFixed(2),
+      'ส่วนเบี่ยงเบนมาตรฐาน (S.D.)': kpi.sd.toFixed(2),
+      'ระดับความพึงพอใจ / เกณฑ์':
+        analytics.totalN === 0
+          ? 'รอข้อมูล'
+          : kpi.passed
+            ? 'ผ่านเกณฑ์ (≥ 4.00)'
+            : 'ต่ำกว่าเกณฑ์ (< 4.00)'
+    });
+  });
 
   // แถวสรุปภาพรวมท้ายตาราง
   summarySheetRows.push({
     'ข้อที่': 'สรุป',
-    'ประเด็นการประเมินความพึงพอใจ': 'ค่าเฉลี่ยรวมทุกด้าน (Overall Mean)',
+    'หมวดประเมิน': 'ภาพรวมโครงการ',
+    'ประเด็นการประเมินความพึงพอใจ': 'ค่าเฉลี่ยรวม 36 ข้อหลัก (Overall Mean)',
     'จำนวนผู้ตอบ (N)': analytics.totalN,
     '5 มากที่สุด (คน)': '-',
     '5 มากที่สุด (%)': '-',
@@ -100,18 +221,33 @@ export const exportEvaluationAndProjectToExcel = (
     '1 น้อยที่สุด (%)': '-',
     'ค่าเฉลี่ย (x̄)': analytics.overallMean.toFixed(2),
     'ส่วนเบี่ยงเบนมาตรฐาน (S.D.)': analytics.overallSD.toFixed(2),
-    'ระดับความพึงพอใจ': analytics.overallLevelText
+    'ระดับความพึงพอใจ / เกณฑ์': analytics.overallLevelText
   });
 
+  void dimMap;
   const summaryWorksheet = XLSX.utils.json_to_sheet(summarySheetRows);
   XLSX.utils.book_append_sheet(workbook, summaryWorksheet, '2_Summary_Table');
 
-  // --- Sheet 3: Krathongs List (ข้อมูลผู้ร่วมลอยกระทง) ---
+  // --- Sheet 3: 3_SDGs_Summary ---
+  const sdgRows = analytics.sdgStats.map((sdg) => ({
+    'รหัส SDG': `SDG ${sdg.code}`,
+    'เป้าหมาย': `${sdg.nameTh} (${sdg.nameEn})`,
+    'รายละเอียดความสอดคล้อง': sanitizeSpreadsheetCell(sdg.description),
+    'จำนวนผู้ตอบ (N)': sdg.totalN,
+    'สอดคล้อง / บรรลุ (คน)': sdg.compliantCount,
+    'สอดคล้อง / บรรลุ (%)': `${sdg.compliantPct.toFixed(1)}%`,
+    'ไม่สอดคล้อง (คน)': sdg.nonCompliantCount,
+    'ไม่สอดคล้อง (%)': `${sdg.nonCompliantPct.toFixed(1)}%`
+  }));
+  const sdgWorksheet = XLSX.utils.json_to_sheet(sdgRows);
+  XLSX.utils.book_append_sheet(workbook, sdgWorksheet, '3_SDGs_Summary');
+
+  // --- Sheet 4: 4_Krathongs_Data ---
   if (krathongs.length > 0) {
     const statusMap: Record<string, string> = {
-      approved: 'อนุมัติแล้ว',
-      pending: 'รอตรวจสอบ',
-      rejected: 'ปฏิเสธ'
+      approved: 'แสดงผล',
+      pending: 'แสดงผล',
+      rejected: 'ซ่อนแล้ว'
     };
 
     const krathongRows = krathongs.map((item, idx) => ({
@@ -125,7 +261,7 @@ export const exportEvaluationAndProjectToExcel = (
     }));
 
     const krathongWorksheet = XLSX.utils.json_to_sheet(krathongRows);
-    XLSX.utils.book_append_sheet(workbook, krathongWorksheet, '3_Krathongs_Data');
+    XLSX.utils.book_append_sheet(workbook, krathongWorksheet, '4_Krathongs_Data');
   }
 
   XLSX.writeFile(workbook, filename);
@@ -143,10 +279,18 @@ export const exportEvaluationToCSV = (
     'Timestamp',
     'ประเภทผู้ตอบ',
     'รหัสนักศึกษา',
-    'คณะ / วิทยาลัย (จำแนกจากรหัส)',
+    'คณะ / วิทยาลัย',
+    'สาขา / สังกัด',
+    'ชั้นปี',
+    'บทบาท',
+    'ยินยอม PDPA',
     ...EVALUATION_QUESTIONS.map((q) => `ข้อ_${q.id}`),
+    ...COMMUNITY_EVALUATION_QUESTIONS.map((cq) => `ชุมชน_${cq.id}`),
+    ...SDG_EVALUATION_ITEMS.map((sdg) => `SDG_${sdg.code}`),
     'ค่าเฉลี่ยรวม',
-    'ข้อเสนอแนะ'
+    'สิ่งที่ประทับใจ',
+    'สิ่งที่ควรปรับปรุง',
+    'ข้อเสนอแนะอื่นๆ'
   ];
 
   const escapeCsvField = (val: unknown) => {
@@ -156,20 +300,41 @@ export const exportEvaluationToCSV = (
 
   const lines = [
     headers.map(escapeCsvField).join(','),
-    ...analytics.records.map((rec, idx) =>
-      [
+    ...analytics.records.map((rec, idx) => {
+      const communityCells = COMMUNITY_EVALUATION_QUESTIONS.map((_, cIdx) =>
+        rec.community_scores && rec.community_scores.length === COMMUNITY_EVALUATION_QUESTIONS.length
+          ? rec.community_scores[cIdx]
+          : '-'
+      );
+      const sdgCells = SDG_EVALUATION_ITEMS.map((_, sIdx) =>
+        rec.sdg_results && rec.sdg_results.length === SDG_EVALUATION_ITEMS.length
+          ? rec.sdg_results[sIdx]
+            ? 'สอดคล้อง / บรรลุ'
+            : 'ไม่สอดคล้อง'
+          : '-'
+      );
+
+      return [
         idx + 1,
         rec.created_at,
         USER_TYPE_THAI[rec.user_type] || rec.user_type,
         rec.student_id || '-',
         rec.faculty || '-',
-        ...rec.scores,
+        rec.major || '-',
+        rec.year_level || '-',
+        rec.role || '-',
+        rec.pdpaAccepted ? 'ยินยอม' : '-',
+        ...EVALUATION_QUESTIONS.map((_, qIdx) => rec.scores[qIdx] ?? '-'),
+        ...communityCells,
+        ...sdgCells,
         rec.average_score.toFixed(2),
-        rec.comment || ''
+        rec.feedback_impressed || '',
+        rec.feedback_improve || '',
+        rec.feedback_other || ''
       ]
         .map(escapeCsvField)
-        .join(',')
-    )
+        .join(',');
+    })
   ];
 
   const csvContent = '\uFEFF' + lines.join('\r\n');
@@ -184,14 +349,14 @@ export const exportEvaluationToCSV = (
 
 /**
  * 3. เปิดหน้ารายงานสรุปผลโครงการขนาด A4 มาตรฐานราชการ (Print-Friendly / Save as PDF A4)
- *    พร้อมแนบกราฟ Radar Chart ความละเอียดสูง ตารางสรุปสถิติ 10 ด้าน และบทวิเคราะห์อัตโนมัติ
+ *    ครบทั้ง KPIs 3 ข้อ, กราฟ Radar Chart 9 หมวด, ตาราง 36 ข้อ + ชุมชน 4 ข้อ และผลความสอดคล้อง 7 SDGs
  */
 export const openOfficialA4ReportPrintView = (
   analytics: EvaluationAnalyticsSummary,
   totalKrathongs = 0
 ) => {
   const radarDataUrl = generateRadarChartDataUrl(
-    analytics.questionStats,
+    analytics.dimensionStats,
     analytics.overallMean,
     analytics.totalN,
     'light'
@@ -212,23 +377,90 @@ export const openOfficialA4ReportPrintView = (
   const generalPct =
     analytics.totalN > 0 ? ((analytics.userTypeCounts.general / analytics.totalN) * 100).toFixed(1) : '0.0';
 
+  const topSdg =
+    analytics.sdgStats.length > 0
+      ? [...analytics.sdgStats].sort((a, b) => b.compliantPct - a.compliantPct)[0]
+      : null;
+
+  const passedKpiCount = analytics.kpiStats.filter((k) => k.passed).length;
+
+  const groupedQuestionRowsHtml = analytics.dimensionStats
+    .map((dim) => {
+      const items = analytics.questionStats.filter((q) => q.dimensionId === dim.dimensionId);
+      const groupRow = `
+        <tr class="group-row">
+          <td colspan="7" class="left">${escapeHtml(dim.label)} <span style="font-weight:400;color:#64748b;">(${escapeHtml(dim.sectionGroup)})</span></td>
+          <td>${dim.mean.toFixed(2)}</td>
+          <td>${dim.sd.toFixed(2)}</td>
+          <td>${escapeHtml(dim.levelText)}</td>
+        </tr>
+      `;
+      const itemRows = items
+        .map(
+          (st) => `
+          <tr>
+            <td>${st.questionId}</td>
+            <td class="left">${st.subGroupLabel ? `<span class="badge-sub">${escapeHtml(st.subGroupLabel)}</span> ` : ''}${escapeHtml(st.title)}</td>
+            <td>${st.percentages[5].toFixed(1)}%<br/><span style="color:#64748b;font-size:8.5px;">(${st.counts[5]})</span></td>
+            <td>${st.percentages[4].toFixed(1)}%<br/><span style="color:#64748b;font-size:8.5px;">(${st.counts[4]})</span></td>
+            <td>${st.percentages[3].toFixed(1)}%<br/><span style="color:#64748b;font-size:8.5px;">(${st.counts[3]})</span></td>
+            <td>${st.percentages[2].toFixed(1)}%<br/><span style="color:#64748b;font-size:8.5px;">(${st.counts[2]})</span></td>
+            <td>${st.percentages[1].toFixed(1)}%<br/><span style="color:#64748b;font-size:8.5px;">(${st.counts[1]})</span></td>
+            <td><strong>${st.mean.toFixed(2)}</strong></td>
+            <td>${st.sd.toFixed(2)}</td>
+            <td>${escapeHtml(st.levelText)}</td>
+          </tr>
+        `
+        )
+        .join('');
+      return groupRow + itemRows;
+    })
+    .join('');
+
+  const communityRowsHtml =
+    analytics.communityN > 0
+      ? `
+        <tr class="group-row">
+          <td colspan="10" class="left">ส่วนที่ 15: แบบประเมินสำหรับผู้ปกครอง / ชุมชน (N = ${analytics.communityN} คน)</td>
+        </tr>
+        ${analytics.communityStats
+          .map(
+            (st) => `
+            <tr>
+              <td>ช.${st.questionId}</td>
+              <td class="left">${escapeHtml(st.title)}</td>
+              <td>${st.percentages[5].toFixed(1)}%<br/><span style="color:#64748b;font-size:8.5px;">(${st.counts[5]})</span></td>
+              <td>${st.percentages[4].toFixed(1)}%<br/><span style="color:#64748b;font-size:8.5px;">(${st.counts[4]})</span></td>
+              <td>${st.percentages[3].toFixed(1)}%<br/><span style="color:#64748b;font-size:8.5px;">(${st.counts[3]})</span></td>
+              <td>${st.percentages[2].toFixed(1)}%<br/><span style="color:#64748b;font-size:8.5px;">(${st.counts[2]})</span></td>
+              <td>${st.percentages[1].toFixed(1)}%<br/><span style="color:#64748b;font-size:8.5px;">(${st.counts[1]})</span></td>
+              <td><strong>${st.mean.toFixed(2)}</strong></td>
+              <td>${st.sd.toFixed(2)}</td>
+              <td>${escapeHtml(st.levelText)}</td>
+            </tr>
+          `
+          )
+          .join('')}
+      `
+      : '';
+
   const html = `<!DOCTYPE html>
 <html lang="th">
 <head>
   <meta charset="UTF-8" />
-  <title>รายงานสรุปผลความพึงพอใจโครงการเทศกาลลอยกระทง (A4 Report)</title>
+  <title>รายงานสรุปผลการประเมินโครงการลอยกระทงบุฟเฟต์ (A4 Report)</title>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai+Looped:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    @page { size: A4 portrait; margin: 12mm 14mm; }
+    @page { size: A4 portrait; margin: 12mm 13mm; }
     * { box-sizing: border-box; }
     body {
       font-family: 'IBM Plex Sans Thai Looped', sans-serif;
       color: #231912;
       background: #fdfaf4;
       margin: 0;
-      padding: 20px;
-      font-size: 12px;
-      line-height: 1.45;
+      padding: 18px;
+      font-size: 11px;
+      line-height: 1.42;
     }
     .toolbar {
       max-width: 210mm;
@@ -254,78 +486,49 @@ export const openOfficialA4ReportPrintView = (
       font-weight: 700;
       font-size: 13px;
       cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
     }
     .a4-page {
       max-width: 210mm;
       margin: 0 auto;
       background: #ffffff;
-      padding: 14mm 16mm;
+      padding: 12mm 14mm;
       box-shadow: 0 10px 30px rgba(0,0,0,0.12);
     }
-    h1 {
-      font-size: 18px;
-      font-weight: 800;
-      text-align: center;
-      margin: 0 0 4px 0;
-    }
-    h2 {
-      font-size: 14px;
-      font-weight: 700;
-      text-align: center;
-      color: #334155;
-      margin: 0 0 12px 0;
-    }
+    h1 { font-size: 17px; font-weight: 800; text-align: center; margin: 0 0 3px 0; }
+    h2 { font-size: 13px; font-weight: 700; text-align: center; color: #334155; margin: 0 0 10px 0; }
+    h3 { font-size: 12.5px; font-weight: 800; color: #231912; margin: 12px 0 6px 0; border-left: 4px solid #d97706; padding-left: 8px; }
     .meta-box {
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-between;
+      gap: 6px;
       border: 1px solid #cbd5e1;
       background: #f8fafc;
       padding: 8px 12px;
       border-radius: 8px;
-      margin-bottom: 12px;
-      font-size: 11.5px;
+      margin-bottom: 10px;
+      font-size: 11px;
     }
-    .chart-wrapper {
-      text-align: center;
-      margin: 8px 0 12px 0;
-    }
-    .chart-wrapper img {
-      max-width: 82%;
-      height: auto;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 10.5px;
-      margin-bottom: 12px;
-    }
-    th, td {
-      border: 1px solid #94a3b8;
-      padding: 4px 6px;
-      text-align: center;
-    }
-    th {
-      background: #e2e8f0;
-      font-weight: 700;
-    }
-    td.left {
-      text-align: left;
-    }
-    tr.summary-row {
-      background: #fef3c7;
-      font-weight: 700;
-    }
+    .chart-wrapper { text-align: center; margin: 8px 0 12px 0; }
+    .chart-wrapper img { max-width: 84%; height: auto; border: 1px solid #e2e8f0; border-radius: 8px; }
+    table { width: 100%; border-collapse: collapse; font-size: 9.8px; margin-bottom: 10px; }
+    th, td { border: 1px solid #94a3b8; padding: 3.5px 5px; text-align: center; }
+    th { background: #e2e8f0; font-weight: 700; }
+    td.left { text-align: left; }
+    tr { break-inside: avoid; }
+    tr.group-row td { background: #fef3c7; font-weight: 700; color: #231912; }
+    tr.summary-row td { background: #fde68a; font-weight: 800; }
+    .badge-sub { display: inline-block; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 4px; padding: 0 4px; font-size: 8.5px; font-weight: 700; }
+    .pass { color: #047857; font-weight: 700; }
+    .fail { color: #b45309; font-weight: 700; }
+    .page-break { page-break-before: always; break-before: page; }
     .analysis-box {
       border: 1px solid #cbd5e1;
       border-radius: 8px;
       padding: 10px 14px;
       background: #f8fafc;
-      font-size: 11.5px;
+      font-size: 11px;
+      break-inside: avoid;
     }
     @media print {
       body { background: #fff; padding: 0; }
@@ -336,83 +539,156 @@ export const openOfficialA4ReportPrintView = (
 </head>
 <body>
   <div class="toolbar">
-    <span style="display:inline-flex;align-items:center;gap:6px;font-weight:700;">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
-      <span>รายงานสรุปผลขนาดมาตรฐาน A4 (พร้อมแนบเล่มสรุปโครงการ)</span>
-    </span>
-    <button onclick="window.print()">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg>
-      <span>พิมพ์รายงาน / บันทึกเป็น PDF (A4)</span>
-    </button>
+    <span style="font-weight:700;">รายงานสรุปผลขนาดมาตรฐาน A4 (โครงการลอยกระทงบุฟเฟต์ • แบบประเมินมาตรฐานกลาง ม.อ.)</span>
+    <button onclick="window.print()">พิมพ์รายงาน / บันทึกเป็น PDF (A4)</button>
   </div>
 
   <div class="a4-page">
-    <h1>รายงานสรุปผลการประเมินความพึงพอใจโครงการเทศกาลลอยกระทงออนไลน์</h1>
-    <h2>ตัวชี้วัดเชิงคุณภาพ: ระดับความพึงพอใจของผู้เข้าร่วมกิจกรรม (10 ด้าน)</h2>
+    <h1>รายงานสรุปผลการประเมินโครงการลอยกระทงบุฟเฟต์ (Loy Krathong Buffet)</h1>
+    <h2>สโมสรนักศึกษาคณะวิทยาศาสตร์ มหาวิทยาลัยสงขลานครินทร์ • วันที่ 24 พฤศจิกายน 2569</h2>
 
     <div class="meta-box">
       <div><strong>จำนวนผู้ตอบแบบประเมิน (N):</strong> ${analytics.totalN.toLocaleString()} คน (กระทงทั้งหมด ${totalKrathongs.toLocaleString()} ใบ)</div>
-      <div><strong>สัดส่วนผู้ตอบ:</strong> นักศึกษา ${studentPct}% | บุคลากร ${staffPct}% | บุคคลภายนอก ${generalPct}%</div>
+      <div><strong>สัดส่วนผู้ตอบ:</strong> นักศึกษา ${studentPct}% | อาจารย์/บุคลากร ${staffPct}% | บุคคลทั่วไป/ชุมชน ${generalPct}%</div>
       <div><strong>วันที่ออกรายงาน:</strong> ${new Date().toLocaleDateString('th-TH')}</div>
     </div>
 
+    <h3>1. สรุปตัวชี้วัดความสำเร็จของโครงการ (KPIs เชิงคุณภาพ • เกณฑ์ ≥ 4.00)</h3>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 36px;">ข้อ</th>
+          <th>ตัวชี้วัดความสำเร็จ (หน้า 5 เล่มโครงการ)</th>
+          <th style="width: 72px;">ค่าเป้าหมาย</th>
+          <th style="width: 68px;">ค่าเฉลี่ย (x̄)</th>
+          <th style="width: 58px;">S.D.</th>
+          <th style="width: 90px;">ผลการประเมิน</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${analytics.kpiStats
+          .map(
+            (kpi, i) => `
+          <tr>
+            <td>${i + 1}</td>
+            <td class="left">${escapeHtml(kpi.label)}</td>
+            <td>≥ ${kpi.target.toFixed(2)}</td>
+            <td><strong>${kpi.mean.toFixed(2)}</strong></td>
+            <td>${kpi.sd.toFixed(2)}</td>
+            <td class="${kpi.passed ? 'pass' : 'fail'}">${analytics.totalN === 0 ? 'รอข้อมูล' : kpi.passed ? 'ผ่านเกณฑ์' : 'ต่ำกว่าเกณฑ์'}</td>
+          </tr>
+        `
+          )
+          .join('')}
+      </tbody>
+    </table>
+
+    <h3>2. กราฟเรดาร์สรุปผลความพึงพอใจ 9 หมวดหลัก</h3>
     <div class="chart-wrapper">
-      <img src="${radarDataUrl}" alt="Radar Chart 10 Dimensions" />
+      <img src="${radarDataUrl}" alt="Radar Chart 9 Dimensions" />
     </div>
 
     <table>
       <thead>
         <tr>
-          <th rowspan="2" style="width: 34px;">ข้อ</th>
-          <th rowspan="2">ประเด็นการประเมินความพึงพอใจ</th>
-          <th colspan="5">ร้อยละ (%) ของผู้ตอบในแต่ละระดับคะแนน (N = ${analytics.totalN})</th>
-          <th rowspan="2" style="width: 48px;">ค่าเฉลี่ย<br/>(x̄)</th>
-          <th rowspan="2" style="width: 44px;">S.D.</th>
-          <th rowspan="2" style="width: 68px;">ระดับ<br/>ความพึงพอใจ</th>
-        </tr>
-        <tr>
-          <th style="width: 44px;">5<br/>(มากที่สุด)</th>
-          <th style="width: 44px;">4<br/>(มาก)</th>
-          <th style="width: 44px;">3<br/>(ปานกลาง)</th>
-          <th style="width: 44px;">2<br/>(น้อย)</th>
-          <th style="width: 44px;">1<br/>(น้อยที่สุด)</th>
+          <th>หมวดประเมิน (9 ด้านหลัก)</th>
+          <th style="width: 190px;">กลุ่มประเมินในแบบฟอร์มมาตรฐาน</th>
+          <th style="width: 58px;">จำนวนข้อ</th>
+          <th style="width: 66px;">ค่าเฉลี่ย (x̄)</th>
+          <th style="width: 58px;">S.D.</th>
+          <th style="width: 82px;">ระดับความพึงพอใจ</th>
         </tr>
       </thead>
       <tbody>
-        ${analytics.questionStats
+        ${analytics.dimensionStats
           .map(
-            (st) => `
+            (dim) => `
           <tr>
-            <td>${st.questionId}</td>
-            <td class="left">${st.title}</td>
-            <td>${st.percentages[5].toFixed(1)}%<br/><span style="color:#64748b;font-size:9px;">(${st.counts[5]})</span></td>
-            <td>${st.percentages[4].toFixed(1)}%<br/><span style="color:#64748b;font-size:9px;">(${st.counts[4]})</span></td>
-            <td>${st.percentages[3].toFixed(1)}%<br/><span style="color:#64748b;font-size:9px;">(${st.counts[3]})</span></td>
-            <td>${st.percentages[2].toFixed(1)}%<br/><span style="color:#64748b;font-size:9px;">(${st.counts[2]})</span></td>
-            <td>${st.percentages[1].toFixed(1)}%<br/><span style="color:#64748b;font-size:9px;">(${st.counts[1]})</span></td>
-            <td><strong>${st.mean.toFixed(2)}</strong></td>
-            <td>${st.sd.toFixed(2)}</td>
-            <td>${st.levelText}</td>
+            <td class="left"><strong>${escapeHtml(dim.label)}</strong></td>
+            <td class="left">${escapeHtml(dim.sectionGroup)}</td>
+            <td>${dim.questionCount}</td>
+            <td><strong>${dim.mean.toFixed(2)}</strong></td>
+            <td>${dim.sd.toFixed(2)}</td>
+            <td>${escapeHtml(dim.levelText)}</td>
           </tr>
         `
           )
           .join('')}
         <tr class="summary-row">
-          <td colspan="7" class="left" style="text-align:right;padding-right:12px;">
-            ค่าเฉลี่ยรวมทุกด้าน (Overall Mean)
-          </td>
+          <td colspan="3" class="left" style="text-align:right;padding-right:10px;">ค่าเฉลี่ยรวมทุกด้าน (Overall Mean, N = ${analytics.totalN})</td>
           <td>${analytics.overallMean.toFixed(2)}</td>
           <td>${analytics.overallSD.toFixed(2)}</td>
-          <td>${analytics.overallLevelText}</td>
+          <td>${escapeHtml(analytics.overallLevelText)}</td>
         </tr>
       </tbody>
     </table>
 
+    <div class="page-break"></div>
+    <h3>3. ตารางสรุปสถิติรายข้อครบทั้ง 36 ข้อหลัก (+ ส่วนที่ 15 สำหรับผู้ปกครอง/ชุมชน)</h3>
+    <table>
+      <thead>
+        <tr>
+          <th rowspan="2" style="width: 32px;">ข้อ</th>
+          <th rowspan="2">ประเด็นการประเมินความพึงพอใจ</th>
+          <th colspan="5">ร้อยละ (%) ของผู้ตอบในแต่ละระดับคะแนน (N = ${analytics.totalN})</th>
+          <th rowspan="2" style="width: 46px;">ค่าเฉลี่ย<br/>(x̄)</th>
+          <th rowspan="2" style="width: 42px;">S.D.</th>
+          <th rowspan="2" style="width: 62px;">ระดับ<br/>ความพึงพอใจ</th>
+        </tr>
+        <tr>
+          <th style="width: 42px;">5<br/>มากที่สุด</th>
+          <th style="width: 42px;">4<br/>มาก</th>
+          <th style="width: 42px;">3<br/>ปานกลาง</th>
+          <th style="width: 42px;">2<br/>น้อย</th>
+          <th style="width: 42px;">1<br/>น้อยที่สุด</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${groupedQuestionRowsHtml}
+        ${communityRowsHtml}
+        <tr class="summary-row">
+          <td colspan="7" class="left" style="text-align:right;padding-right:10px;">ค่าเฉลี่ยรวม 36 ข้อหลัก (Overall Mean)</td>
+          <td>${analytics.overallMean.toFixed(2)}</td>
+          <td>${analytics.overallSD.toFixed(2)}</td>
+          <td>${escapeHtml(analytics.overallLevelText)}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>4. สรุปผลการประเมินความสอดคล้องเป้าหมายการพัฒนาที่ยั่งยืน (SDGs 7 เป้าหมาย)</h3>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 68px;">SDG</th>
+          <th>เป้าหมายและคำอธิบายความสอดคล้อง</th>
+          <th style="width: 62px;">ผู้ตอบ (N)</th>
+          <th style="width: 112px;">สอดคล้อง / บรรลุ</th>
+          <th style="width: 100px;">ไม่สอดคล้อง</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${analytics.sdgStats
+          .map(
+            (sdg) => `
+          <tr>
+            <td><strong>SDG ${sdg.code}</strong></td>
+            <td class="left"><strong>${escapeHtml(sdg.nameTh)}</strong> (${escapeHtml(sdg.nameEn)})<br/><span style="color:#475569;font-size:9px;">${escapeHtml(sdg.description)}</span></td>
+            <td>${sdg.totalN}</td>
+            <td class="pass">${sdg.compliantCount} คน (${sdg.compliantPct.toFixed(1)}%)</td>
+            <td>${sdg.nonCompliantCount} คน (${sdg.nonCompliantPct.toFixed(1)}%)</td>
+          </tr>
+        `
+          )
+          .join('')}
+      </tbody>
+    </table>
+
     <div class="analysis-box">
-      <strong>สรุปและวิเคราะห์ผลการประเมินโครงการ:</strong><br/>
-      1. <strong>ภาพรวมความพึงพอใจ:</strong> ผู้เข้าร่วมกิจกรรมจำนวนทั้งหมด ${analytics.totalN.toLocaleString()} คน มีความพึงพอใจในภาพรวมทุกด้านอยู่ในระดับ <strong>"${analytics.overallLevelText}"</strong> โดยมีค่าเฉลี่ยรวม (x̄) เท่ากับ <strong>${analytics.overallMean.toFixed(2)}</strong> คะแนน (จากคะแนนเต็ม 5.00) และส่วนเบี่ยงเบนมาตรฐาน (S.D.) เท่ากับ ${analytics.overallSD.toFixed(2)}<br/>
-      2. <strong>ประเด็นที่ได้คะแนนเฉลี่ยสูงสุด:</strong> ได้แก่ <em>"${highest ? highest.title : '-'}"</em> มีค่าเฉลี่ย (x̄) เท่ากับ <strong>${highest ? highest.mean.toFixed(2) : '-'}</strong> คะแนน (ระดับ${highest ? highest.levelText : '-'})<br/>
-      3. <strong>ประเด็นที่มีคะแนนเฉลี่ยรองลงมา/ควรพัฒนาเพิ่มเติม:</strong> ได้แก่ <em>"${lowest ? lowest.title : '-'}"</em> มีค่าเฉลี่ย (x̄) เท่ากับ <strong>${lowest ? lowest.mean.toFixed(2) : '-'}</strong> คะแนน (ระดับ${lowest ? lowest.levelText : '-'})
+      <strong>สรุปและวิเคราะห์ผลการประเมินโครงการลอยกระทงบุฟเฟต์:</strong><br/>
+      1. <strong>ภาพรวมความพึงพอใจ:</strong> ผู้เข้าร่วมกิจกรรมจำนวนทั้งหมด ${analytics.totalN.toLocaleString()} คน มีความพึงพอใจในภาพรวมทุกด้านอยู่ในระดับ <strong>&ldquo;${escapeHtml(analytics.overallLevelText)}&rdquo;</strong> ค่าเฉลี่ยรวม (x̄) เท่ากับ <strong>${analytics.overallMean.toFixed(2)}</strong> (S.D. = ${analytics.overallSD.toFixed(2)})<br/>
+      2. <strong>หมวดที่ได้คะแนนเฉลี่ยสูงสุด:</strong> ได้แก่ <em>&ldquo;${escapeHtml(highest ? highest.label : '-')}&rdquo;</em> (x̄ = <strong>${highest ? highest.mean.toFixed(2) : '-'}</strong>, ระดับ${escapeHtml(highest ? highest.levelText : '-')})<br/>
+      3. <strong>หมวดที่มีคะแนนเฉลี่ยรองลงมา/ควรพัฒนาต่อยอด:</strong> ได้แก่ <em>&ldquo;${escapeHtml(lowest ? lowest.label : '-')}&rdquo;</em> (x̄ = <strong>${lowest ? lowest.mean.toFixed(2) : '-'}</strong>, ระดับ${escapeHtml(lowest ? lowest.levelText : '-')})<br/>
+      4. <strong>ผลตัวชี้วัดความสำเร็จโครงการ (KPIs ≥ 4.00):</strong> ผ่านเกณฑ์ ${passedKpiCount} จาก ${analytics.kpiStats.length} ตัวชี้วัด และเป้าหมายความสอดคล้อง SDGs ที่โดดเด่นที่สุดคือ <strong>SDG ${topSdg ? topSdg.code : '-'} (${escapeHtml(topSdg ? topSdg.nameTh : '-')})</strong> ที่ระดับ ${topSdg ? topSdg.compliantPct.toFixed(1) : '0.0'}%
     </div>
   </div>
 </body>
@@ -451,15 +727,15 @@ const buildUniqueSafeSheetName = (rawName: string, existingNames: string[]): str
 };
 
 /**
- * ส่งออกรายชื่อนักศึกษาสำหรับยื่น Activity Transcript แยก Sheet ตามคณะ
- * พร้อมตัดรหัสนักศึกษาซ้ำอัตโนมัติ และระบุสถานะอุปกรณ์ที่ใช้ซ้ำเพื่อให้ทีมงานตรวจสอบได้
+ * 4. ส่งออกรายชื่อนักศึกษาสำหรับยื่น Activity Transcript แยก Sheet ตามคณะ (พร้อมคอลัมน์ สาขา และ ชั้นปี)
  */
 export const exportStudentTranscriptByFacultyToExcel = (
   analytics: EvaluationAnalyticsSummary,
   krathongs: { id: string; owner_name: string }[] = [],
-  filename = 'loy-krathong-student-transcript.xlsx'
+  filename = 'loy-krathong-student-transcript.xlsx',
+  overrideRecords?: ParsedEvaluationRecord[]
 ): void => {
-  const roster = buildStudentTranscriptRoster(analytics.records, krathongs);
+  const roster = buildStudentTranscriptRoster(overrideRecords ?? analytics.records, krathongs);
   const workbook = XLSX.utils.book_new();
 
   // --- Sheet 1: สรุปจำนวนรายคณะ ---
@@ -511,6 +787,8 @@ export const exportStudentTranscriptByFacultyToExcel = (
       'ลำดับ': idx + 1,
       'รหัสนักศึกษา': sanitizeSpreadsheetCell(entry.student_id),
       'คณะ / วิทยาลัย (จำแนกจากรหัส)': sanitizeSpreadsheetCell(entry.faculty || 'ไม่ระบุคณะ'),
+      'สาขา': sanitizeSpreadsheetCell(entry.major || '-'),
+      'ชั้นปี': sanitizeSpreadsheetCell(entry.year_level || '-'),
       'สถานะตรวจสอบอุปกรณ์':
         entry.deviceStatus === 'shared_device'
           ? 'พบใช้อุปกรณ์ซ้ำ (ตรวจสอบเพิ่มเติม)'
@@ -525,9 +803,11 @@ export const exportStudentTranscriptByFacultyToExcel = (
   const studentSheetCols = [
     { wch: 8 },
     { wch: 16 },
-    { wch: 36 },
+    { wch: 34 },
+    { wch: 26 },
+    { wch: 14 },
     { wch: 30 },
-    { wch: 24 },
+    { wch: 22 },
     { wch: 22 },
     { wch: 38 }
   ];
@@ -541,6 +821,8 @@ export const exportStudentTranscriptByFacultyToExcel = (
             'ลำดับ': '-',
             'รหัสนักศึกษา': 'ยังไม่มีรายชื่อนักศึกษา',
             'คณะ / วิทยาลัย (จำแนกจากรหัส)': '-',
+            'สาขา': '-',
+            'ชั้นปี': '-',
             'สถานะตรวจสอบอุปกรณ์': '-',
             'รหัสอุปกรณ์ (Device Token)': '-',
             'วัน-เวลาที่ส่ง': '-',
@@ -578,8 +860,14 @@ export const exportStudentTranscriptByFacultyToExcel = (
 export const exportToExcel = (data: KrathongExportRecord[], filename = 'loy-krathong-report.xlsx') => {
   const dummyAnalytics: EvaluationAnalyticsSummary = {
     totalN: 0,
+    legacyExcludedCount: 0,
     userTypeCounts: { student: 0, staff: 0, general: 0 },
+    dimensionStats: [],
     questionStats: [],
+    communityStats: [],
+    communityN: 0,
+    kpiStats: [],
+    sdgStats: [],
     overallMean: 0,
     overallSD: 0,
     overallLevelText: '-',

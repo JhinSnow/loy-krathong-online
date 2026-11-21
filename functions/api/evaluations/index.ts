@@ -106,31 +106,132 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       } else if (rawStr.startsWith('{')) {
         try {
           const parsed = JSON.parse(rawStr);
-          const safeSid = String(parsed.sid || parsed.student_id || '').replace(/\D/g, '').slice(0, 15);
-          const safeName = sanitizeText(String(parsed.name || parsed.student_name || ''), 60);
-          const safeFac = sanitizeText(String(parsed.fac || parsed.faculty || ''), 60);
-          const safeDid = String(parsed.did || parsed.device_id || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 16);
-          const safeComment = sanitizeText(String(parsed.c || parsed.comment || ''), 140);
-          extractedStudentId = safeSid;
-          if (safeDid) extractedDeviceId = safeDid;
 
-          if (filterProfanity(safeComment) || filterProfanity(safeName)) {
-            return new Response(JSON.stringify({ error: 'กรุณาใช้ถ้อยคำที่สุภาพในข้อเสนอแนะ' }), {
-              status: 400,
-              headers
-            });
+          if (parsed?.v === 3) {
+            const safeSid = String(parsed.sid || '').replace(/\D/g, '').slice(0, 15);
+            const safeFac = sanitizeText(String(parsed.fac || ''), 50);
+            let safeMaj = sanitizeText(String(parsed.maj || ''), 60);
+            const safeYr = ['1', '2', '3', '4', 'm'].includes(String(parsed.yr || ''))
+              ? String(parsed.yr)
+              : '';
+            let safeRl = sanitizeText(String(parsed.rl || ''), 50);
+            const safeDid = String(parsed.did || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 16);
+            let safeC1 = sanitizeText(String(parsed.c1 || ''), 150);
+            let safeC2 = sanitizeText(String(parsed.c2 || ''), 150);
+            let safeC3 = sanitizeText(String(parsed.c3 || ''), 100);
+
+            extractedStudentId = safeSid;
+            if (safeDid) extractedDeviceId = safeDid;
+
+            if (
+              filterProfanity(safeMaj) ||
+              filterProfanity(safeRl) ||
+              filterProfanity(safeC1) ||
+              filterProfanity(safeC2) ||
+              filterProfanity(safeC3)
+            ) {
+              return new Response(JSON.stringify({ error: 'กรุณาใช้ถ้อยคำที่สุภาพในข้อเสนอแนะและข้อมูลผู้ตอบ' }), {
+                status: 400,
+                headers
+              });
+            }
+
+            const normalizeDigitSeq = (input: unknown, expectedLen: number, fallbackDigit: number): string => {
+              if (typeof input === 'string' && new RegExp(`^[1-5]{${expectedLen}}$`).test(input)) {
+                return input;
+              }
+              if (Array.isArray(input) && input.length === expectedLen) {
+                return input
+                  .map((n: unknown) => String(Math.min(Math.max(Math.round(Number(n) || fallbackDigit), 1), 5)))
+                  .join('');
+              }
+              return String(fallbackDigit).repeat(expectedLen);
+            };
+
+            const safeCore = normalizeDigitSeq(parsed.s, 36, numericRating);
+            const hasCommunity =
+              (typeof parsed.cs === 'string' && parsed.cs.length === 4) ||
+              (Array.isArray(parsed.cs) && parsed.cs.length === 4);
+            const safeCommunity = hasCommunity ? normalizeDigitSeq(parsed.cs, 4, numericRating) : '';
+
+            let safeSdg = '0000000';
+            if (typeof parsed.sdg === 'string' && /^[01]{7}$/.test(parsed.sdg)) {
+              safeSdg = parsed.sdg;
+            } else if (Array.isArray(parsed.sdg) && parsed.sdg.length === 7) {
+              safeSdg = parsed.sdg.map((v: unknown) => (v === 1 || v === true || v === '1' ? '1' : '0')).join('');
+            }
+
+            const normalizedObj: Record<string, unknown> = {
+              v: 3,
+              pd: parsed.pd === 1 || parsed.pd === true ? 1 : 0,
+              s: safeCore,
+              sdg: safeSdg,
+              sid: safeSid
+            };
+            if (safeCommunity) normalizedObj.cs = safeCommunity;
+            if (safeFac) normalizedObj.fac = safeFac;
+            if (safeYr) normalizedObj.yr = safeYr;
+            if (safeDid) normalizedObj.did = safeDid;
+
+            const buildBoundedV3 = () => {
+              if (safeMaj) normalizedObj.maj = safeMaj;
+              else delete normalizedObj.maj;
+              if (safeRl) normalizedObj.rl = safeRl;
+              else delete normalizedObj.rl;
+              if (safeC1) normalizedObj.c1 = safeC1;
+              else delete normalizedObj.c1;
+              if (safeC2) normalizedObj.c2 = safeC2;
+              else delete normalizedObj.c2;
+              if (safeC3) normalizedObj.c3 = safeC3;
+              else delete normalizedObj.c3;
+              return JSON.stringify(normalizedObj);
+            };
+
+            let bounded = buildBoundedV3();
+            while (bounded.length > 980) {
+              if (safeC3.length > 0) {
+                safeC3 = safeC3.slice(0, Math.max(0, safeC3.length - Math.max(10, bounded.length - 980)));
+              } else if (safeC2.length > 0) {
+                safeC2 = safeC2.slice(0, Math.max(0, safeC2.length - Math.max(10, bounded.length - 980)));
+              } else if (safeC1.length > 0) {
+                safeC1 = safeC1.slice(0, Math.max(0, safeC1.length - Math.max(10, bounded.length - 980)));
+              } else if (safeRl.length > 20) {
+                safeRl = safeRl.slice(0, safeRl.length - 10);
+              } else if (safeMaj.length > 20) {
+                safeMaj = safeMaj.slice(0, safeMaj.length - 10);
+              } else {
+                break;
+              }
+              bounded = buildBoundedV3();
+            }
+            cleanFeedback = bounded;
+          } else {
+            const safeSid = String(parsed.sid || parsed.student_id || '').replace(/\D/g, '').slice(0, 15);
+            const safeName = sanitizeText(String(parsed.name || parsed.student_name || ''), 60);
+            const safeFac = sanitizeText(String(parsed.fac || parsed.faculty || ''), 60);
+            const safeDid = String(parsed.did || parsed.device_id || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 16);
+            const safeComment = sanitizeText(String(parsed.c || parsed.comment || ''), 140);
+            extractedStudentId = safeSid;
+            if (safeDid) extractedDeviceId = safeDid;
+
+            if (filterProfanity(safeComment) || filterProfanity(safeName)) {
+              return new Response(JSON.stringify({ error: 'กรุณาใช้ถ้อยคำที่สุภาพในข้อเสนอแนะ' }), {
+                status: 400,
+                headers
+              });
+            }
+
+            const safeScores = Array.isArray(parsed.s) && parsed.s.length === 10
+              ? parsed.s.map((n: any) => Math.min(Math.max(Math.round(Number(n) || 5), 1), 5))
+              : Array(10).fill(numericRating);
+
+            const normalizedObj: Record<string, unknown> = { s: safeScores, sid: safeSid };
+            if (safeName) normalizedObj.name = safeName;
+            if (safeFac) normalizedObj.fac = safeFac;
+            if (safeDid) normalizedObj.did = safeDid;
+            normalizedObj.c = safeComment;
+            cleanFeedback = JSON.stringify(normalizedObj).slice(0, 500);
           }
-
-          const safeScores = Array.isArray(parsed.s) && parsed.s.length === 10
-            ? parsed.s.map((n: any) => Math.min(Math.max(Math.round(Number(n) || 5), 1), 5))
-            : Array(10).fill(numericRating);
-
-          const normalizedObj: Record<string, unknown> = { s: safeScores, sid: safeSid };
-          if (safeName) normalizedObj.name = safeName;
-          if (safeFac) normalizedObj.fac = safeFac;
-          if (safeDid) normalizedObj.did = safeDid;
-          normalizedObj.c = safeComment;
-          cleanFeedback = JSON.stringify(normalizedObj).slice(0, 500);
         } catch {
           cleanFeedback = sanitizeText(rawStr, 500);
         }

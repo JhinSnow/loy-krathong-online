@@ -26,7 +26,8 @@ import {
   Search,
   Eye,
   EyeOff,
-  RotateCcw
+  RotateCcw,
+  Leaf
 } from 'lucide-react';
 import { supabase } from '../utils/supabase';
 import {
@@ -75,6 +76,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
   const [krathongs, setKrathongs] = useState<KrathongItem[]>([]);
   const [evalAnalytics, setEvalAnalytics] = useState<EvaluationAnalyticsSummary>(() =>
     calculateEvaluationAnalytics(getDemoEvaluationRecords())
+  );
+  const [transcriptRecords, setTranscriptRecords] = useState<ParsedEvaluationRecord[]>(() =>
+    getDemoEvaluationRecords()
   );
   const [isUsingDemoEvals, setIsUsingDemoEvals] = useState<boolean>(false);
   const [loading, setLoading] = useState(false);
@@ -243,12 +247,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
         (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
       );
 
-      const finalEvalRecords =
-        combinedEvalRecords.length > 0 ? combinedEvalRecords : getDemoEvaluationRecords();
-      setIsUsingDemoEvals(combinedEvalRecords.length === 0);
+      const realV3Count = combinedEvalRecords.filter((r) => r.schemaVersion === 3).length;
+      const demoRecords = realV3Count === 0 ? getDemoEvaluationRecords() : [];
+      const analyticsInputRecords =
+        realV3Count > 0 ? combinedEvalRecords : [...demoRecords, ...combinedEvalRecords];
+      setIsUsingDemoEvals(realV3Count === 0);
 
-      const computedAnalytics = calculateEvaluationAnalytics(finalEvalRecords);
+      const computedAnalytics = calculateEvaluationAnalytics(analyticsInputRecords);
       setEvalAnalytics(computedAnalytics);
+
+      // Transcript Roster ยังคงแสดงรายชื่อนักศึกษาจริงที่มีอยู่ทั้งหมด (ทั้งข้อมูลชุดใหม่และชุดเดิมที่ยังไม่ถูกลบ) เพื่อให้ผู้ดูแลตรวจสอบและลบได้
+      setTranscriptRecords(combinedEvalRecords.length > 0 ? combinedEvalRecords : demoRecords);
 
       // 4. คำนวณสถิติผู้เข้าร่วมและสถานะกระทงจากข้อมูลรวมใน Single Pass O(N)
       let studentCount = 0;
@@ -266,10 +275,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
         else approvedCount++;
       }
 
-      const recentFeedbacks = finalEvalRecords
-        .filter(e => e.comment)
+      const recentFeedbacks = computedAnalytics.records
+        .filter((e) => e.comment)
         .slice(0, 15)
-        .map(e => ({
+        .map((e) => ({
           user_type: e.user_type as any,
           rating: Math.round(e.average_score),
           feedback: e.comment,
@@ -355,7 +364,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
     );
     if (!confirmed) return;
 
-    const matchingIds = evalAnalytics.records
+    const matchingIds = [...transcriptRecords, ...evalAnalytics.records]
       .filter((r) => (r.student_id || '').trim() === studentId && r.id)
       .map((r) => r.id);
 
@@ -503,8 +512,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
   };
 
   const transcriptRoster = useMemo(
-    () => buildStudentTranscriptRoster(evalAnalytics.records, krathongs),
-    [evalAnalytics.records, krathongs]
+    () => buildStudentTranscriptRoster(transcriptRecords, krathongs),
+    [transcriptRecords, krathongs]
   );
 
   const filteredTranscriptStudents = useMemo(() => {
@@ -516,7 +525,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
       if (!query) return true;
       return (
         student.student_id.toLowerCase().includes(query) ||
-        student.faculty.toLowerCase().includes(query)
+        student.faculty.toLowerCase().includes(query) ||
+        (student.major || '').toLowerCase().includes(query) ||
+        (student.year_level || '').toLowerCase().includes(query)
       );
     });
   }, [transcriptRoster.uniqueStudents, selectedFacultyFilter, transcriptSearch]);
@@ -568,7 +579,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
   };
 
   const handleExportTranscriptExcel = () => {
-    exportStudentTranscriptByFacultyToExcel(evalAnalytics, krathongs);
+    exportStudentTranscriptByFacultyToExcel(
+      evalAnalytics,
+      krathongs,
+      'loy-krathong-student-transcript.xlsx',
+      transcriptRecords
+    );
   };
 
   // หน้าจอยืนยันตัวตนสำหรับผู้ดูแลระบบ (Admin Authentication Gate)
@@ -595,7 +611,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
             </div>
             <h1 className="text-xl font-extrabold text-[#231912]">เข้าสู่ระบบผู้ดูแล (Admin Login)</h1>
             <p className="text-xs text-[#7c5d3a] mt-1">
-              กรุณายืนยันตัวตนก่อนเข้าถึงระบบคัดกรองข้อความและรายงานสรุปผล 10 ด้าน
+              กรุณายืนยันตัวตนก่อนเข้าถึงระบบคัดกรองข้อความและรายงานสรุปผลแบบประเมินมาตรฐานกลาง ม.อ.
             </p>
           </div>
 
@@ -675,10 +691,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
           </button>
           <div>
             <h1 className="text-xl sm:text-2xl font-extrabold text-[#231912]">
-              Admin Dashboard & ระบบสรุปผลประเมินโครงการ (10 ด้าน)
+              Admin Dashboard & ระบบสรุปผลประเมินโครงการ (แบบประเมินมาตรฐานกลาง ม.อ.)
             </h1>
             <p className="text-xs text-[#7c5d3a]">
-              ระบบคัดกรองข้อความ วิเคราะห์ Radar Chart และส่งออกข้อมูลสำหรับทำเล่มสรุปโครงการ
+              โครงการลอยกระทงบุฟเฟต์ • วิเคราะห์ผล 9 หมวด 36 ข้อ + ชุมชน + 7 SDGs, Radar Chart และส่งออกเอกสารสรุปโครงการ
             </p>
           </div>
         </div>
@@ -797,30 +813,87 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
           </div>
         </div>
 
-        {/* 1. Radar Chart Component */}
+        {/* KPI Success Cards Strip (ตัวชี้วัดเชิงคุณภาพ หน้า 5 เล่มโครงการ) */}
+        <div className="bg-white border border-amber-900/12 rounded-2xl p-4 shadow-2xs space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-extrabold text-[#231912]">
+                ตัวชี้วัดความสำเร็จของโครงการ (KPIs เชิงคุณภาพ • เกณฑ์ผ่าน x̄ ≥ 4.00)
+              </h2>
+              <p className="text-[11px] text-[#7c5d3a]">
+                อ้างอิงหัวข้อ 7 ตัวชี้วัดความสำเร็จของโครงการลอยกระทงบุฟเฟต์
+              </p>
+            </div>
+            {evalAnalytics.legacyExcludedCount > 0 && (
+              <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-sky-50 border border-sky-200 text-sky-800">
+                แยกข้อมูลชุดทดสอบเก่า (10 ข้อ) ออกจากการคำนวณสถิติชุดใหม่แล้ว {evalAnalytics.legacyExcludedCount} รายการ
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {evalAnalytics.kpiStats.map((kpi) => (
+              <div
+                key={kpi.key}
+                className={`p-3.5 rounded-xl border ${
+                  kpi.passed
+                    ? 'bg-emerald-50/60 border-emerald-300'
+                    : 'bg-[#fdfaf4] border-amber-300/80'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs font-bold text-[#231912] leading-snug">{kpi.label}</p>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 border ${
+                      kpi.passed
+                        ? 'bg-emerald-100 border-emerald-400 text-emerald-900'
+                        : evalAnalytics.totalN > 0
+                          ? 'bg-amber-100 border-amber-400 text-amber-900'
+                          : 'bg-white border-amber-900/15 text-[#7c5d3a]'
+                    }`}
+                  >
+                    {evalAnalytics.totalN === 0
+                      ? 'รอข้อมูล'
+                      : kpi.passed
+                        ? `ผ่านเกณฑ์ ≥ ${kpi.target.toFixed(0)}`
+                        : `ต่ำกว่าเกณฑ์ < ${kpi.target.toFixed(0)}`}
+                  </span>
+                </div>
+                <div className="mt-2 flex items-baseline gap-3 text-xs">
+                  <span className="text-lg font-black text-amber-800">
+                    x̄ = {kpi.mean.toFixed(2)}
+                  </span>
+                  <span className="text-[#7c5d3a]">S.D. = {kpi.sd.toFixed(2)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 1. Radar Chart Component (9 หมวดหลัก) */}
         <EvaluationRadarChart
-          questionStats={evalAnalytics.questionStats}
+          dimensionStats={evalAnalytics.dimensionStats}
           overallMean={evalAnalytics.overallMean}
           totalN={evalAnalytics.totalN}
         />
 
-        {/* 2. ตารางสรุปผลสถิติความพึงพอใจ 10 ด้าน (ตามรูปแบบเอกสารรายงานสรุปโครงการ) */}
+        {/* 2. ตารางสรุปผลสถิติความพึงพอใจแบบประเมินมาตรฐานกลาง ม.อ. (9 หมวด / 36 ข้อหลัก + 4 ข้อชุมชน) */}
         <div className="bg-white border border-amber-900/12 rounded-2xl overflow-hidden shadow-sm">
           <div className="p-4 sm:p-5 border-b border-amber-900/10 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <BarChart3 className="w-5 h-5 text-amber-700" />
                 <h2 className="text-base sm:text-lg font-extrabold text-[#231912]">
-                  ตารางสรุปผลสถิติความพึงพอใจของผู้เข้าร่วมกิจกรรม 10 ด้าน
+                  ตารางสรุปผลสถิติความพึงพอใจ (36 ข้อหลัก + 4 ข้อชุมชน)
                 </h2>
                 {isUsingDemoEvals && (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-900 border border-amber-300">
-                    ข้อมูลตัวอย่าง (จะอัปเดตทันทีเมื่อมีผู้ส่งแบบประเมินจริง)
+                    ข้อมูลตัวอย่าง (จะอัปเดตทันทีเมื่อมีผู้ส่งแบบประเมินมาตรฐานใหม่จริง)
                   </span>
                 )}
               </div>
               <p className="text-xs text-[#7c5d3a] mt-0.5">
-                แสดงจำนวนผู้ตอบทั้งหมด (N = {evalAnalytics.totalN} คน), ร้อยละ (%) ในแต่ละระดับคะแนน (1–5), ค่าเฉลี่ย (x̄) และส่วนเบี่ยงเบนมาตรฐาน (S.D.)
+                แสดงจำนวนผู้ตอบทั้งหมด (N = {evalAnalytics.totalN} คน • ชุมชน/บุคคลทั่วไป N = {evalAnalytics.communityN} คน), ร้อยละ (%) ในแต่ละระดับคะแนน (1–5), ค่าเฉลี่ย (x̄) และ S.D.
               </p>
             </div>
 
@@ -828,11 +901,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
               <button
                 type="button"
                 onClick={handleExportExcel}
-                title="ดาวน์โหลดไฟล์ Excel (.xlsx) ครบทั้ง 3 Sheets: ข้อมูลดิบผู้ประเมิน, ตารางสรุปสถิติ 10 ด้าน และรายชื่อผู้ลอยกระทง"
+                title="ดาวน์โหลดไฟล์ Excel (.xlsx) ครบ 4 Sheets: ข้อมูลดิบ, ตารางสรุปสถิติ 9 หมวด/36 ข้อ + ชุมชน + KPIs, สรุป 7 SDGs และรายชื่อกระทง"
                 className="flex items-center justify-center space-x-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition active:scale-95 cursor-pointer"
               >
                 <FileSpreadsheet className="w-4 h-4 shrink-0" />
-                <span>Export Excel (3 Sheets)</span>
+                <span>Export Excel (4 Sheets)</span>
               </button>
               <button
                 type="button"
@@ -846,7 +919,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
               <button
                 type="button"
                 onClick={handleExportA4Report}
-                title="เปิดหน้ารายงานสรุปผลขนาด A4 พร้อมกราฟ Radar Chart และตารางสถิติ 10 ข้อเพื่อพิมพ์หรือเซฟเป็น PDF"
+                title="เปิดหน้ารายงานสรุปผลขนาด A4 พร้อมกราฟ Radar Chart 9 หมวด, ตารางสถิติ 36+4 ข้อ และสรุป SDGs เพื่อพิมพ์หรือเซฟเป็น PDF"
                 className="flex items-center justify-center space-x-1.5 px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-sm transition active:scale-95 cursor-pointer"
               >
                 <FileText className="w-4 h-4 shrink-0" />
@@ -891,48 +964,139 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                 </tr>
               </thead>
               <tbody className="divide-y divide-amber-900/10">
-                {evalAnalytics.questionStats.map((st) => (
-                  <tr key={st.questionId} className="hover:bg-[#fdf8ec] transition">
-                    <td className="py-3 px-3 text-center font-bold text-amber-800 border-r border-amber-900/10">
-                      {st.questionId}
-                    </td>
-                    <td className="py-3 px-4 font-semibold text-[#231912] border-r border-amber-900/10">
-                      {st.title}
-                    </td>
-                    {[5, 4, 3, 2, 1].map((lvl) => {
-                      const scoreKey = lvl as 1 | 2 | 3 | 4 | 5;
-                      return (
+                {evalAnalytics.dimensionStats.map((dim) => {
+                  const dimQuestions = evalAnalytics.questionStats.filter(
+                    (q) => q.dimensionId === dim.dimensionId
+                  );
+                  return (
+                    <React.Fragment key={dim.dimensionId}>
+                      <tr className="bg-[#fdf3dc] border-y border-amber-300/60">
                         <td
-                          key={lvl}
-                          className="py-2.5 px-2 text-center border-r border-amber-900/10 whitespace-nowrap"
+                          colSpan={7}
+                          className="py-2 px-4 font-extrabold text-[#231912] border-r border-amber-900/12"
                         >
-                          <span className="font-semibold text-[#231912]">
-                            {st.percentages[scoreKey].toFixed(1)}%
-                          </span>
-                          <span className="block text-[10px] text-[#7c5d3a]">
-                            ({st.counts[scoreKey]} คน)
+                          <span>{dim.label}</span>
+                          <span className="ml-2 text-[10px] font-semibold text-[#7c5d3a]">
+                            ({dim.sectionGroup})
                           </span>
                         </td>
-                      );
-                    })}
-                    <td className="py-3 px-3 text-center font-extrabold text-amber-800 border-r border-amber-900/10 text-sm">
-                      {st.mean.toFixed(2)}
-                    </td>
-                    <td className="py-3 px-3 text-center text-[#574536] border-r border-amber-900/10">
-                      {st.sd.toFixed(2)}
-                    </td>
-                    <td className="py-3 px-3 text-center whitespace-nowrap">
-                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
-                        {st.levelText}
-                      </span>
+                        <td className="py-2 px-3 text-center font-black text-amber-900 border-r border-amber-900/12">
+                          {dim.mean.toFixed(2)}
+                        </td>
+                        <td className="py-2 px-3 text-center font-semibold text-[#574536] border-r border-amber-900/12">
+                          {dim.sd.toFixed(2)}
+                        </td>
+                        <td className="py-2 px-3 text-center whitespace-nowrap">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-200/80 text-amber-950">
+                            {dim.levelText}
+                          </span>
+                        </td>
+                      </tr>
+                      {dimQuestions.map((st) => (
+                        <tr key={st.questionId} className="hover:bg-[#fdf8ec] transition">
+                          <td className="py-2.5 px-3 text-center font-bold text-amber-800 border-r border-amber-900/10">
+                            {st.questionId}
+                          </td>
+                          <td className="py-2.5 px-4 font-medium text-[#231912] border-r border-amber-900/10">
+                            {st.subGroupLabel && (
+                              <span className="inline-block mr-1.5 px-1.5 py-0.5 rounded bg-amber-100/70 text-[10px] font-semibold text-amber-900">
+                                {st.subGroupLabel}
+                              </span>
+                            )}
+                            <span>{st.title}</span>
+                          </td>
+                          {[5, 4, 3, 2, 1].map((lvl) => {
+                            const scoreKey = lvl as 1 | 2 | 3 | 4 | 5;
+                            return (
+                              <td
+                                key={lvl}
+                                className="py-2 px-2 text-center border-r border-amber-900/10 whitespace-nowrap"
+                              >
+                                <span className="font-semibold text-[#231912]">
+                                  {st.percentages[scoreKey].toFixed(1)}%
+                                </span>
+                                <span className="block text-[10px] text-[#7c5d3a]">
+                                  ({st.counts[scoreKey]} คน)
+                                </span>
+                              </td>
+                            );
+                          })}
+                          <td className="py-2.5 px-3 text-center font-extrabold text-amber-800 border-r border-amber-900/10 text-sm">
+                            {st.mean.toFixed(2)}
+                          </td>
+                          <td className="py-2.5 px-3 text-center text-[#574536] border-r border-amber-900/10">
+                            {st.sd.toFixed(2)}
+                          </td>
+                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                              {st.levelText}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  );
+                })}
+
+                {/* ส่วนที่ 15: สำหรับผู้ปกครอง / ชุมชน (เฉพาะบุคคลทั่วไป/ชุมชน) */}
+                <tr className="bg-emerald-50/80 border-y border-emerald-300/70">
+                  <td
+                    colSpan={10}
+                    className="py-2 px-4 font-extrabold text-emerald-950"
+                  >
+                    ส่วนเพิ่มเติมเฉพาะกลุ่มบุคคลทั่วไป / ชุมชน (ส่วนที่ 15: สำหรับผู้ปกครอง / ชุมชน • N = {evalAnalytics.communityN} คน)
+                  </td>
+                </tr>
+                {evalAnalytics.communityN === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="py-4 px-4 text-center text-xs text-[#7c5d3a]">
+                      ยังไม่มีผู้ตอบในกลุ่มบุคคลทั่วไป/ชุมชน สำหรับแบบประเมินมาตรฐานใหม่
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  evalAnalytics.communityStats.map((st) => (
+                    <tr key={`comm-${st.questionId}`} className="hover:bg-[#fdf8ec] transition">
+                      <td className="py-2.5 px-3 text-center font-bold text-emerald-700 border-r border-amber-900/10">
+                        ช.{st.questionId}
+                      </td>
+                      <td className="py-2.5 px-4 font-medium text-[#231912] border-r border-amber-900/10">
+                        {st.title}
+                      </td>
+                      {[5, 4, 3, 2, 1].map((lvl) => {
+                        const scoreKey = lvl as 1 | 2 | 3 | 4 | 5;
+                        return (
+                          <td
+                            key={lvl}
+                            className="py-2 px-2 text-center border-r border-amber-900/10 whitespace-nowrap"
+                          >
+                            <span className="font-semibold text-[#231912]">
+                              {st.percentages[scoreKey].toFixed(1)}%
+                            </span>
+                            <span className="block text-[10px] text-[#7c5d3a]">
+                              ({st.counts[scoreKey]} คน)
+                            </span>
+                          </td>
+                        );
+                      })}
+                      <td className="py-2.5 px-3 text-center font-extrabold text-emerald-800 border-r border-amber-900/10 text-sm">
+                        {st.mean.toFixed(2)}
+                      </td>
+                      <td className="py-2.5 px-3 text-center text-[#574536] border-r border-amber-900/10">
+                        {st.sd.toFixed(2)}
+                      </td>
+                      <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                          {st.levelText}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
 
                 {/* แถวสรุปค่าเฉลี่ยรวมทุกด้าน (Overall Mean) */}
                 <tr className="bg-[#fffbeb] font-bold text-[#231912] border-t-2 border-amber-400/70">
                   <td colSpan={7} className="py-3.5 px-4 text-right border-r border-amber-900/15 text-sm">
-                    ค่าเฉลี่ยรวมทุกด้าน (Overall Mean) จากผู้ประเมินทั้งหมด N = {evalAnalytics.totalN} คน
+                    ค่าเฉลี่ยรวม 36 ข้อหลัก (Overall Mean) จากผู้ประเมินทั้งหมด N = {evalAnalytics.totalN} คน
                   </td>
                   <td className="py-3.5 px-3 text-center text-base font-black text-amber-800 border-r border-amber-900/15">
                     {evalAnalytics.overallMean.toFixed(2)}
@@ -948,6 +1112,63 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                 </tr>
               </tbody>
             </table>
+          </div>
+        </div>
+
+        {/* 2.2 สรุปผลการประเมินความสอดคล้องตามเป้าหมาย SDGs (7 เป้าหมาย: 5, 11, 12, 13, 14, 15, 17) */}
+        <div className="bg-white border border-amber-900/12 rounded-2xl overflow-hidden shadow-sm">
+          <div className="p-4 sm:p-5 border-b border-amber-900/10">
+            <h2 className="text-base sm:text-lg font-extrabold text-[#231912] flex items-center gap-2">
+              <Leaf className="w-5 h-5 text-emerald-600" />
+              <span>สรุปผลการประเมินความสอดคล้องเป้าหมาย SDGs (7 เป้าหมายตามเล่มโครงการ)</span>
+            </h2>
+            <p className="text-xs text-[#7c5d3a] mt-0.5">
+              SDG 5, 11, 12, 13, 14, 15 และ 17 (N = {evalAnalytics.sdgStats[0]?.totalN ?? 0} คน)
+            </p>
+          </div>
+          <div className="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 gap-3">
+            {evalAnalytics.sdgStats.map((sdg) => (
+              <div
+                key={sdg.key}
+                className="p-3.5 rounded-xl bg-[#fdfaf4] border border-amber-900/12 space-y-2"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="px-2 py-0.5 rounded-md text-white text-[11px] font-extrabold shrink-0"
+                      style={{ backgroundColor: sdg.colorHex }}
+                    >
+                      SDG {sdg.code}
+                    </span>
+                    <div>
+                      <p className="text-xs font-bold text-[#231912]">{sdg.nameTh}</p>
+                      <p className="text-[10px] text-[#7c5d3a]">{sdg.nameEn}</p>
+                    </div>
+                  </div>
+                  <span className="text-xs font-black text-emerald-700 shrink-0">
+                    {sdg.compliantPct.toFixed(1)}%
+                  </span>
+                </div>
+
+                <p className="text-[11px] text-[#574536] leading-snug">{sdg.description}</p>
+
+                <div className="w-full h-2.5 rounded-full bg-rose-100 overflow-hidden">
+                  <div
+                    className="h-full bg-emerald-600 transition-all duration-300"
+                    style={{ width: `${Math.min(100, Math.max(0, sdg.compliantPct))}%` }}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-emerald-800 font-semibold">
+                    สอดคล้อง / บรรลุ: {sdg.compliantCount} คน ({sdg.compliantPct.toFixed(1)}%)
+                  </span>
+                  <span className="text-rose-700 font-medium">
+                    ไม่สอดคล้อง: {sdg.nonCompliantCount} คน ({sdg.nonCompliantPct.toFixed(1)}%)
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -1058,7 +1279,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                 type="text"
                 value={transcriptSearch}
                 onChange={(e) => setTranscriptSearch(e.target.value)}
-                placeholder="ค้นหารหัสนักศึกษา หรือคณะ..."
+                placeholder="ค้นหารหัสนักศึกษา, คณะ, สาขา หรือชั้นปี..."
                 className="flex-1 bg-[#fffdf9] border border-amber-900/20 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-[#231912] placeholder-[#9c8671] focus:outline-none focus:border-amber-700"
               />
             </div>
@@ -1071,6 +1292,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                     <th className="py-3 px-4 font-semibold">#</th>
                     <th className="py-3 px-4 font-semibold">รหัสนักศึกษา</th>
                     <th className="py-3 px-4 font-semibold">คณะ / วิทยาลัย (จำแนกจากรหัส)</th>
+                    <th className="py-3 px-4 font-semibold">สาขา</th>
+                    <th className="py-3 px-4 font-semibold">ชั้นปี</th>
                     <th className="py-3 px-4 font-semibold">เวลาที่ส่ง</th>
                     <th className="py-3 px-4 font-semibold">สถานะตรวจสอบ</th>
                     <th className="py-3 px-4 font-semibold text-center">จัดการ</th>
@@ -1079,7 +1302,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                 <tbody className="divide-y divide-amber-900/10 text-xs sm:text-sm">
                   {filteredTranscriptStudents.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-[#7c5d3a]">
+                      <td colSpan={8} className="py-8 text-center text-[#7c5d3a]">
                         ไม่พบรายชื่อนักศึกษาที่ตรงกับเงื่อนไขการค้นหา
                       </td>
                     </tr>
@@ -1095,6 +1318,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
                         </td>
                         <td className="py-2.5 px-4 text-[#231912] font-medium">
                           {student.faculty || 'ไม่ระบุคณะ'}
+                        </td>
+                        <td className="py-2.5 px-4 text-[#574536]">
+                          {student.major || '-'}
+                        </td>
+                        <td className="py-2.5 px-4 text-[#574536] whitespace-nowrap">
+                          {student.year_level || '-'}
                         </td>
                         <td className="py-2.5 px-4 text-[#7c5d3a] whitespace-nowrap">
                           {student.created_at
@@ -1336,43 +1565,85 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToRiver })
         </div>
 
         {/* 4. Feedback Section */}
-        {evalAnalytics.records.some(r => r.comment) && (
+        {evalAnalytics.records.some(
+          (r) => r.feedback_impressed || r.feedback_improve || r.feedback_other || r.comment
+        ) && (
           <div className="bg-white border border-amber-900/12 rounded-2xl p-5 shadow-sm">
             <h3 className="text-sm font-extrabold text-[#231912] mb-3">
               ข้อเสนอแนะและความคิดเห็นจากผู้ตอบแบบประเมินล่าสุด
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {evalAnalytics.records
-                .filter(r => r.comment)
+                .filter(
+                  (r) => r.feedback_impressed || r.feedback_improve || r.feedback_other || r.comment
+                )
                 .slice(0, 12)
-                .map((f, i) => (
-                  <div key={f.id || i} className="bg-[#fdfaf4] p-3.5 rounded-xl border border-amber-900/12">
-                    <div className="flex items-center justify-between gap-2 text-xs text-[#7c5d3a] mb-1">
-                      <span className="font-semibold text-[#574536] truncate">
-                        {f.user_type === 'student'
-                          ? `นักศึกษา ${f.student_id ? `(${f.student_id})` : ''}`
-                          : f.user_type === 'staff'
-                            ? 'บุคลากร'
-                            : 'บุคคลภายนอก'}
-                      </span>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-amber-800 font-bold">
-                          x̄ = {f.average_score.toFixed(2)} / 5.00
+                .map((f, i) => {
+                  const responderLabel =
+                    f.user_type === 'student'
+                      ? `นักศึกษา${f.student_id ? ` (${f.student_id})` : ''}${f.major ? ` • ${f.major}` : ''}${f.year_level ? ` (${f.year_level})` : ''}`
+                      : f.user_type === 'staff'
+                        ? `อาจารย์/บุคลากร${f.major ? ` • ${f.major}` : ''}${f.role ? ` (${f.role})` : ''}`
+                        : `บุคคลทั่วไป/ชุมชน${f.role ? ` (${f.role})` : ''}`;
+
+                  const hasStructuredFeedback = Boolean(
+                    f.feedback_impressed || f.feedback_improve || f.feedback_other
+                  );
+
+                  return (
+                    <div
+                      key={f.id || i}
+                      className="bg-[#fdfaf4] p-3.5 rounded-xl border border-amber-900/12 space-y-1.5"
+                    >
+                      <div className="flex items-center justify-between gap-2 text-xs text-[#7c5d3a]">
+                        <span className="font-semibold text-[#574536] truncate">
+                          {responderLabel}
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteFeedback(f)}
-                          title="ลบข้อเสนอแนะนี้ออกจากระบบ"
-                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg transition active:scale-95 cursor-pointer text-[11px] font-semibold"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                          <span>ลบ</span>
-                        </button>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-amber-800 font-bold">
+                            x̄ = {f.average_score.toFixed(2)} / 5.00
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteFeedback(f)}
+                            title="ลบข้อเสนอแนะนี้ออกจากระบบ"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg transition active:scale-95 cursor-pointer text-[11px] font-semibold"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span>ลบ</span>
+                          </button>
+                        </div>
                       </div>
+
+                      {hasStructuredFeedback ? (
+                        <div className="space-y-1 text-xs text-[#231912] break-words">
+                          {f.feedback_impressed && (
+                            <p>
+                              <strong className="text-emerald-800">สิ่งที่ประทับใจ:</strong>{' '}
+                              {f.feedback_impressed}
+                            </p>
+                          )}
+                          {f.feedback_improve && (
+                            <p>
+                              <strong className="text-amber-900">ควรปรับปรุง:</strong>{' '}
+                              {f.feedback_improve}
+                            </p>
+                          )}
+                          {f.feedback_other && (
+                            <p>
+                              <strong className="text-[#574536]">เพิ่มเติม:</strong>{' '}
+                              {f.feedback_other}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-[#231912] italic break-words">
+                          &ldquo;{f.comment}&rdquo;
+                        </p>
+                      )}
                     </div>
-                    <p className="text-xs text-[#231912] italic break-words">&ldquo;{f.comment}&rdquo;</p>
-                  </div>
-                ))}
+                  );
+                })}
             </div>
           </div>
         )}

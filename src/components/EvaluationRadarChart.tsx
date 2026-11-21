@@ -1,20 +1,20 @@
 // src/components/EvaluationRadarChart.tsx
 import React, { useEffect, useRef, useState } from 'react';
 import { Download, Image as ImageIcon, Sun, Moon, Radar } from 'lucide-react';
-import type { QuestionStatRow } from '../utils/evaluationHelpers';
+import type { DimensionStatRow } from '../utils/evaluationHelpers';
 
 interface EvaluationRadarChartProps {
-  questionStats: QuestionStatRow[];
+  dimensionStats: DimensionStatRow[];
   overallMean: number;
   totalN: number;
 }
 
 /**
- * ฟังก์ชันวาด Radar Chart 10 แกนลงบน HTML5 Canvas (ใช้ได้ทั้งแสดงผลหน้าจอ, ดาวน์โหลด PNG/JPG และฝังลงรายงาน PDF A4)
+ * ฟังก์ชันวาด Radar Chart 9 แกนตามหมวดหลักลงบน HTML5 Canvas (แสดงผลหน้าจอ, ดาวน์โหลด PNG/JPG และฝังรายงาน PDF A4)
  */
 export function drawRadarChartOnCanvas(
   canvas: HTMLCanvasElement,
-  questionStats: QuestionStatRow[],
+  dimensionStats: DimensionStatRow[],
   overallMean: number,
   totalN: number,
   theme: 'light' | 'dark' = 'light'
@@ -22,8 +22,8 @@ export function drawRadarChartOnCanvas(
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
-  const width = 1200;
-  const height = 860;
+  const width = 1260;
+  const height = 880;
   canvas.width = width;
   canvas.height = height;
 
@@ -41,26 +41,26 @@ export function drawRadarChartOnCanvas(
   // 2. Header Title
   ctx.textAlign = 'center';
   ctx.fillStyle = isLight ? '#231912' : '#fef3c7';
-  ctx.font = 'bold 28px "IBM Plex Sans Thai Looped", sans-serif';
+  ctx.font = 'bold 26px "IBM Plex Sans Thai Looped", sans-serif';
   ctx.fillText(
-    'กราฟเรดาร์แสดงระดับความพึงพอใจของผู้เข้าร่วมโครงการเทศกาลลอยกระทง (10 ด้าน)',
+    'กราฟเรดาร์สรุปผลความพึงพอใจโครงการลอยกระทงบุฟเฟต์ 9 หมวดหลัก (มาตรฐานกลาง ม.อ.)',
     width / 2,
-    62
+    60
   );
 
   ctx.fillStyle = isLight ? '#6b5540' : '#d6b88e';
-  ctx.font = '600 19px "IBM Plex Sans Thai Looped", sans-serif';
+  ctx.font = '600 18px "IBM Plex Sans Thai Looped", sans-serif';
   ctx.fillText(
     `จำนวนผู้ตอบแบบประเมินทั้งหมด (N) = ${totalN.toLocaleString()} คน   |   ค่าเฉลี่ยรวมทุกด้าน (x̄) = ${overallMean.toFixed(2)} / 5.00 คะแนน`,
     width / 2,
-    98
+    96
   );
 
   // 3. Radar Geometry Setup
   const centerX = width / 2;
-  const centerY = 470;
-  const maxRadius = 265;
-  const numAxes = 10;
+  const centerY = 475;
+  const maxRadius = 250;
+  const numAxes = Math.max(dimensionStats.length, 3);
   const maxScore = 5;
 
   // วาดเส้นใยแมงมุม 5 ระดับ (1.0 - 5.0)
@@ -100,7 +100,7 @@ export function drawRadarChartOnCanvas(
     ctx.fillText(`${level}.0`, centerX - 8, centerY - r + 5);
   }
 
-  // 4. วาดเส้นแกนทั้ง 10 ด้าน (Spokes) และป้ายชื่อหัวข้อ
+  // 4. วาดเส้นแกน (Spokes) และป้ายชื่อหมวด
   for (let i = 0; i < numAxes; i++) {
     const angle = (Math.PI * 2 * i) / numAxes - Math.PI / 2;
     const xEnd = centerX + maxRadius * Math.cos(angle);
@@ -113,13 +113,12 @@ export function drawRadarChartOnCanvas(
     ctx.lineWidth = 1.4;
     ctx.stroke();
 
-    // ตำแหน่งวางข้อความหัวข้อและคะแนนเฉลี่ยแต่ละด้าน
     const labelRadius = maxRadius + 46;
     const lx = centerX + labelRadius * Math.cos(angle);
     const ly = centerY + labelRadius * Math.sin(angle);
 
-    const stat = questionStats[i];
-    const labelText = stat ? stat.shortLabel : `ข้อที่ ${i + 1}`;
+    const stat = dimensionStats[i];
+    const labelText = stat ? stat.shortLabel : `หมวดที่ ${i + 1}`;
     const scoreText = stat ? `(x̄ = ${stat.mean.toFixed(2)})` : '';
 
     ctx.save();
@@ -141,10 +140,10 @@ export function drawRadarChartOnCanvas(
     ctx.restore();
   }
 
-  // 5. วาดพื้นที่ข้อมูลคะแนนความพึงพอใจ 10 ด้าน (Data Polygon)
-  if (questionStats.length > 0) {
+  // 5. วาดพื้นที่ข้อมูลคะแนนความพึงพอใจ (Data Polygon)
+  if (dimensionStats.length > 0 && totalN > 0) {
     ctx.beginPath();
-    questionStats.forEach((stat, i) => {
+    dimensionStats.forEach((stat, i) => {
       const val = Math.min(Math.max(stat.mean || 0, 0), maxScore);
       const r = (val / maxScore) * maxRadius;
       const angle = (Math.PI * 2 * i) / numAxes - Math.PI / 2;
@@ -155,17 +154,14 @@ export function drawRadarChartOnCanvas(
     });
     ctx.closePath();
 
-    // พื้นที่โปร่งแสงด้านใน
     ctx.fillStyle = isLight ? 'rgba(245, 158, 11, 0.28)' : 'rgba(251, 191, 36, 0.32)';
     ctx.fill();
 
-    // เส้นขอบกราฟ
     ctx.strokeStyle = isLight ? '#d97706' : '#fbbf24';
     ctx.lineWidth = 4;
     ctx.stroke();
 
-    // วาดจุด (Vertices) ของแต่ละด้าน
-    questionStats.forEach((stat, i) => {
+    dimensionStats.forEach((stat, i) => {
       const val = Math.min(Math.max(stat.mean || 0, 0), maxScore);
       const r = (val / maxScore) * maxRadius;
       const angle = (Math.PI * 2 * i) / numAxes - Math.PI / 2;
@@ -197,18 +193,18 @@ export function drawRadarChartOnCanvas(
  * สร้าง Data URL ของกราฟ Radar Chart พื้นขาวสำหรับแนบลงรายงานสรุปโครงการ PDF A4
  */
 export function generateRadarChartDataUrl(
-  questionStats: QuestionStatRow[],
+  dimensionStats: DimensionStatRow[],
   overallMean: number,
   totalN: number,
   theme: 'light' | 'dark' = 'light'
 ): string {
   const offscreen = document.createElement('canvas');
-  drawRadarChartOnCanvas(offscreen, questionStats, overallMean, totalN, theme);
+  drawRadarChartOnCanvas(offscreen, dimensionStats, overallMean, totalN, theme);
   return offscreen.toDataURL('image/png', 1.0);
 }
 
 export const EvaluationRadarChart: React.FC<EvaluationRadarChartProps> = ({
-  questionStats,
+  dimensionStats,
   overallMean,
   totalN
 }) => {
@@ -217,14 +213,14 @@ export const EvaluationRadarChart: React.FC<EvaluationRadarChartProps> = ({
 
   useEffect(() => {
     if (!canvasRef.current) return;
-    drawRadarChartOnCanvas(canvasRef.current, questionStats, overallMean, totalN, chartTheme);
-  }, [questionStats, overallMean, totalN, chartTheme]);
+    drawRadarChartOnCanvas(canvasRef.current, dimensionStats, overallMean, totalN, chartTheme);
+  }, [dimensionStats, overallMean, totalN, chartTheme]);
 
   const handleDownloadImage = (format: 'png' | 'jpg', forceLightForReport = false) => {
     const tempCanvas = document.createElement('canvas');
     drawRadarChartOnCanvas(
       tempCanvas,
-      questionStats,
+      dimensionStats,
       overallMean,
       totalN,
       forceLightForReport ? 'light' : chartTheme
@@ -244,10 +240,10 @@ export const EvaluationRadarChart: React.FC<EvaluationRadarChartProps> = ({
         <div>
           <h3 className="text-base sm:text-lg font-extrabold text-[#231912] flex items-center gap-2">
             <Radar className="w-5 h-5 text-amber-700 shrink-0" />
-            <span>กราฟเรดาร์สรุปผลความพึงพอใจ 10 ด้าน (Radar / Spider Web Chart)</span>
+            <span>กราฟเรดาร์สรุปผลความพึงพอใจ 9 หมวดหลัก (ตามแบบประเมินมาตรฐานกลาง ม.อ.)</span>
           </h3>
           <p className="text-xs text-[#7c5d3a] mt-0.5">
-            แสดงค่าเฉลี่ยรายด้าน (สเกล 1.00 – 5.00) พร้อมดาวน์โหลดเป็นไฟล์รูปภาพความละเอียดสูงสำหรับแปะเล่มรายงาน
+            แสดงค่าเฉลี่ยรายหมวดหลักทั้ง 9 ด้าน (สเกล 1.00 – 5.00) พร้อมดาวน์โหลดเป็นไฟล์รูปภาพความละเอียดสูงสำหรับแปะเล่มรายงาน
           </p>
         </div>
 
