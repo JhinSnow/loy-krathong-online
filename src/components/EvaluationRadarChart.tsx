@@ -11,6 +11,28 @@ interface EvaluationRadarChartProps {
 
 const CHART_FONT_FAMILY = "'TH Sarabun PSK', 'TH Sarabun New', 'Sarabun', sans-serif";
 
+function drawFittedCenteredText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  weight: '400' | '600' | 'bold',
+  startPx: number,
+  minPx: number,
+  fontFamily: string
+) {
+  let fontSize = startPx;
+  ctx.textAlign = 'center';
+  while (fontSize > minPx) {
+    ctx.font = `${weight} ${fontSize}px ${fontFamily}`;
+    if (ctx.measureText(text).width <= maxWidth) break;
+    fontSize -= 1;
+  }
+  ctx.font = `${weight} ${fontSize}px ${fontFamily}`;
+  ctx.fillText(text, x, y);
+}
+
 /**
  * ฟังก์ชันวาด Radar Chart 9 แกนแบบขาว-ดำมาตรฐานเอกสารราชการ (TH Sarabun PSK)
  */
@@ -38,28 +60,38 @@ export function drawRadarChartOnCanvas(
   ctx.lineWidth = 2;
   ctx.strokeRect(14, 14, width - 28, height - 28);
 
-  // 2. Header Title
-  ctx.textAlign = 'center';
+  // 2. Header Title (Auto-fitted inside inner frame margin)
+  const headerMaxWidth = width - 104;
   ctx.fillStyle = '#000000';
-  ctx.font = `bold 34px ${CHART_FONT_FAMILY}`;
-  ctx.fillText(
+  drawFittedCenteredText(
+    ctx,
     'กราฟเรดาร์สรุปผลความพึงพอใจโครงการลอยกระทงบุฟเฟต์ 9 หมวดหลัก (มาตรฐานกลาง ม.อ.)',
     width / 2,
-    64
+    62,
+    headerMaxWidth,
+    'bold',
+    30,
+    20,
+    CHART_FONT_FAMILY
   );
 
   ctx.fillStyle = '#222222';
-  ctx.font = `600 24px ${CHART_FONT_FAMILY}`;
-  ctx.fillText(
+  drawFittedCenteredText(
+    ctx,
     `จำนวนผู้ตอบแบบประเมินทั้งหมด (N) = ${totalN.toLocaleString()} คน   |   ค่าเฉลี่ยรวมทุกด้าน = ${overallMean.toFixed(2)} / 5.00 คะแนน`,
     width / 2,
-    102
+    100,
+    headerMaxWidth,
+    '600',
+    22,
+    16,
+    CHART_FONT_FAMILY
   );
 
   // 3. Radar Geometry Setup
   const centerX = width / 2;
-  const centerY = 485;
-  const maxRadius = 240;
+  const centerY = 492;
+  const maxRadius = 232;
   const numAxes = Math.max(dimensionStats.length, 3);
   const maxScore = 5;
 
@@ -103,9 +135,12 @@ export function drawRadarChartOnCanvas(
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    const labelRadius = maxRadius + 48;
+    const labelRadius = maxRadius + 52;
     const lx = centerX + labelRadius * Math.cos(angle);
-    const ly = centerY + labelRadius * Math.sin(angle);
+    let ly = centerY + labelRadius * Math.sin(angle);
+    if (Math.abs(Math.cos(angle)) < 0.15 && Math.sin(angle) < 0) {
+      ly -= 12;
+    }
 
     const stat = dimensionStats[i];
     const labelText = stat ? stat.shortLabel : `หมวดที่ ${i + 1}`;
@@ -121,12 +156,12 @@ export function drawRadarChartOnCanvas(
     }
 
     ctx.fillStyle = '#000000';
-    ctx.font = `bold 23px ${CHART_FONT_FAMILY}`;
-    ctx.fillText(labelText, lx, ly - 6);
+    ctx.font = `bold 21px ${CHART_FONT_FAMILY}`;
+    ctx.fillText(labelText, lx, ly - 14);
 
     ctx.fillStyle = '#111111';
-    ctx.font = `bold 22px ${CHART_FONT_FAMILY}`;
-    ctx.fillText(scoreText, lx, ly + 20);
+    ctx.font = `600 19px ${CHART_FONT_FAMILY}`;
+    ctx.fillText(scoreText, lx, ly + 24);
     ctx.restore();
   }
 
@@ -169,13 +204,17 @@ export function drawRadarChartOnCanvas(
   }
 
   // 6. Footer Legend
-  ctx.textAlign = 'center';
   ctx.fillStyle = '#222222';
-  ctx.font = `19px ${CHART_FONT_FAMILY}`;
-  ctx.fillText(
+  drawFittedCenteredText(
+    ctx,
     'เกณฑ์ระดับคะแนน: 4.51-5.00 = มากที่สุด | 3.51-4.50 = มาก | 2.51-3.50 = ปานกลาง | 1.51-2.50 = น้อย | 1.00-1.50 = น้อยที่สุด',
     width / 2,
-    height - 30
+    height - 30,
+    headerMaxWidth,
+    '400',
+    18,
+    14,
+    CHART_FONT_FAMILY
   );
 }
 
